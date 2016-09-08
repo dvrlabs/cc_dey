@@ -1,0 +1,7 @@
+.cproject
+.project
+.settings/
+*.o
+*~
+*.map
+cc_dey
