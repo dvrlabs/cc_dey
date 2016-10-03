@@ -49,12 +49,15 @@
                             "CCAPI_TCP_CLOSE_DATA_ERROR\n"
 #define WAIT_FOREVER        "Waiting for ever\n"
 
+extern void add_sigkill_signal(void);
+extern ccapi_dp_error_t start_system_monitor(void);
+extern void stop_system_monitor(void);
 void free_ccapi_start_struct(ccapi_start_t * ccapi_start);
 
 const uint8_t ipv4[] = {0xC0, 0xA8, 0x01, 0x01};            /* 192.168.1.1 */
 const uint8_t mac[] = {0x00, 0x40, 0x9D, 0x7D, 0xCD, 0x4D}; /* 00409D:7DCD4D */
 
-static ccapi_bool_t stop = CCAPI_FALSE;
+ccapi_bool_t stop = CCAPI_FALSE;
 
 static void get_device_id_from_mac(uint8_t *const device_id,
         uint8_t const *const mac_addr)
@@ -159,11 +162,12 @@ static ccapi_tcp_start_error_t app_start_tcp_transport(void)
     return tcp_start_error;
 }
 
-static ccapi_bool_t check_stop(void)
+ccapi_bool_t check_stop(void)
 {
     ccapi_stop_error_t stop_error = CCAPI_STOP_ERROR_NONE;
 
     if (stop == CCAPI_TRUE) {
+        stop_system_monitor();
         stop_error = ccapi_stop(CCAPI_STOP_IMMEDIATELY);
 
         if (stop_error == CCAPI_STOP_ERROR_NONE)
@@ -188,16 +192,18 @@ void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
 
 int main(void)
 {
+    add_sigkill_signal();
     if (app_start_ccapi() != CCAPI_START_ERROR_NONE)
         return 0;
 
     if (app_start_tcp_transport() != CCAPI_TCP_START_ERROR_NONE)
         return 0;
 
-    printf(WAIT_FOREVER);
+    start_system_monitor();
     do {
         sleep(1);
     } while (check_stop() != CCAPI_TRUE);
 
     return 0;
 }
+

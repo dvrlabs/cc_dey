@@ -39,12 +39,15 @@
 #define ccimp_os_create_thread      ccimp_os_create_thread_real
 #define ccimp_os_get_system_time    ccimp_os_get_system_time_real
 #define ccimp_os_yield              ccimp_os_yield_real
-#define ccimp_os_lock_create       ccimp_os_lock_create_real
-#define ccimp_os_lock_acquire      ccimp_os_lock_acquire_real
-#define ccimp_os_lock_release      ccimp_os_lock_release_real
+#define ccimp_os_lock_create        ccimp_os_lock_create_real
+#define ccimp_os_lock_acquire       ccimp_os_lock_acquire_real
+#define ccimp_os_lock_release       ccimp_os_lock_release_real
 #endif
 
 #define ccapi_logging_line_info(message) /* TODO */
+
+extern ccapi_bool_t stop;
+extern ccapi_bool_t check_stop(void);
 
 /******************** LINUX IMPLEMENTATION ********************/
 
@@ -113,7 +116,8 @@ void wait_for_ccimp_threads(void)
 
 static void graceful_shutdown(void)
 {
-    ccapi_stop(CCAPI_STOP_GRACEFULLY);
+    stop = CCAPI_TRUE;
+    check_stop();
     wait_for_ccimp_threads();
 }
 
@@ -224,7 +228,7 @@ ccimp_status_t ccimp_os_yield(void)
     if (error)
     {
         /* In the Linux implementation this function always succeeds */
-        printf("app_os_yield: sched_yield failed with %d\n", error);
+        printf("ccimp_os_yield: sched_yield failed with %d\n", error);
     }
 
     return CCIMP_STATUS_OK;
@@ -292,7 +296,7 @@ ccimp_status_t ccimp_os_lock_acquire(ccimp_os_lock_acquire_t * const data)
         #define NSEC_ROLL_OVER (1 * 1000 * 1000 * 1000)
 
         if (ts.tv_nsec >= NSEC_ROLL_OVER)
-        {   
+        {
             ts.tv_sec += 1;
             ts.tv_nsec %= NSEC_ROLL_OVER;
         }
@@ -302,7 +306,7 @@ ccimp_status_t ccimp_os_lock_acquire(ccimp_os_lock_acquire_t * const data)
     }
 
     /* Check what happened */
-    if (s == -1) 
+    if (s == -1)
     {
         if (errno == ETIMEDOUT)
         {
@@ -317,7 +321,7 @@ ccimp_status_t ccimp_os_lock_acquire(ccimp_os_lock_acquire_t * const data)
             perror("sem_timedwait");
             return CCIMP_STATUS_ERROR;
         }
-    } 
+    }
     else
     {
         ccapi_logging_line_info("ccimp_os_lock_acquire: got it\n");
@@ -333,7 +337,7 @@ ccimp_status_t ccimp_os_lock_release(ccimp_os_lock_release_t * const data)
 
     assert(sem);
 
-    if (sem_post(sem) == -1) 
+    if (sem_post(sem) == -1)
     {
         printf("ccimp_os_lock_release error\n");
         return CCIMP_STATUS_ERROR;
@@ -348,13 +352,13 @@ ccimp_status_t ccimp_os_lock_destroy(ccimp_os_lock_destroy_t * const data)
 
     assert(sem);
 
-    if (sem_destroy(sem) == -1) 
+    if (sem_destroy(sem) == -1)
     {
         printf("ccimp_os_lock_destroy error\n");
         return CCIMP_STATUS_ERROR;
     }
 
-    free(sem); 
+    free(sem);
 
     return CCIMP_STATUS_OK;
 }
