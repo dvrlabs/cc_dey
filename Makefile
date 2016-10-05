@@ -37,15 +37,34 @@ vpath $(CCFSM_PRIVATE_DIR)/%.c
 vpath $(PLATFORM_DIR)/%.c
 
 # CFLAG Definition
-CFLAGS += -I $(SRC) -I $(CUSTOM_CCFSM_PUBLIC_HEADER_DIR) -I $(CCFSM_PUBLIC_HEADER_DIR) -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR) -I $(PLATFORM_DIR)
+CFLAGS += -I $(SRC) -I $(CUSTOM_CCFSM_PUBLIC_HEADER_DIR) -I $(CCFSM_PUBLIC_HEADER_DIR)
+CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR) -I $(PLATFORM_DIR)
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L -D_GNU_SOURCE
 CFLAGS += -Wall -Wextra -O2
 
 # Target output to generate.
 APP_SRCS = $(SRC)/main.c
+
 CC_PRIVATE_SRCS = $(CCFSM_PRIVATE_DIR)/connector_api.c
-CCAPI_PRIVATE_SRCS = $(CCAPI_PRIVATE_DIR)/ccapi.c $(CCAPI_PRIVATE_DIR)/ccapi_data_handler.c $(CCAPI_PRIVATE_DIR)/ccapi_init.c $(CCAPI_PRIVATE_DIR)/ccapi_logging.c $(CCAPI_PRIVATE_DIR)/ccapi_transport_tcp.c $(CCAPI_PRIVATE_DIR)/ccapi_firmware_update_handler.c $(CCAPI_PRIVATE_DIR)/ccapi_filesystem_handler.c $(CCAPI_PRIVATE_DIR)/ccapi_filesystem.c $(CCAPI_PRIVATE_DIR)/ccapi_receive.c
-PLATFORM_SRCS = $(PLATFORM_DIR)/ccimp_os.c $(PLATFORM_DIR)/ccimp_logging.c $(PLATFORM_DIR)/ccimp_hal.c $(PLATFORM_DIR)/ccimp_network_tcp.c $(PLATFORM_DIR)/dns_helper.c $(PLATFORM_DIR)/ccimp_filesystem.c $(PLATFORM_DIR)/crc_32.c
+
+CCAPI_PRIVATE_SRCS = 	$(CCAPI_PRIVATE_DIR)/ccapi.c \
+						$(CCAPI_PRIVATE_DIR)/ccapi_data_handler.c \
+						$(CCAPI_PRIVATE_DIR)/ccapi_filesystem.c \
+						$(CCAPI_PRIVATE_DIR)/ccapi_filesystem_handler.c \
+						$(CCAPI_PRIVATE_DIR)/ccapi_firmware_update_handler.c \
+						$(CCAPI_PRIVATE_DIR)/ccapi_init.c \
+						$(CCAPI_PRIVATE_DIR)/ccapi_logging.c \
+						$(CCAPI_PRIVATE_DIR)/ccapi_receive.c \
+						$(CCAPI_PRIVATE_DIR)/ccapi_transport_tcp.c
+
+PLATFORM_SRCS = $(PLATFORM_DIR)/ccimp_filesystem.c \
+				$(PLATFORM_DIR)/ccimp_hal.c \
+				$(PLATFORM_DIR)/ccimp_logging.c \
+				$(PLATFORM_DIR)/ccimp_network_tcp.c \
+				$(PLATFORM_DIR)/ccimp_os.c \
+				$(PLATFORM_DIR)/crc_32.c \
+				$(PLATFORM_DIR)/dns_helper.c
+
 SRCS = $(APP_SRCS) $(PLATFORM_SRCS) $(CC_PRIVATE_SRCS) $(CCAPI_PRIVATE_SRCS)
 
 # Libraries to Link
