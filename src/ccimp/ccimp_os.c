@@ -75,7 +75,6 @@ static void sigint_handler(int signum);
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
 extern ccapi_bool_t stop;
-extern ccapi_bool_t check_stop(void);
 static thread_info_t * thread_info_list = NULL;
 
 /*------------------------------------------------------------------------------

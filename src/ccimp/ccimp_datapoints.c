@@ -29,7 +29,6 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <time.h>
-#include <errno.h>
 #include <sys/sysinfo.h>
 #include "ccapi/ccapi.h"
 #include "utils.h"
@@ -37,18 +36,9 @@
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
-#define SYSTEM_MONITOR_TAG			"SYSMON:"
-
-#define ENABLE_MEMORY_SAMPLING		1
-#define ENABLE_CPU_LOAD_SAMPLING	1
-#define ENABLE_CPU_TEMP_SAMPLING	1
-
-#define SAMPLES_PER_PARAMETER		5
-#define SECONDS_BETWEEN_DPS			10
-
 #define LOOP_MS						100
 
-#define ENABLE_SYSTEM_MONITORING	CCAPI_TRUE
+#define SYSTEM_MONITOR_TAG			"SYSMON:"
 
 #define DATA_STREAM_MEMORY			"system_monitor/free_memory"
 #define DATA_STREAM_CPU_LOAD		"system_monitor/cpu_load"
@@ -65,15 +55,14 @@
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 static void *system_monitor_threaded();
-static void system_monitor_loop(void);
-static ccapi_dp_error_t init_system_monitor(void);
-static void add_system_samples(unsigned long memory, double load, double temp);
+static void system_monitor_loop(const cc_cfg_t * const cc_cfg);
+static ccapi_dp_error_t init_system_monitor(const cc_cfg_t * const cc_cfg);
+static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t * const cc_cfg);
 static ccapi_timestamp_t* get_timestamp(void);
 static unsigned long get_free_memory(void);
 static double get_cpu_load(void);
 static double get_cpu_temp(void);
-static uint32_t calculate_number_samples(void);
-static void print_system_status(unsigned long memory, double load, double temp);
+static uint32_t calculate_number_samples(const cc_cfg_t * const cc_cfg);
 static long read_file(const char *path, char **buffer, long file_size);
 
 /*------------------------------------------------------------------------------
@@ -112,34 +101,38 @@ static ccapi_dp_collection_handle_t dp_collection;
 /*
  * start_system_monitor() - Start the monitoring of system variables
  *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
+ * 			settings parsed from the configuration file are stored.
+ *
  * The variables being monitored are: CPU temperature, CPU load, and free
  * memory.
  *
  * Return: Error code after starting the monitoring.
  */
-int start_system_monitor(void)
+int start_system_monitor(const cc_cfg_t * const cc_cfg)
 {
 	pthread_attr_t attr;
-	int any_sys_mon_enabled = ENABLE_MEMORY_SAMPLING
-				| ENABLE_CPU_LOAD_SAMPLING
-				| ENABLE_CPU_TEMP_SAMPLING;
+	int any_sys_mon_enabled = (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
+			| (cc_cfg->sys_mon_parameters & SYS_MON_LOAD)
+			| (cc_cfg->sys_mon_parameters & SYS_MON_TEMP);
 	int error;
-	if (!ENABLE_SYSTEM_MONITORING || !any_sys_mon_enabled || SAMPLES_PER_PARAMETER <= 0)
+
+	if (!(cc_cfg->services & SYS_MONITOR_SERVICE)
+			|| !any_sys_mon_enabled || cc_cfg->sys_mon_sample_rate <= 0)
 		return CCAPI_DP_ERROR_NONE;
 
 	error = pthread_attr_init(&attr);
-	if (error != 0)
-		/* On Linux this function always succeeds. */
-		log_sm_error("start_system_monitor(): pthread_attr_init() error %d", error);
-
-	error = pthread_create(&dp_thread, &attr, system_monitor_threaded, NULL);
 	if (error != 0) {
-		log_sm_error("start_system_monitor(): pthread_create() error %d", error);
+		/* On Linux this function always succeeds. */
+		log_sm_error("pthread_attr_init() error %d\n", error);
+	}
+	error = pthread_create(&dp_thread, &attr, system_monitor_threaded, (void *) cc_cfg);
+	if (error != 0) {
+		log_sm_error("pthread_create() error %d\n", error);
 		pthread_attr_destroy(&attr);
 		return CCIMP_STATUS_ERROR;
 	}
 	pthread_attr_destroy(&attr);
-
 	return CCAPI_DP_ERROR_NONE;
 }
 
@@ -155,15 +148,18 @@ void stop_system_monitor(void)
 
 /*
  * system_monitor_threaded() - Execute the system monitoring in a new thread
+ *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
+ * 			settings parsed from the configuration file are stored.
  */
-static void *system_monitor_threaded()
+static void *system_monitor_threaded(void *cc_cfg)
 {
-	ccapi_dp_error_t dp_error = init_system_monitor();
+	ccapi_dp_error_t dp_error = init_system_monitor(cc_cfg);
 	if (dp_error != CCAPI_DP_ERROR_NONE)
 		/* The data point collection could not be created. */
 		return NULL;
 
-	system_monitor_loop();
+	system_monitor_loop(cc_cfg);
 
 	pthread_exit(NULL);
 	return NULL;
@@ -172,25 +168,29 @@ static void *system_monitor_threaded()
 /*
  * system_monitor_loop() - Start the system monitoring loop
  *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
+ * 			settings parsed from the configuration file are stored.
+ *
  * This loop reads the values of the parameters to monitor every
- * 'SECONDS_BETWEEN_DPS' seconds and send them to Device Cloud when the number
- * of samples per parameter is at least 'SAMPLES_PER_UPLOAD'.
+ * 'cc_cfg->sys_mon_sample_rate' seconds and send them to Device Cloud when the
+ * number of samples per parameter is at least
+ * 'cc_cfg->sys_mon_num_samples_upload'.
  *
  * The monitored values are:
  *   - Free memory
  *   - CPU load
  *   - CPU temperature
  */
-static void system_monitor_loop(void)
+static void system_monitor_loop(const cc_cfg_t * const cc_cfg)
 {
-	uint32_t n_samples_to_send = calculate_number_samples();
-	long n_loops = SECONDS_BETWEEN_DPS * 1000 / LOOP_MS;
+	uint32_t n_samples_to_send = calculate_number_samples(cc_cfg);
+	long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
 	uint32_t count = 0;
 
 	while (stop != CCAPI_TRUE) {
 		long loop;
 
-		add_system_samples(get_free_memory(), get_cpu_load(), get_cpu_temp());
+		add_system_samples(get_free_memory(), get_cpu_load(), get_cpu_temp(), cc_cfg);
 
 		ccapi_dp_get_collection_points_count(dp_collection, &count);
 		if (count >= n_samples_to_send && stop != CCAPI_TRUE) {
@@ -209,6 +209,7 @@ static void system_monitor_loop(void)
 			 * unsigned long timeout = 2; // seconds
 			 * dp_error = ccapi_dp_send_collection_with_reply(CCAPI_TRANSPORT_TCP, dp_collection, timeout, NULL);
 			 */
+			log_sm_debug("Sending Data Point collection\n");
 			dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
 			if (dp_error != CCAPI_DP_ERROR_NONE)
 				log_sm_error("system_monitor_loop(): ccapi_dp_send_collection error %d", dp_error);
@@ -230,25 +231,29 @@ static void system_monitor_loop(void)
  * init_system_monitor() - Create and initialize the system monitor data point
  *                         collection
  *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
+ * 			settings parsed from the configuration file are stored.
+ *
  * Return: Error code after the initialization of the system monitor collection.
  *
  * The return value will always be 'CCAPI_DP_ERROR_NONE' unless there is any
  * problem creating the collection.
  */
-static ccapi_dp_error_t init_system_monitor(void)
+static ccapi_dp_error_t init_system_monitor(const cc_cfg_t * const cc_cfg)
 {
 	ccapi_dp_error_t dp_error = ccapi_dp_create_collection(&dp_collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
 		log_sm_error("init_system_monitor(): ccapi_dp_create_collection error %d", dp_error);
 		return dp_error;
 	}
-	if (ENABLE_MEMORY_SAMPLING)
+
+	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
 		ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
 				DATA_STREAM_MEMORY, "int32 ts_iso", DATA_STREAM_MEMORY_UNITS, NULL);
-	if (ENABLE_CPU_LOAD_SAMPLING)
+	if (cc_cfg->sys_mon_parameters & SYS_MON_LOAD)
 		ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
 				DATA_STREAM_CPU_LOAD, "double ts_iso", DATA_STREAM_CPU_LOAD_UNITS, NULL);
-	if (ENABLE_CPU_TEMP_SAMPLING)
+	if (cc_cfg->sys_mon_parameters & SYS_MON_TEMP)
 		ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
 				DATA_STREAM_CPU_TEMP, "double ts_iso", DATA_STREAM_CPU_TEMP_UNITS, NULL);
 
@@ -262,17 +267,25 @@ static ccapi_dp_error_t init_system_monitor(void)
  * @memory:		Free memory available in kB.
  * @load:		CPU load in %.
  * @temp:		CPU temperature in C.
+ * @cc_cfg:		Connector configuration struct (cc_cfg_t) where the
+ * 				settings parsed from the configuration file are stored.
  */
-static void add_system_samples(unsigned long memory, double load, double temp)
+static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t * const cc_cfg)
 {
 	ccapi_timestamp_t *timestamp = get_timestamp();
 
-	if (ENABLE_MEMORY_SAMPLING)
+	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY) {
 		ccapi_dp_add(dp_collection, DATA_STREAM_MEMORY, memory, timestamp);
-	if (ENABLE_CPU_LOAD_SAMPLING)
+		log_sm_debug("Free memory = %lu %s\n", memory, DATA_STREAM_MEMORY_UNITS);
+	}
+	if (cc_cfg->sys_mon_parameters & SYS_MON_LOAD) {
 		ccapi_dp_add(dp_collection, DATA_STREAM_CPU_LOAD, load, timestamp);
-	if (ENABLE_CPU_TEMP_SAMPLING)
+		log_sm_debug("CPU load = %f%s\n", load, DATA_STREAM_CPU_LOAD_UNITS);
+	}
+	if (cc_cfg->sys_mon_parameters & SYS_MON_TEMP) {
 		ccapi_dp_add(dp_collection, DATA_STREAM_CPU_TEMP, temp, timestamp);
+		log_sm_debug("Temperature = %f%s\n", temp, DATA_STREAM_CPU_TEMP_UNITS);
+	}
 
 	if (timestamp != NULL) {
 		if (timestamp->iso8601 != NULL) {
@@ -282,8 +295,6 @@ static void add_system_samples(unsigned long memory, double load, double temp)
 		free(timestamp);
 		timestamp = NULL;
 	}
-
-	print_system_status(memory, load, temp);
 }
 
 /*
@@ -411,38 +422,22 @@ static double get_cpu_temp(void)
 /*
  * calculate_number_samples() - Calculate the number of samples to be uploaded
  *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
+ * 			settings parsed from the configuration file are stored.
+ *
  * Return: The number of samples in a collection to be uploaded to Device Cloud.
  */
-static uint32_t calculate_number_samples(void)
+static uint32_t calculate_number_samples(const cc_cfg_t * const cc_cfg)
 {
 	uint32_t channels = 0;
-	if (ENABLE_MEMORY_SAMPLING)
+	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
 		channels++;
-	if (ENABLE_CPU_LOAD_SAMPLING)
+	if (cc_cfg->sys_mon_parameters & SYS_MON_LOAD)
 		channels++;
-	if (ENABLE_CPU_TEMP_SAMPLING)
+	if (cc_cfg->sys_mon_parameters & SYS_MON_TEMP)
 		channels++;
 
-	return channels * SAMPLES_PER_PARAMETER;
-}
-
-/*
- * print_system_status() - Print to the standard output a status report
- *
- * @memory:	Free memory available in kB.
- * @load:	CPU load in %.
- * @temp:	CPU temperature in C.
- *
- * This function prints out the values of the values being monitored:
- *   - Free memory in kB
- *   - CPU load in %
- *   - CPU temperature in C
- */
-static void print_system_status(unsigned long memory, double load, double temp)
-{
-	log_sm_debug("Free memory = %lu %s", memory, DATA_STREAM_MEMORY_UNITS);
-	log_sm_debug("CPU load = %f%s", load, DATA_STREAM_CPU_LOAD_UNITS);
-	log_sm_debug("Temperature = %f%s", temp, DATA_STREAM_CPU_TEMP_UNITS);
+	return channels * cc_cfg->sys_mon_num_samples_upload;
 }
 
 /**

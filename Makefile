@@ -53,11 +53,12 @@ CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L -D_GNU_SOURCE
 CFLAGS += -Wall -Wextra -O2
 
 # Target output to generate.
-APP_SRCS = $(SRC)/main.c
+APP_SRCS =	$(SRC)/load_config.c \
+			$(SRC)/main.c 
 
 CC_PRIVATE_SRCS = $(CCFSM_PRIVATE_DIR)/connector_api.c
 
-CCAPI_PRIVATE_SRCS = 	$(CCAPI_PRIVATE_DIR)/ccapi.c \
+CCAPI_PRIVATE_SRCS =	$(CCAPI_PRIVATE_DIR)/ccapi.c \
 						$(CCAPI_PRIVATE_DIR)/ccapi_data_handler.c \
 						$(CCAPI_PRIVATE_DIR)/ccapi_datapoints.c \
 						$(CCAPI_PRIVATE_DIR)/ccapi_filesystem.c \
@@ -75,12 +76,14 @@ PLATFORM_SRCS = $(PLATFORM_DIR)/ccimp_datapoints.c \
 				$(PLATFORM_DIR)/ccimp_network_tcp.c \
 				$(PLATFORM_DIR)/ccimp_os.c \
 				$(PLATFORM_DIR)/crc_32.c \
-				$(PLATFORM_DIR)/dns_helper.c
+				$(PLATFORM_DIR)/dns_helper.c \
+				$(PLATFORM_DIR)/firmware_update.c \
+				$(PLATFORM_DIR)/utils.c
 
 SRCS = $(APP_SRCS) $(PLATFORM_SRCS) $(CC_PRIVATE_SRCS) $(CCAPI_PRIVATE_SRCS)
 
 # Libraries to Link
-LDLIBS += -lpthread -lcrypto -lz
+LDLIBS += -lconfuse -lpthread -lcrypto -lz
 
 # Linking Flags.
 LDFLAGS += $(DFLAGS) -Wl,-Map,$(EXECUTABLE).map,--sort-common
