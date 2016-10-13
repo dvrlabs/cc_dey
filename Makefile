@@ -95,7 +95,7 @@ all: $(EXECUTABLE)
 $(EXECUTABLE): $(OBJS)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-.PHONY: clean	
+.PHONY: clean
 clean:
 	-rm -f $(EXECUTABLE) $(OBJS) $(EXECUTABLE).map
 

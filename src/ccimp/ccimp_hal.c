@@ -32,35 +32,40 @@
 #include <linux/reboot.h>
 #include <sys/reboot.h>
 
+/*------------------------------------------------------------------------------
+                             D E F I N I T I O N S
+------------------------------------------------------------------------------*/
 #if (defined UNIT_TEST)
-#define ccimp_hal_halt       ccimp_hal_halt_real
-#define ccimp_hal_reset      ccimp_hal_reset_real
+#define ccimp_hal_halt			ccimp_hal_halt_real
+#define ccimp_hal_reset			ccimp_hal_reset_real
 #endif
 
-/******************** LINUX IMPLEMENTATION ********************/
+/*------------------------------------------------------------------------------
+                     F U N C T I O N  D E F I N I T I O N S
+------------------------------------------------------------------------------*/
 
 #if (defined CCIMP_DEBUG_ENABLED)
 ccimp_status_t ccimp_hal_halt(void)
 {
-    printf("ccimp_hal_halt!!!!\n");
+	printf("ccimp_hal_halt!!!!\n");
 
-    assert(0);
+	assert(0);
 
-    /* Should not get here */
+	/* Should not get here */
 
-    return CCIMP_STATUS_OK;
+	return CCIMP_STATUS_OK;
 }
 #endif
 
 ccimp_status_t ccimp_hal_reset(void)
 {
-    printf("ccimp_hal_reset!!!!\n");
+	printf("ccimp_hal_reset!!!!\n");
 
-    /* Note: we must be running as the superuser to reboot the system */
-    sync();
-    reboot(LINUX_REBOOT_CMD_RESTART);
+	/* Note: we must be running as the superuser to reboot the system */
+	sync();
+	reboot(LINUX_REBOOT_CMD_RESTART);
 
-    /* Should not get here */
-    return CCIMP_STATUS_OK;
+	/* Should not get here */
+	return CCIMP_STATUS_OK;
 }
 

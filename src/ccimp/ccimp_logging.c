@@ -27,32 +27,34 @@
 
 #include "ccimp/ccimp_logging.h"
 
+/*------------------------------------------------------------------------------
+                             D E F I N I T I O N S
+------------------------------------------------------------------------------*/
 #if (defined UNIT_TEST)
-#define ccimp_hal_logging_vprintf       ccimp_hal_logging_vprintf_real
+#define ccimp_hal_logging_vprintf			ccimp_hal_logging_vprintf_real
 #endif
-
-/******************** LINUX IMPLEMENTATION ********************/
 
 #if (defined CCIMP_DEBUG_ENABLED)
 #include <stdio.h>
 #include <stdlib.h>
 
+/*------------------------------------------------------------------------------
+                     F U N C T I O N  D E F I N I T I O N S
+------------------------------------------------------------------------------*/
 void ccimp_hal_logging_vprintf(debug_t const debug, char const * const format, va_list args)
 {
-    if ((debug == debug_all) || (debug == debug_beg))
-    {
-        /* lock mutex here. */
-        printf("CCAPI: ");
-    }
+	if ((debug == debug_all) || (debug == debug_beg)) {
+		/* lock mutex here. */
+		printf("CCAPI: ");
+	}
 
-    vprintf(format, args);
+	vprintf(format, args);
 
-    if ((debug == debug_all) || (debug == debug_end))
-    {
-        /* unlock mutex here */
-        printf("\n");
-        fflush(stdout);
-    }
+	if ((debug == debug_all) || (debug == debug_end)) {
+		/* unlock mutex here */
+		printf("\n");
+		fflush(stdout);
+	}
 }
 #else
  /* to avoid ISO C forbids an empty translation unit compiler error */

@@ -28,6 +28,9 @@
 #ifndef _NETWORK_DNS_H
 #define _NETWORK_DNS_H
 
+/*------------------------------------------------------------------------------
+                    F U N C T I O N  D E C L A R A T I O N S
+------------------------------------------------------------------------------*/
 int dns_resolve(char const * const domain_name, in_addr_t * const ip_addr);
 void dns_set_redirected(int const state);
 void dns_cache_invalidate(void);
