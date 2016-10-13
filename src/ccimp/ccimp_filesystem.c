@@ -1,4 +1,6 @@
 /*
+ * ccimp_filesystem.c
+ *
  * Copyright (C) 2016 Digi International Inc., All Rights Reserved
  *
  * This software contains proprietary and confidential information of Digi.
@@ -19,7 +21,8 @@
  *
  * Digi International Inc. 11001 Bren Road East, Minnetonka, MN 55343
  *
- * Description: CAN test cases.
+ * Description: Cloud Connector file system implementation.
+ *
  */
 
 #include <stdio.h>
