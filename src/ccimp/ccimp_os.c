@@ -27,6 +27,7 @@
 
 #include "ccapi/ccapi.h"
 #include "ccimp/ccimp_os.h"
+#include "utils.h"
 
 #include <malloc.h>
 #include <pthread.h>
@@ -137,7 +138,7 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t * const crea
 
 	ccode = pthread_attr_init(&attr);
 	if (ccode != 0) {
-		printf("pthread_attr_init() error %d\n", ccode);
+		log_error("ccimp_os_create_thread(): pthread_attr_init() error %d", ccode);
 		return (CCIMP_STATUS_ERROR);
 	}
 
@@ -148,7 +149,7 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t * const crea
 		 * Don't do this on actual applications or the memory will be leaked.
 		 */
 		int stack_size;
-		void * sp;
+		void * sp = NULL;
 		int s;
 
 		switch(create_thread_info->type) {
@@ -165,7 +166,7 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t * const crea
 
 		s = posix_memalign(&sp, sysconf(_SC_PAGESIZE), stack_size);
 		if (s != 0) {
-			printf("error in posix_memalign\n");
+			printf("ccimp_os_create_thread(): error in posix_memalign\n");
 			return (CCIMP_STATUS_ERROR);
 		}
 
@@ -173,14 +174,14 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t * const crea
 
 		s = pthread_attr_setstack(&attr, sp, stack_size);
 		if (s != 0) {
-			printf("error in pthread_attr_setstack\n");
+			printf("ccimp_os_create_thread(): error in pthread_attr_setstack\n");
 			return (CCIMP_STATUS_ERROR);
 		}
 	}
 #endif
 	ccode = pthread_create(&pthread, &attr, thread_wrapper, create_thread_info);
 	if (ccode != 0) {
-		printf("pthread_create() error %d\n", ccode);
+		log_error("ccimp_os_create_thread(): pthread_create() error %d", ccode);
 		return (CCIMP_STATUS_ERROR);
 	}
 	add_thread_info(pthread);
@@ -210,7 +211,7 @@ ccimp_status_t ccimp_os_yield(void)
 	error = sched_yield();
 	if (error) {
 		/* In the Linux implementation this function always succeeds */
-		printf("ccimp_os_yield: sched_yield failed with %d\n", error);
+		log_error("ccimp_os_yield(): sched_yield failed with %d", error);
 	}
 	return CCIMP_STATUS_OK;
 }
@@ -221,13 +222,13 @@ ccimp_status_t ccimp_os_lock_create(ccimp_os_lock_create_t * const data)
 	sem_t * const sem = (sem_t *) malloc(sizeof *sem);
 
 	if (sem == NULL) {
-		printf("ccimp_os_lock_create insufficient memory\n");
+		log_error("ccimp_os_lock_create() insufficient memory");
 		status = CCIMP_STATUS_ERROR;
 		goto done;
 	}
 
 	if (sem_init(sem, 0, 0) == -1) {
-		printf("ccimp_os_lock_create error\n");
+		log_error("ccimp_os_lock_create() error");
 		free(sem);
 		status = CCIMP_STATUS_ERROR;
 		goto done;
@@ -249,15 +250,15 @@ ccimp_status_t ccimp_os_lock_acquire(ccimp_os_lock_acquire_t * const data)
 	data->acquired = CCAPI_FALSE;
 
 	if (data->timeout_ms == OS_LOCK_ACQUIRE_NOWAIT) {
-		ccapi_logging_line_info("ccimp_os_lock_acquire: about to call sem_trywait()\n");
+		ccapi_logging_line_info("ccimp_os_lock_acquire(): about to call sem_trywait()\n");
 		s = sem_trywait(sem);
 	} else if (data->timeout_ms == OS_LOCK_ACQUIRE_INFINITE) {
-		ccapi_logging_line_info("ccimp_os_lock_acquire: about to call sem_wait()\n");
+		ccapi_logging_line_info("ccimp_os_lock_acquire(): about to call sem_wait()\n");
 		s = sem_wait(sem);
 	} else {
 		/* Calculate relative interval as current time plus number of milliseconds requested */
 		if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-			printf("ccimp_os_lock_acquire: clock_gettime error\n");
+			ccapi_logging_line_info("ccimp_os_lock_acquire(): clock_gettime error\n");
 			return CCIMP_STATUS_ERROR;
 		}
 
@@ -272,22 +273,22 @@ ccimp_status_t ccimp_os_lock_acquire(ccimp_os_lock_acquire_t * const data)
 			ts.tv_nsec %= NSEC_ROLL_OVER;
 		}
 
-		ccapi_logging_line_info("ccimp_os_lock_acquire: about to call sem_timedwait()\n");
+		ccapi_logging_line_info("ccimp_os_lock_acquire(): about to call sem_timedwait()\n");
 		s = sem_timedwait(sem, &ts);
 	}
 
 	/* Check what happened */
 	if (s == -1) {
 		if (errno == ETIMEDOUT) {
-			ccapi_logging_line_info("ccimp_os_lock_acquire: timed out\n");
+			ccapi_logging_line_info("ccimp_os_lock_acquire(): timed out\n");
 		} else if (data->timeout_ms == OS_LOCK_ACQUIRE_NOWAIT && errno == EAGAIN) {
-			ccapi_logging_line_info("ccimp_os_lock_acquire: not signaled\n");
+			ccapi_logging_line_info("ccimp_os_lock_acquire(): not signaled\n");
 		} else {
 			perror("sem_timedwait");
 			return CCIMP_STATUS_ERROR;
 		}
 	} else {
-		ccapi_logging_line_info("ccimp_os_lock_acquire: got it\n");
+		ccapi_logging_line_info("ccimp_os_lock_acquire(): got it\n");
 		data->acquired = CCAPI_TRUE;
 	}
 
@@ -301,7 +302,7 @@ ccimp_status_t ccimp_os_lock_release(ccimp_os_lock_release_t * const data)
 	assert(sem);
 
 	if (sem_post(sem) == -1) {
-		printf("ccimp_os_lock_release error\n");
+		log_error("ccimp_os_lock_release() error");
 		return CCIMP_STATUS_ERROR;
 	}
 
@@ -315,12 +316,11 @@ ccimp_status_t ccimp_os_lock_destroy(ccimp_os_lock_destroy_t * const data)
 	assert(sem);
 
 	if (sem_destroy(sem) == -1) {
-		printf("ccimp_os_lock_destroy error\n");
+		log_error("ccimp_os_lock_destroy() error");
 		return CCIMP_STATUS_ERROR;
 	}
 
 	free(sem);
-
 	return CCIMP_STATUS_OK;
 }
 
@@ -351,6 +351,6 @@ static void graceful_shutdown(void)
 
 static void sigint_handler(int signum)
 {
-	printf("received signal %d to close CCAPI.\n", signum);
+	log_debug("sigint_handler(): received signal %d to close CCAPI.", signum);
 	exit(0);
 }

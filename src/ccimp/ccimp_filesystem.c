@@ -38,6 +38,7 @@
 #include <openssl/md5.h>
 
 #include "ccimp/ccimp_filesystem.h"
+#include "utils.h"
 
 /*------------------------------------------------------------------------------
 							 D E F I N I T I O N S
@@ -45,7 +46,7 @@
 #define MIN_VALUE(a, b)			((a) < (b) ? (a) : (b))
 #define APP_MD5_BUFFER_SIZE 	1024
 
-#define ERROR_SESSION			"Session error %d\n"
+#define ERROR_SESSION			"Session error %d"
 
 /*------------------------------------------------------------------------------
 					F U N C T I O N  D E C L A R A T I O N S
@@ -602,7 +603,7 @@ ccimp_status_t ccimp_fs_error_desc(ccimp_fs_error_desc_t \
 ccimp_status_t ccimp_fs_session_error(ccimp_fs_session_error_t \
 		*const session_error_data)
 {
-	printf(ERROR_SESSION, session_error_data->session_error);
+	log_error(ERROR_SESSION, session_error_data->session_error);
 	if (session_error_data->imp_context != NULL)
 		free(session_error_data->imp_context);
 

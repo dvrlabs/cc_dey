@@ -39,6 +39,7 @@
 #include <errno.h>
 
 #include "dns_helper.h"
+#include "utils.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -98,7 +99,7 @@ int dns_resolve(char const * const device_cloud_url, in_addr_t * const ip_addr)
 			if (dns_resolve_name(device_cloud_url, ip_addr) == 0) {
 				dns_cache_update(device_cloud_url, *ip_addr);
 			} else {
-				printf("dns_resolve: Can't resolve DNS for %s\n", device_cloud_url);
+				log_error("dns_resolve(): Can't resolve DNS for %s", device_cloud_url);
 				goto done;
 			}
 		}
@@ -143,7 +144,7 @@ static int dns_resolve_name(char const * const domain_name, in_addr_t * const ip
 		hint.ai_family = AF_INET;
 		error = getaddrinfo(domain_name, NULL, &hint, &res_list);
 		if (error != 0) {
-			printf("dns_resolve_name: DNS resolution failed for [%s]\n", domain_name);
+			log_error("dns_resolve_name(): DNS resolution failed for [%s]", domain_name);
 			goto done;
 		}
 	}
@@ -155,7 +156,7 @@ static int dns_resolve_name(char const * const domain_name, in_addr_t * const ip
 			struct in_addr const ipv4_addr = sa->sin_addr;
 
 			*ip_addr = ipv4_addr.s_addr;
-			printf("dns_resolve_name: ip address = [%s]\n", inet_ntoa(ipv4_addr));
+			log_debug("dns_resolve_name(): ip address = [%s]", inet_ntoa(ipv4_addr));
 			ret = 0;
 			break;
 		}

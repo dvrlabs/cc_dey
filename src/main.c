@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #include "ccapi/ccapi.h"
+#include "ccimp/utils.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -40,21 +41,21 @@
 #define DEVICE_ID_LENGTH	16
 #define MAC_ADDR_LENGTH		6
 
-#define START_SUCCESS		"ccapi_start success\n"
-#define START_ERROR 		"ccapi_start error %d\n"
-#define START_TCP_SUCCESS	"ccapi_start_transport_tcp success\n"
-#define START_TCP_ERROR		"ccapi_start_transport_tcp failed with error %d\n"
-#define STOP_SUCCESS		"ccapi_stop success\n"
-#define STOP_ERROR			"ccapi_stop error %d\n"
+#define START_SUCCESS		"ccapi_start success"
+#define START_ERROR 		"ccapi_start error %d"
+#define START_TCP_SUCCESS	"ccapi_start_transport_tcp success"
+#define START_TCP_ERROR		"ccapi_start_transport_tcp failed with error %d"
+#define STOP_SUCCESS		"ccapi_stop success"
+#define STOP_ERROR			"ccapi_stop error %d"
 #define CLOSE_DISCONNECTED	"ccapi_tcp_close_cb cause "					\
-							"CCAPI_TCP_CLOSE_DISCONNECTED\n"
+							"CCAPI_TCP_CLOSE_DISCONNECTED"
 #define CLOSE_REDIRECTED	"ccapi_tcp_close_cb cause "					\
-							"CCAPI_TCP_CLOSE_REDIRECTED\n"
+							"CCAPI_TCP_CLOSE_REDIRECTED"
 #define CLOSE_NO_KEEPALIVE	"ccapi_tcp_close_cb cause "					\
-							"CCAPI_TCP_CLOSE_NO_KEEPALIVE\n"
+							"CCAPI_TCP_CLOSE_NO_KEEPALIVE"
 #define CLOSE_DATA_ERROR	"ccapi_tcp_close_cb cause "					\
-							"CCAPI_TCP_CLOSE_DATA_ERROR\n"
-#define WAIT_FOREVER		"Waiting for ever\n"
+							"CCAPI_TCP_CLOSE_DATA_ERROR"
+#define WAIT_FOREVER		"Waiting for ever"
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
@@ -107,9 +108,9 @@ ccapi_bool_t check_stop(void)
 		stop_error = ccapi_stop(CCAPI_STOP_IMMEDIATELY);
 
 		if (stop_error == CCAPI_STOP_ERROR_NONE)
-			printf(STOP_SUCCESS);
+			log_info(STOP_SUCCESS);
 		else
-			printf(STOP_ERROR, stop_error);
+			log_error(STOP_ERROR, stop_error);
 	}
 	return stop;
 }
@@ -123,9 +124,9 @@ static ccapi_start_error_t app_start_ccapi(void)
 
 	error = ccapi_start(&start);
 	if (error == CCAPI_START_ERROR_NONE)
-		printf(START_SUCCESS);
+		log_info(START_SUCCESS);
 	else
-		printf(START_ERROR, error);
+		log_error(START_ERROR, error);
 
 	return error;
 }
@@ -145,9 +146,9 @@ static ccapi_tcp_start_error_t app_start_tcp_transport(void)
 
 	tcp_start_error = ccapi_start_transport_tcp(&tcp_info);
 	if (tcp_start_error == CCAPI_TCP_START_ERROR_NONE)
-		printf(START_TCP_SUCCESS);
+		log_info(START_TCP_SUCCESS);
 	else
-		printf(START_TCP_ERROR, tcp_start_error);
+		log_error(START_TCP_ERROR, tcp_start_error);
 
 	return tcp_start_error;
 }
@@ -209,19 +210,19 @@ static ccapi_bool_t ccapi_tcp_close_cb(ccapi_tcp_close_cause_t cause)
 	ccapi_bool_t reconnect = CCAPI_FALSE;
 	switch (cause) {
 	case CCAPI_TCP_CLOSE_DISCONNECTED:
-		printf(CLOSE_DISCONNECTED);
+		log_debug(CLOSE_DISCONNECTED);
 		reconnect = CCAPI_TRUE;
 		break;
 	case CCAPI_TCP_CLOSE_REDIRECTED:
-		printf(CLOSE_REDIRECTED);
+		log_debug(CLOSE_REDIRECTED);
 		reconnect = CCAPI_TRUE;
 		break;
 	case CCAPI_TCP_CLOSE_NO_KEEPALIVE:
-		printf(CLOSE_NO_KEEPALIVE);
+		log_debug(CLOSE_NO_KEEPALIVE);
 		reconnect = CCAPI_TRUE;
 		break;
 	case CCAPI_TCP_CLOSE_DATA_ERROR:
-		printf(CLOSE_DATA_ERROR);
+		log_debug(CLOSE_DATA_ERROR);
 		reconnect = CCAPI_TRUE;
 		break;
 	}

@@ -31,30 +31,77 @@
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 #if (defined UNIT_TEST)
-#define ccimp_hal_logging_vprintf			ccimp_hal_logging_vprintf_real
+#define ccimp_hal_logging_vprintf		ccimp_hal_logging_vprintf_real
 #endif
 
 #if (defined CCIMP_DEBUG_ENABLED)
 #include <stdio.h>
 #include <stdlib.h>
+#include "utils.h"
+
+#define MAX_CHARS				256
+#define CCAPI_DEBUG_PREFIX		"CCAPI: "
+
+/*------------------------------------------------------------------------------
+                         G L O B A L  V A R I A B L E S
+------------------------------------------------------------------------------*/
+static char * buffer = NULL;
+static size_t bufsize = 0;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 void ccimp_hal_logging_vprintf(debug_t const debug, char const * const format, va_list args)
 {
-	if ((debug == debug_all) || (debug == debug_beg)) {
-		/* lock mutex here. */
-		printf("CCAPI: ");
-	}
+	switch (debug) {
+	case debug_beg: {
+		size_t offset = 0;
+		if (buffer == NULL) {
+			bufsize = MAX_CHARS + sizeof(CCAPI_DEBUG_PREFIX);
+			buffer = (char*) malloc(sizeof(char) * bufsize);
+		}
 
-	vprintf(format, args);
+		snprintf(buffer, bufsize, "%s", CCAPI_DEBUG_PREFIX);
+		offset = strlen(buffer);
 
-	if ((debug == debug_all) || (debug == debug_end)) {
-		/* unlock mutex here */
-		printf("\n");
-		fflush(stdout);
+		vsnprintf(buffer + offset, bufsize - offset, format, args);
+		break;
 	}
+	case debug_mid: {
+		size_t offset = strlen(buffer);
+
+		vsnprintf(buffer + offset, bufsize - offset, format, args);
+		break;
+	}
+	case debug_end: {
+		size_t offset = strlen(buffer);
+
+		vsnprintf(buffer + offset, bufsize - offset, format, args);
+		log_debug("%s", buffer);
+		free(buffer);
+		buffer = NULL;
+		bufsize = 0;
+		break;
+	}
+	case debug_all: {
+		size_t offset = 0;
+		if (buffer == NULL) {
+			bufsize = MAX_CHARS + sizeof(CCAPI_DEBUG_PREFIX);
+			buffer = (char*) malloc(sizeof(char) * bufsize);
+		}
+
+		snprintf(buffer, bufsize, "%s", CCAPI_DEBUG_PREFIX);
+		offset = strlen(buffer);
+
+		vsnprintf(buffer + offset, bufsize - offset, format, args);
+		log_debug("%s", buffer);
+		free(buffer);
+		buffer = NULL;
+		bufsize = 0;
+		break;
+	}
+	}
+	return;
 }
 #else
  /* to avoid ISO C forbids an empty translation unit compiler error */

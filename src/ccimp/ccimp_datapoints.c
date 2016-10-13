@@ -32,10 +32,13 @@
 #include <errno.h>
 #include <sys/sysinfo.h>
 #include "ccapi/ccapi.h"
+#include "utils.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+#define SYSTEM_MONITOR_TAG			"SYSMON:"
+
 #define ENABLE_MEMORY_SAMPLING		1
 #define ENABLE_CPU_LOAD_SAMPLING	1
 #define ENABLE_CPU_TEMP_SAMPLING	1
@@ -59,15 +62,6 @@
 #define FILE_CPU_TEMP				"/sys/class/thermal/thermal_zone0/temp"
 
 /*------------------------------------------------------------------------------
-                         G L O B A L  V A R I A B L E S
-------------------------------------------------------------------------------*/
-extern ccapi_bool_t stop;
-static unsigned long long last_idle = 0;
-static unsigned long long last_total = 0;
-static pthread_t dp_thread;
-static ccapi_dp_collection_handle_t dp_collection;
-
-/*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 static void *system_monitor_threaded();
@@ -81,6 +75,36 @@ static double get_cpu_temp(void);
 static uint32_t calculate_number_samples(void);
 static void print_system_status(unsigned long memory, double load, double temp);
 static long read_file(const char *path, char **buffer, long file_size);
+
+/*------------------------------------------------------------------------------
+                                  M A C R O S
+------------------------------------------------------------------------------*/
+/**
+ * log_sm_debug() - Log the given message as debug
+ *
+ * @format:		Debug message to log.
+ * @args:		Additional arguments.
+ */
+#define log_sm_debug(format, args...)									\
+    log_debug("%s " format, SYSTEM_MONITOR_TAG, ##args)
+
+/**
+ * log_sm_error() - Log the given message as error
+ *
+ * @format:		Error message to log.
+ * @args:		Additional arguments.
+ */
+#define log_sm_error(format, args...)									\
+    log_error("%s " format, SYSTEM_MONITOR_TAG, ##args)
+
+/*------------------------------------------------------------------------------
+                         G L O B A L  V A R I A B L E S
+------------------------------------------------------------------------------*/
+extern ccapi_bool_t stop;
+static unsigned long long last_idle = 0;
+static unsigned long long last_total = 0;
+static pthread_t dp_thread;
+static ccapi_dp_collection_handle_t dp_collection;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
@@ -106,11 +130,11 @@ int start_system_monitor(void)
 	error = pthread_attr_init(&attr);
 	if (error != 0)
 		/* On Linux this function always succeeds. */
-		printf("pthread_attr_init() error %d\n", error);
+		log_sm_error("start_system_monitor(): pthread_attr_init() error %d", error);
 
 	error = pthread_create(&dp_thread, &attr, system_monitor_threaded, NULL);
 	if (error != 0) {
-		printf("pthread_create() error %d\n", error);
+		log_sm_error("start_system_monitor(): pthread_create() error %d", error);
 		pthread_attr_destroy(&attr);
 		return CCIMP_STATUS_ERROR;
 	}
@@ -187,7 +211,7 @@ static void system_monitor_loop(void)
 			 */
 			dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
 			if (dp_error != CCAPI_DP_ERROR_NONE)
-				printf("ccapi_dp_send_collection error %d\n", dp_error);
+				log_sm_error("system_monitor_loop(): ccapi_dp_send_collection error %d", dp_error);
 		}
 
 		for (loop = 0; loop < n_loops; loop++) {
@@ -215,7 +239,7 @@ static ccapi_dp_error_t init_system_monitor(void)
 {
 	ccapi_dp_error_t dp_error = ccapi_dp_create_collection(&dp_collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
-		printf("ccapi_dp_create_collection error %d\n", dp_error);
+		log_sm_error("init_system_monitor(): ccapi_dp_create_collection error %d", dp_error);
 		return dp_error;
 	}
 	if (ENABLE_MEMORY_SAMPLING)
@@ -305,7 +329,7 @@ static unsigned long get_free_memory(void)
 	struct sysinfo info;
 
 	if (sysinfo(&info) != 0) {
-		printf("sysinfo error\n");
+		log_sm_error("get_free_memory(): sysinfo error");
 		return -1;
 	}
 
@@ -330,7 +354,7 @@ static double get_cpu_load(void)
 
 	file_size = read_file(FILE_CPU_LOAD, &file_data, 4096);
 	if (file_size <= 0) {
-		printf("Error reading cpu load file\n");
+		log_sm_error("get_cpu_load(): error reading cpu load file");
 		return -1;
 	}
 
@@ -339,7 +363,7 @@ static double get_cpu_load(void)
 			&fields[5], &fields[6], &fields[7], &fields[8], &fields[9]);
 	free(file_data);
 	if (result < 4) {
-		printf("cpu load not enough fields error\n");
+		log_sm_error("get_cpu_load(): cpu load not enough fields error");
 		return -1;
 	}
 
@@ -371,14 +395,14 @@ static double get_cpu_temp(void)
 
 	file_size = read_file(FILE_CPU_TEMP, &file_data, 1024);
 	if (file_size <= 0) {
-		printf("Error reading cpu temperature file\n");
+		log_sm_error("get_cpu_temp(): Error reading cpu temperature file");
 		return -1;
 	}
 
 	result = sscanf(file_data, "%lf", &temperature);
 	free(file_data);
 	if (result < 1) {
-		printf("cpu temp not enough fields error\n");
+		log_sm_error("get_cpu_temp(): cpu temp not enough fields error");
 		return -1;
 	}
 	return temperature / 1000;
@@ -416,9 +440,9 @@ static uint32_t calculate_number_samples(void)
  */
 static void print_system_status(unsigned long memory, double load, double temp)
 {
-	printf("\n\tFree memory = %lu %s\n", memory, DATA_STREAM_MEMORY_UNITS);
-	printf("\tCPU load = %f%s\n", load, DATA_STREAM_CPU_LOAD_UNITS);
-	printf("\tTemperature = %f%s\n", temp, DATA_STREAM_CPU_TEMP_UNITS);
+	log_sm_debug("Free memory = %lu %s", memory, DATA_STREAM_MEMORY_UNITS);
+	log_sm_debug("CPU load = %f%s", load, DATA_STREAM_CPU_LOAD_UNITS);
+	log_sm_debug("Temperature = %f%s", temp, DATA_STREAM_CPU_TEMP_UNITS);
 }
 
 /**
@@ -436,20 +460,20 @@ static long read_file(const char *path, char **buffer, long file_size)
 	long read_size;
 
 	if ((fd = fopen(path, "rb")) == NULL) {
-		printf("fopen error: %s\n", path);
+		log_sm_error("read_file(): fopen error: %s", path);
 		return -1;
 	}
 
 	*buffer = (char*) malloc(sizeof(char) * file_size);
 	if (*buffer == NULL) {
-		printf("malloc error: %s\n", path);
+		log_sm_error("read_file(): malloc error: %s", path);
 		fclose(fd);
 		return -1;
 	}
 
 	read_size = fread(*buffer, sizeof(char), file_size, fd);
 	if (ferror(fd)) {
-		printf("fread error: %s\n", path);
+		log_sm_error("read_file(): fread error: %s", path);
 		read_size = -1;
 	}
 
