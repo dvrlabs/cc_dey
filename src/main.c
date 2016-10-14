@@ -27,6 +27,8 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #include "ccimp/utils.h"
 
@@ -46,6 +48,7 @@
 extern void add_sigkill_signal(void);
 extern ccapi_dp_error_t start_system_monitor(const cc_cfg_t * const cc_cfg);
 extern void stop_system_monitor(void);
+static void daemon_process(void);
 static ccapi_start_error_t app_start_ccapi(const cc_cfg_t * const cc_cfg);
 static ccapi_tcp_start_error_t app_start_tcp_transport(const cc_cfg_t * const cc_cfg);
 
@@ -53,42 +56,41 @@ static ccapi_tcp_start_error_t app_start_tcp_transport(const cc_cfg_t * const cc
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
 ccapi_bool_t stop = CCAPI_FALSE;
+static cc_cfg_t * cc_cfg = NULL;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 int main(void)
 {
-	cc_cfg_t cc_cfg;
-	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID;
-	int error;
+	pid_t pid, sid;
+
+	/* Fork off the parent process. */
+	pid = fork();
+	if (pid < 0)
+		exit(EXIT_FAILURE);
+
+	/* If we got a good PID, then we can exit the parent process. */
+	if (pid > 0)
+		exit(EXIT_SUCCESS);
+
+	umask(0);
+
+	sid = setsid();
+	if (sid < 0)
+		exit(EXIT_FAILURE);
+
+	/* Change the current working directory. */
+	if (chdir("/") < 0)
+		exit(EXIT_FAILURE);
+
+	/* Close out the standard file descriptors. */
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
 
 	add_sigkill_signal();
-
-	error = parse_configuration(CC_CONFIG_FILE, &cc_cfg);
-	if (error != 0)
-		return EXIT_FAILURE;
-
-	if (cc_cfg.log_console)
-		log_options = log_options | LOG_PERROR;
-	init_logger(cc_cfg.log_level, log_options);
-
-	if (app_start_ccapi(&cc_cfg) != CCAPI_START_ERROR_NONE)
-		goto done;
-
-	add_virtual_directories(cc_cfg.vdirs, cc_cfg.n_vdirs);
-
-	if (app_start_tcp_transport(&cc_cfg) != CCAPI_TCP_START_ERROR_NONE)
-		goto done;
-
-	start_system_monitor(&cc_cfg);
-	do {
-		sleep(1);
-	} while (check_stop() != CCAPI_TRUE);
-
-done:
-	free_cfg(&cc_cfg);
-	closelog();
+	daemon_process();
 	return EXIT_SUCCESS;
 }
 
@@ -114,6 +116,49 @@ ccapi_bool_t check_stop(void)
 		closelog();
 	}
 	return stop;
+}
+
+/*
+ * daemon_process() - Start Cloud Connector
+ */
+static void daemon_process(void)
+{
+	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID;
+	int error;
+
+	init_logger(LOG_ERR, log_options);
+
+	cc_cfg = malloc(sizeof(cc_cfg_t));
+	if (cc_cfg == NULL) {
+		log_error("Cannot allocate memory for configuration (errno %d: %s)", errno, strerror(errno));
+		goto done;
+	}
+
+	error = parse_configuration(CC_CONFIG_FILE, cc_cfg);
+	if (error != 0)
+		goto done;
+
+	closelog();
+	if (cc_cfg->log_console)
+		log_options = log_options | LOG_PERROR;
+	init_logger(cc_cfg->log_level, log_options);
+
+	if (app_start_ccapi(cc_cfg) != CCAPI_START_ERROR_NONE)
+		goto done;
+
+	add_virtual_directories(cc_cfg->vdirs, cc_cfg->n_vdirs);
+
+	if (app_start_tcp_transport(cc_cfg) != CCAPI_TCP_START_ERROR_NONE)
+		goto done;
+
+	start_system_monitor(cc_cfg);
+	do {
+		sleep(1);
+	} while (check_stop() != CCAPI_TRUE);
+
+done:
+	free_cfg(cc_cfg);
+	closelog();
 }
 
 /*

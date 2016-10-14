@@ -280,6 +280,9 @@ void free_cfg(cc_cfg_t * cc_cfg)
 		}
 		free(cc_cfg->vdirs);
 		cc_cfg->vdirs = 0;
+
+		free(cc_cfg);
+		cc_cfg = NULL;
 	}
 
 	cfg_free(cfg);
