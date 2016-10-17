@@ -87,7 +87,7 @@ static int cfg_check_range(cfg_t * cfg, cfg_opt_t * opt, uint16_t min, uint16_t 
 static int cfg_check_wait_times(cfg_t * cfg, cfg_opt_t * opt);
 static int cfg_check_int_positive(cfg_t * cfg, cfg_opt_t * opt);
 static void get_virtual_directories(cfg_t * const cfg, cc_cfg_t * const cc_cfg);
-static int get_log_level();
+static int get_log_level(void);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -179,6 +179,16 @@ int parse_configuration(const char * const filename, cc_cfg_t * cc_cfg)
 			CFG_END()
 	};
 
+	if (!file_exists(filename)) {
+		log_error("File '%s' does not exist.", filename);
+		return -1;
+	}
+
+	if (!file_readable(filename)) {
+		log_error("File '%s' cannot be read.", filename);
+		return -1;
+	}
+
 	cfg = cfg_init(opts, CFGF_IGNORE_UNKNOWN);
 	cfg_set_validate_func(cfg, SETTING_VENDOR_ID, cfg_check_vendor_id);
 	cfg_set_validate_func(cfg, SETTING_DEVICE_TYPE, cfg_check_device_type);
@@ -191,16 +201,6 @@ int parse_configuration(const char * const filename, cc_cfg_t * cc_cfg)
 			cfg_check_int_positive);
 	cfg_set_validate_func(cfg, SETTING_SYS_MON_UPLOAD_SIZE,
 			cfg_check_int_positive);
-
-	if (!file_exists(filename)) {
-		printf("File '%s' does not exist.\n", filename);
-		return -1;
-	}
-
-	if (!file_readable(filename)) {
-		printf("File '%s' cannot be read.\n", filename);
-		return -1;
-	}
 
 	/* Parse the configuration file. */
 	switch (cfg_parse(cfg, filename)) {
@@ -501,8 +501,10 @@ static void get_virtual_directories(cfg_t * const cfg, cc_cfg_t * const cc_cfg)
 
 	vdirs = malloc(sizeof(vdir_t) * vdirs_num);
 	if (vdirs == NULL) {
+		log_info("Cannot initialize virtual directories");
 		cc_cfg->n_vdirs = 0;
 		cc_cfg->vdirs = NULL;
+		return;
 	}
 
 	for (i = 0; i < vdirs_num; i++) {
@@ -522,7 +524,7 @@ static void get_virtual_directories(cfg_t * const cfg, cc_cfg_t * const cc_cfg)
  *
  * @Return: The log level value.
  */
-static int get_log_level()
+static int get_log_level(void)
 {
 	char * level = cfg_getstr(cfg, SETTING_LOG_LEVEL);
 	if (level == NULL || strlen(level) == 0)

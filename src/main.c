@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "ccapi/ccapi.h"
 #include "ccimp/utils.h"
 
 /*------------------------------------------------------------------------------
@@ -111,6 +110,8 @@ ccapi_bool_t check_stop(void)
 			log_info(STOP_SUCCESS);
 		else
 			log_error(STOP_ERROR, stop_error);
+		free_cfg(cc_cfg);
+		closelog();
 	}
 	return stop;
 }

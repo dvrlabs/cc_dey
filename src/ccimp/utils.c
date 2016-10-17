@@ -25,7 +25,6 @@
  *
  */
 
-#include "utils.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -37,7 +36,13 @@
 #include <net/if.h>
 #include <regex.h>
 
+#include "utils.h"
 #include "firmware_update.h"
+
+/*------------------------------------------------------------------------------
+                             D E F I N I T I O N S
+------------------------------------------------------------------------------*/
+#define DEVICE_ID_FORMAT	"%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX"
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
@@ -313,7 +318,6 @@ static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
 static int get_device_id_from_mac(uint8_t * const device_id, const uint8_t * const mac_addr)
 {
 	const char * const deviceid_file = "/etc/cc.did";
-	const char * const deviceid_format = "%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX";
 	unsigned int const device_id_length = 16;
 	FILE * fp = NULL;
 	unsigned int n_items;
@@ -322,7 +326,7 @@ static int get_device_id_from_mac(uint8_t * const device_id, const uint8_t * con
 
 	fp = fopen(deviceid_file, "rb+");
 	if (fp != NULL) {
-		n_items = fscanf(fp, deviceid_format, &device_id[0], &device_id[1],
+		n_items = fscanf(fp, DEVICE_ID_FORMAT, &device_id[0], &device_id[1],
 				&device_id[2], &device_id[3], &device_id[4], &device_id[5],
 				&device_id[6], &device_id[7], &device_id[8], &device_id[9],
 				&device_id[10], &device_id[11], &device_id[12], &device_id[13],
@@ -346,7 +350,7 @@ static int get_device_id_from_mac(uint8_t * const device_id, const uint8_t * con
 
 	fp = fopen(deviceid_file, "wb+");
 	if (fp != NULL) {
-		n_items = fprintf(fp, deviceid_format, device_id[0], device_id[1],
+		n_items = fprintf(fp, DEVICE_ID_FORMAT, device_id[0], device_id[1],
 				device_id[2], device_id[3], device_id[4], device_id[5],
 				device_id[6], device_id[7], device_id[8], device_id[9],
 				device_id[10], device_id[11], device_id[12], device_id[13],

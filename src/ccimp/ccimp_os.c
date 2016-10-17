@@ -25,7 +25,6 @@
  *
  */
 
-#include "ccapi/ccapi.h"
 #include "ccimp/ccimp_os.h"
 #include "utils.h"
 

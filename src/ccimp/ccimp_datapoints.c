@@ -30,7 +30,6 @@
 #include <pthread.h>
 #include <time.h>
 #include <sys/sysinfo.h>
-#include "ccapi/ccapi.h"
 #include "utils.h"
 
 /*------------------------------------------------------------------------------
@@ -54,12 +53,12 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-static void *system_monitor_threaded();
+static void *system_monitor_threaded(void *cc_cfg);
 static void system_monitor_loop(const cc_cfg_t * const cc_cfg);
 static ccapi_dp_error_t init_system_monitor(const cc_cfg_t * const cc_cfg);
 static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t * const cc_cfg);
 static ccapi_timestamp_t* get_timestamp(void);
-static unsigned long get_free_memory(void);
+static long get_free_memory(void);
 static double get_cpu_load(void);
 static double get_cpu_temp(void);
 static uint32_t calculate_number_samples(const cc_cfg_t * const cc_cfg);
@@ -75,7 +74,7 @@ static long read_file(const char *path, char **buffer, long file_size);
  * @args:		Additional arguments.
  */
 #define log_sm_debug(format, args...)									\
-    log_debug("%s " format, SYSTEM_MONITOR_TAG, ##args)
+	log_debug("%s " format, SYSTEM_MONITOR_TAG, ##args)
 
 /**
  * log_sm_error() - Log the given message as error
@@ -84,7 +83,7 @@ static long read_file(const char *path, char **buffer, long file_size);
  * @args:		Additional arguments.
  */
 #define log_sm_error(format, args...)									\
-    log_error("%s " format, SYSTEM_MONITOR_TAG, ##args)
+	log_error("%s " format, SYSTEM_MONITOR_TAG, ##args)
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -335,7 +334,7 @@ static ccapi_timestamp_t* get_timestamp(void)
  *
  * Return: The free memory of the system in kB.
  */
-static unsigned long get_free_memory(void)
+static long get_free_memory(void)
 {
 	struct sysinfo info;
 
@@ -393,7 +392,7 @@ static double get_cpu_load(void)
 }
 
 /*
- * get_cpu_load() - Get the CPU temperature of the system
+ * get_cpu_temp() - Get the CPU temperature of the system
  *
  * Return: The CPU temperature in C.
  */
