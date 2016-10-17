@@ -224,7 +224,7 @@ int parse_configuration(const char * const filename, cc_cfg_t * cc_cfg)
 
 	/* Fill connection settings. */
 	cc_cfg->url = cfg_getstr(cfg, SETTING_DC_URL);
-	cc_cfg->enable_reconnect = cfg_getbool(cfg, ENABLE_FS_SERVICE);
+	cc_cfg->enable_reconnect = cfg_getbool(cfg, SETTING_ENABLE_RECONNECT);
 	cc_cfg->keepalive_rx = cfg_getint(cfg, SETTING_KEEPALIVE_RX);
 	cc_cfg->keepalive_tx = cfg_getint(cfg, SETTING_KEEPALIVE_TX);
 	cc_cfg->wait_count = cfg_getint(cfg, SETTING_WAIT_TIMES);

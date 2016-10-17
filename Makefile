@@ -76,6 +76,7 @@ PLATFORM_SRCS = $(PLATFORM_DIR)/ccimp_datapoints.c \
 				$(PLATFORM_DIR)/ccimp_network_tcp.c \
 				$(PLATFORM_DIR)/ccimp_os.c \
 				$(PLATFORM_DIR)/crc_32.c \
+				$(PLATFORM_DIR)/device_request.c \
 				$(PLATFORM_DIR)/dns_helper.c \
 				$(PLATFORM_DIR)/firmware_update.c \
 				$(PLATFORM_DIR)/utils.c

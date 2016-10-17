@@ -96,5 +96,8 @@ void add_virtual_directories(const vdir_t * const vdirs, int n_vdirs);
 ccapi_bool_t check_stop(void);
 int file_exists(const char * const filename);
 int file_readable(const char * const filename);
+char * strltrim(const char *s);
+char * strrtrim(const char *s);
+char * strtrim(const char *s);
 
 #endif /* UTILS_H_ */

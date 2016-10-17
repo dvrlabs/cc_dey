@@ -35,8 +35,10 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include <regex.h>
+#include <ctype.h>
 
 #include "utils.h"
+#include "device_request.h"
 #include "firmware_update.h"
 
 /*------------------------------------------------------------------------------
@@ -96,9 +98,21 @@ ccapi_start_t * create_ccapi_start_struct(const cc_cfg_t * const cc_cfg)
 	start->service.rci = NULL;
 
 	/* Initialize device request service . */
-	start->service.receive = NULL;
-	/* TODO */
-	/* if (cc_cfg->services & DATA_SERVICE)*/
+	if (cc_cfg->services & DATA_SERVICE) {
+		ccapi_receive_service_t * dreq_service = malloc(sizeof *dreq_service);
+		if (dreq_service == NULL) {
+			log_error("create_ccapi_start_struct(): malloc failed for ccapi_receive_service_t");
+			free_ccapi_start_struct(start);
+			start = NULL;
+			return start;
+		}
+		dreq_service->accept = app_receive_default_accept_cb;
+		dreq_service->data = app_receive_default_data_cb;
+		dreq_service->status = app_receive_default_status_cb;
+		start->service.receive = dreq_service;
+	} else {
+		start->service.receive = NULL;
+	}
 
 	/* Initialize short messaging. */
 	start->service.sm = NULL;
@@ -531,4 +545,56 @@ static uint8_t * get_interface_mac_addr(const struct ifreq * const iface,
 done:
 	regfree(&regex);
 	return retval;
+}
+
+/**
+ * strltrim() - Remove leading whitespaces from the given string
+ *
+ * @s: String to remove leading whitespaces.
+ *
+ * Return: New string without leading whitespaces.
+ */
+char * strltrim(const char *s)
+{
+	while (isspace(*s) || !isprint(*s))
+		++s;
+
+	return strdup(s);
+}
+
+/**
+ * strrtrim() - Remove trailing whitespaces from the given string
+ *
+ * @s: String to remove trailing whitespaces.
+ *
+ * Return: New string without trailing whitespaces.
+ */
+char * strrtrim(const char * s)
+{
+	char *r = strdup(s);
+
+	if (r != NULL) {
+		char *fr = r + strlen(s) - 1;
+		while ((isspace(*fr) || !isprint(*fr) || *fr == 0) && fr >= r)
+			--fr;
+		*++fr = 0;
+	}
+
+	return r;
+}
+
+/**
+ * strtrim() - Remove leading and trailing whitespaces from the given string
+ *
+ * @s: String to remove leading and trailing whitespaces.
+ *
+ * Return: New string without leading and trailing whitespaces.
+ */
+char * strtrim(const char * s)
+{
+	char *r = strrtrim(s);
+	char *f = strltrim(r);
+	free(r);
+
+	return f;
 }
