@@ -47,7 +47,6 @@
 #define DATA_STREAM_CPU_LOAD_UNITS	"%"
 #define DATA_STREAM_CPU_TEMP_UNITS	"C"
 
-#define FILE_CPU_LOAD				"/proc/stat"
 #define FILE_CPU_TEMP				"/sys/class/thermal/thermal_zone0/temp"
 
 /*------------------------------------------------------------------------------
@@ -89,8 +88,6 @@ static long read_file(const char *path, char **buffer, long file_size);
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
 extern ccapi_bool_t stop;
-static unsigned long long last_idle = 0;
-static unsigned long long last_total = 0;
 static pthread_t dp_thread;
 static ccapi_dp_collection_handle_t dp_collection;
 
@@ -353,42 +350,14 @@ static long get_free_memory(void)
  */
 static double get_cpu_load(void)
 {
-	char *file_data = NULL;
-	long file_size;
-	unsigned long long int fields[10];
-	unsigned long long idle, total = 0;
-	unsigned long long diff_idle, diff_total;
-	double usage;
-	int result;
-	int i;
+	struct sysinfo info;
 
-	file_size = read_file(FILE_CPU_LOAD, &file_data, 4096);
-	if (file_size <= 0) {
-		log_sm_error("get_cpu_load(): error reading cpu load file");
+	if (sysinfo(&info) != 0) {
+		log_sm_error("get_cpu_load(): sysinfo error");
 		return -1;
 	}
 
-	result = sscanf(file_data, "cpu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu",
-			&fields[0], &fields[1], &fields[2], &fields[3], &fields[4],
-			&fields[5], &fields[6], &fields[7], &fields[8], &fields[9]);
-	free(file_data);
-	if (result < 4) {
-		log_sm_error("get_cpu_load(): cpu load not enough fields error");
-		return -1;
-	}
-
-	idle = fields[3];
-	for (i = 0; i < 10; i++)
-		total += fields[i];
-
-	diff_idle = idle - last_idle;
-	diff_total = total - last_total;
-
-	usage = ((diff_total - diff_idle) / (double) diff_total) * 100;
-	last_total = total;
-	last_idle = idle;
-
-	return usage;
+	return info.loads[0] / 65536.0;
 }
 
 /*
