@@ -47,6 +47,7 @@
 #define DATA_STREAM_CPU_LOAD_UNITS	"%"
 #define DATA_STREAM_CPU_TEMP_UNITS	"C"
 
+#define FILE_CPU_LOAD				"/proc/stat"
 #define FILE_CPU_TEMP				"/sys/class/thermal/thermal_zone0/temp"
 
 /*------------------------------------------------------------------------------
@@ -90,6 +91,7 @@ static long read_file(const char *path, char **buffer, long file_size);
 extern ccapi_bool_t stop;
 static pthread_t dp_thread;
 static ccapi_dp_collection_handle_t dp_collection;
+static unsigned long long last_work = 0, last_total = 0;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
@@ -346,18 +348,54 @@ static long get_free_memory(void)
 /*
  * get_cpu_load() - Get the CPU load of the system
  *
- * Return: The CPU load in %.
+ * Return: The CPU load in %, -1 if the value is not available.
  */
-static double get_cpu_load(void)
-{
-	struct sysinfo info;
+static double get_cpu_load(void) {
+	char *file_data = NULL;
+	long file_size;
+	unsigned long long int fields[10];
+	unsigned long long work, total = 0;
+	double usage = -1;
+	int i, result;
 
-	if (sysinfo(&info) != 0) {
-		log_sm_error("get_cpu_load(): sysinfo error");
-		return -1;
+	file_size = read_file(FILE_CPU_LOAD, &file_data, 4096);
+	if (file_size <= 0) {
+		log_sm_error("get_cpu_load(): error reading cpu load file");
+		goto done;
 	}
 
-	return info.loads[0] / 65536.0;
+	result = sscanf(file_data, "cpu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu",
+			&fields[0], &fields[1], &fields[2], &fields[3], &fields[4],
+			&fields[5], &fields[6], &fields[7], &fields[8], &fields[9]);
+
+	if (result < 4) {
+		log_sm_error("get_cpu_load(): cpu load not enough fields error");
+		goto done;
+	}
+
+	for (i = 0; i < 3; i++) {
+		work += fields[i];
+	}
+	for (i = 0; i < result; i++) {
+		total += fields[i];
+	}
+
+	if (last_work == 0 && last_total == 0) {
+		/* The first time report 0%. */
+		usage = 0;
+	} else {
+		unsigned long long diff_work = work - last_work;
+		unsigned long long diff_total = total - last_total;
+
+		usage = diff_work * 100.0 / diff_total;
+	}
+
+	last_total = total;
+	last_work = work;
+
+done:
+	free(file_data);
+	return usage;
 }
 
 /*
