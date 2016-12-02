@@ -80,7 +80,7 @@ static long read_file(const char *path, char **buffer, long file_size);
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
-extern ccapi_bool_t stop;
+static volatile ccapi_bool_t stop;
 static pthread_t dp_thread;
 static ccapi_dp_collection_handle_t dp_collection;
 static unsigned long long last_work = 0, last_total = 0;
@@ -107,6 +107,8 @@ int start_system_monitor(const cc_cfg_t * const cc_cfg)
 			| (cc_cfg->sys_mon_parameters & SYS_MON_TEMP);
 	int error;
 
+	stop = CCAPI_FALSE;
+
 	if (!(cc_cfg->services & SYS_MONITOR_SERVICE)
 			|| !any_sys_mon_enabled || cc_cfg->sys_mon_sample_rate <= 0)
 		return CCAPI_DP_ERROR_NONE;
@@ -131,6 +133,7 @@ int start_system_monitor(const cc_cfg_t * const cc_cfg)
  */
 void stop_system_monitor(void)
 {
+	stop = CCAPI_TRUE;
 	if (!pthread_equal(dp_thread, 0))
 		pthread_join(dp_thread, NULL);
 	ccapi_dp_destroy_collection(dp_collection);

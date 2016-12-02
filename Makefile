@@ -16,6 +16,16 @@
 # Digi International Inc. 11001 Bren Road East, Minnetonka, MN 55343
 #
 # ***************************************************************************
+# Use GNU C Compiler
+CC ?= gcc
+
+# Generated Library name.
+NAME := cloud
+# Generated Library version.
+MAJOR := 1
+MINOR := 0
+REVISION := 0
+VERSION := $(MAJOR).$(MINOR).$(REVISION)
 
 # Location of Source Code.
 SRC = src
@@ -47,56 +57,34 @@ vpath $(PLATFORM_DIR)/%.c
 CFLAGS += -I $(SRC) -I $(CUSTOM_CCFSM_PUBLIC_HEADER_DIR) -I $(CCFSM_PUBLIC_HEADER_DIR)
 CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR) -I $(PLATFORM_DIR)
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L -D_GNU_SOURCE
-CFLAGS += -Wall -Wextra -O2
+CFLAGS += -Wall -Wextra -fPIC -g -O0
 
 # Target output to generate.
-APP_SRCS =	$(SRC)/load_config.c \
-			$(SRC)/main.c 
+CC_PRIVATE_SRCS := $(CCFSM_PRIVATE_DIR)/connector_api.c
+CCAPI_PRIVATE_SRCS := $(wildcard $(CCAPI_PRIVATE_DIR)/*.c)
+PLATFORM_SRCS := $(wildcard $(PLATFORM_DIR)/*.c)
+CC_DEY_SRCS := $(wildcard $(SRC)/*.c)
 
-CC_PRIVATE_SRCS = $(CCFSM_PRIVATE_DIR)/connector_api.c
-
-CCAPI_PRIVATE_SRCS =	$(CCAPI_PRIVATE_DIR)/ccapi.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_data_handler.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_datapoints.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_filesystem.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_filesystem_handler.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_firmware_update_handler.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_init.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_logging.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_receive.c \
-						$(CCAPI_PRIVATE_DIR)/ccapi_transport_tcp.c
-
-PLATFORM_SRCS = $(PLATFORM_DIR)/ccimp_datapoints.c \
-				$(PLATFORM_DIR)/ccimp_filesystem.c \
-				$(PLATFORM_DIR)/ccimp_hal.c \
-				$(PLATFORM_DIR)/ccimp_logging.c \
-				$(PLATFORM_DIR)/ccimp_network_tcp.c \
-				$(PLATFORM_DIR)/ccimp_os.c \
-				$(PLATFORM_DIR)/crc_32.c \
-				$(PLATFORM_DIR)/device_request.c \
-				$(PLATFORM_DIR)/dns_helper.c \
-				$(PLATFORM_DIR)/firmware_update.c \
-				$(PLATFORM_DIR)/utils.c
-
-SRCS = $(APP_SRCS) $(PLATFORM_SRCS) $(CC_PRIVATE_SRCS) $(CCAPI_PRIVATE_SRCS)
+SRCS = $(CC_DEY_SRCS) $(PLATFORM_SRCS) $(CC_PRIVATE_SRCS) $(CCAPI_PRIVATE_SRCS)
 
 # Libraries to Link
 LDLIBS += -lconfuse -lpthread -lcrypto -lz
 
 # Linking Flags.
-LDFLAGS += $(DFLAGS) -Wl,-Map,$(EXECUTABLE).map,--sort-common
-
-# Generated Executable Name.
-EXECUTABLE = cc_dey
+LDFLAGS += $(DFLAGS) -shared -Wl,-soname,lib$(NAME).so.$(MAJOR),--sort-common
 
 OBJS = $(SRCS:.c=.o)
 
-all: $(EXECUTABLE)
+.PHONY: all
+all:  lib$(NAME).so
 
-$(EXECUTABLE): $(OBJS)
+lib$(NAME).so: lib$(NAME).so.$(VERSION)
+	ln -sf lib$(NAME).so.$(VERSION) lib$(NAME).so.$(MAJOR)
+	ln -sf lib$(NAME).so.$(VERSION) lib$(NAME).so
+
+lib$(NAME).so.$(VERSION): $(OBJS)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 .PHONY: clean
 clean:
-	-rm -f $(EXECUTABLE) $(OBJS) $(EXECUTABLE).map
-
+	-rm -f *.so* $(OBJS)

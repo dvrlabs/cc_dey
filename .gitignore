@@ -4,4 +4,4 @@
 *.o
 *~
 *.map
-cc_dey
+libcloud.so*

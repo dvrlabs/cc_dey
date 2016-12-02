@@ -86,7 +86,6 @@ ccapi_tcp_info_t * create_ccapi_tcp_start_info_struct(const cc_cfg_t * const cc_
 void free_ccapi_start_struct(ccapi_start_t * ccapi_start);
 void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t * const tcp_info);
 void add_virtual_directories(const vdir_t * const vdirs, int n_vdirs);
-ccapi_bool_t check_stop(void);
 int file_exists(const char * const filename);
 int file_readable(const char * const filename);
 char * strltrim(const char *s);

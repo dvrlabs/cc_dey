@@ -17,9 +17,6 @@
  * =======================================================================
  */
 
-#include "ccimp/ccimp_os.h"
-#include "utils.h"
-
 #include <malloc.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -27,6 +24,8 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <signal.h>
+
+#include "ccimp/ccimp_os.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -59,13 +58,10 @@ typedef struct thread_info {
 void wait_for_ccimp_threads(void);
 static void * thread_wrapper(void * argument);
 static void add_thread_info(pthread_t thread);
-static void graceful_shutdown(void);
-static void sigint_handler(int signum);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
-extern ccapi_bool_t stop;
 static thread_info_t * thread_info_list = NULL;
 
 /*------------------------------------------------------------------------------
@@ -103,21 +99,6 @@ void wait_for_ccimp_threads(void)
 		free(thread_info_list);
 		thread_info_list = next;
 	}
-}
-
-void add_sigkill_signal(void)
-{
-	struct sigaction new_action;
-	struct sigaction old_action;
-
-	/* setup signal hander */
-	atexit(graceful_shutdown);
-	new_action.sa_handler = sigint_handler;
-	sigemptyset(&new_action.sa_mask);
-	new_action.sa_flags = 0;
-	sigaction(SIGINT, NULL, &old_action);
-	if (old_action.sa_handler != SIG_IGN)
-		sigaction (SIGINT, &new_action, NULL);
 }
 
 ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t * const create_thread_info)
@@ -330,17 +311,4 @@ static void add_thread_info(pthread_t thread)
 	new_thread_info->thread = thread;
 	new_thread_info->next = thread_info_list;
 	thread_info_list = new_thread_info;
-}
-
-static void graceful_shutdown(void)
-{
-	stop = CCAPI_TRUE;
-	check_stop();
-	wait_for_ccimp_threads();
-}
-
-static void sigint_handler(int signum)
-{
-	log_debug("sigint_handler(): received signal %d to close CCAPI.", signum);
-	exit(0);
 }
