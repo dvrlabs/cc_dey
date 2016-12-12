@@ -22,7 +22,7 @@
 #include <errno.h>
 
 #include "firmware_update.h"
-#include "utils.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -42,8 +42,8 @@
  * @format:		Debug message to log.
  * @args:		Additional arguments.
  */
-#define log_fw_debug(format, args...)									\
-    log_debug("%s " format, FW_UPDATE_TAG, ##args)
+#define log_fw_debug(format, ...)									\
+	log_debug("%s " format, FW_UPDATE_TAG, __VA_ARGS__)
 
 /**
  * log_fw_info() - Log the given message as info
@@ -51,8 +51,8 @@
  * @format:		Info message to log.
  * @args:		Additional arguments.
  */
-#define log_fw_info(format, args...)									\
-    log_info("%s " format, FW_UPDATE_TAG, ##args)
+#define log_fw_info(format, ...)									\
+	log_info("%s " format, FW_UPDATE_TAG, __VA_ARGS__)
 
 /**
  * log_fw_error() - Log the given message as error
@@ -60,20 +60,20 @@
  * @format:		Error message to log.
  * @args:		Additional arguments.
  */
-#define log_fw_error(format, args...)									\
-    log_error("%s " format, FW_UPDATE_TAG, ##args)
+#define log_fw_error(format, ...)									\
+	log_error("%s " format, FW_UPDATE_TAG, __VA_ARGS__)
 
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
-static FILE * fw_fp = NULL;
+static FILE *fw_fp = NULL;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
-		char const * const filename, size_t const total_size) {
+		char const *const filename, size_t const total_size) {
 	UNUSED_PARAMETER(target);
 	UNUSED_PARAMETER(total_size);
 
@@ -87,7 +87,7 @@ ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 }
 
 ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
-		void const * const data, size_t size, ccapi_bool_t last_chunk) {
+		void const *const data, size_t size, ccapi_bool_t last_chunk) {
 	int retval;
 
 	UNUSED_PARAMETER(target);
@@ -95,7 +95,7 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 
 	retval = fwrite(data, size, 1, fw_fp);
 	if (retval != 1) {
-		log_fw_error("Error writing to firmware file");
+		log_fw_error("%s", "Error writing to firmware file");
 		return CCAPI_FW_DATA_ERROR_INVALID_DATA;
 	}
 
@@ -123,7 +123,7 @@ void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t cancel_
 	}
 }
 
-void app_fw_reset_cb(unsigned int const target, ccapi_bool_t * system_reset, ccapi_firmware_target_version_t * version)
+void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_reset, ccapi_firmware_target_version_t *version)
 {
 	UNUSED_PARAMETER(system_reset);
 	UNUSED_PARAMETER(version);

@@ -30,7 +30,7 @@
 #include <openssl/md5.h>
 
 #include "ccimp/ccimp_filesystem.h"
-#include "utils.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
 							 D E F I N I T I O N S

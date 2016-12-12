@@ -38,7 +38,7 @@
 #include <errno.h>
 
 #include "dns_helper.h"
-#include "utils.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
@@ -50,10 +50,10 @@ static ccimp_status_t app_is_tcp_connect_complete(int const fd);
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
-ccimp_status_t ccimp_network_tcp_close(ccimp_network_close_t * const data)
+ccimp_status_t ccimp_network_tcp_close(ccimp_network_close_t *const data)
 {
 	ccimp_status_t status = CCIMP_STATUS_OK;
-	int * const fd = data->handle;
+	int *const fd = data->handle;
 
 	if (close(*fd) < 0)
 		log_error("network_tcp_close(): close() failed, fd %d, errno %d", *fd, errno);
@@ -65,17 +65,17 @@ ccimp_status_t ccimp_network_tcp_close(ccimp_network_close_t * const data)
 	return status;
 }
 
-ccimp_status_t ccimp_network_tcp_receive(ccimp_network_receive_t * const data)
+ccimp_status_t ccimp_network_tcp_receive(ccimp_network_receive_t *const data)
 {
 	ccimp_status_t status = CCIMP_STATUS_OK;
-	int * const fd = data->handle;
+	int *const fd = data->handle;
 
 	int ccode = read(*fd, data->buffer, data->bytes_available);
 	if (ccode > 0) {
 		data->bytes_used = (size_t) ccode;
 	} else if (ccode == 0) {
 		/* EOF on input: the connection was closed. */
-		log_debug("ccimp_network_tcp_receive(): network_receive: EOF on socket");
+		log_debug("%s", "ccimp_network_tcp_receive(): network_receive: EOF on socket");
 		errno = ECONNRESET;
 		status = CCIMP_STATUS_ERROR;
 	} else {
@@ -93,10 +93,10 @@ ccimp_status_t ccimp_network_tcp_receive(ccimp_network_receive_t * const data)
 	return status;
 }
 
-ccimp_status_t ccimp_network_tcp_send(ccimp_network_send_t * const data)
+ccimp_status_t ccimp_network_tcp_send(ccimp_network_send_t *const data)
 {
 	ccimp_status_t status = CCIMP_STATUS_OK;
-	int * const fd = data->handle;
+	int *const fd = data->handle;
 
 	int ccode = write(*fd, data->buffer, data->bytes_available);
 	if (ccode >= 0) {
@@ -115,12 +115,12 @@ ccimp_status_t ccimp_network_tcp_send(ccimp_network_send_t * const data)
 	return status;
 }
 
-ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t * const data)
+ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 {
 #define APP_CONNECT_TIMEOUT 30
 
 	static unsigned long connect_time;
-	int * pfd = NULL;
+	int *pfd = NULL;
 	struct sockaddr_in interface_addr;
 	socklen_t interface_addr_len;
 
@@ -183,7 +183,7 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t * const data)
 		elapsed_time = uptime.sys_uptime - connect_time;
 
 		if (elapsed_time >= APP_CONNECT_TIMEOUT) {
-			log_error("app_network_tcp_open(): failed to connect within 30 seconds");
+			log_error("%s", "app_network_tcp_open(): failed to connect within 30 seconds");
 			status = CCIMP_STATUS_ERROR;
 		}
 	}
@@ -233,7 +233,6 @@ static int app_tcp_create_socket(void)
 
 static ccimp_status_t app_tcp_connect(int const fd, in_addr_t const ip_addr)
 {
-
 	struct sockaddr_in sin = { 0 };
 	ccimp_status_t status = CCIMP_STATUS_OK;
 

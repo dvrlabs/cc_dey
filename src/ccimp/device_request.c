@@ -18,9 +18,10 @@
  */
 
 #include <stdio.h>
+#include <ctype.h>
 
 #include "device_request.h"
-#include "utils.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -28,6 +29,13 @@
 #define DEVICE_REQUEST_TAG	"DEVREQ:"
 
 #define MAX_RESPONSE_SIZE	400
+
+/*------------------------------------------------------------------------------
+                    F U N C T I O N  D E C L A R A T I O N S
+------------------------------------------------------------------------------*/
+static char *strltrim(const char *s);
+static char *strrtrim(const char *s);
+static char *strtrim(const char *s);
 
 /*------------------------------------------------------------------------------
                                   M A C R O S
@@ -38,8 +46,8 @@
  * @format:		Debug message to log.
  * @args:		Additional arguments.
  */
-#define log_dr_debug(format, args...)									\
-    log_debug("%s " format, DEVICE_REQUEST_TAG, ##args)
+#define log_dr_debug(format, ...)									\
+	log_debug("%s " format, DEVICE_REQUEST_TAG, __VA_ARGS__)
 
 /**
  * log_dr_error() - Log the given message as error
@@ -47,8 +55,8 @@
  * @format:		Error message to log.
  * @args:		Additional arguments.
  */
-#define log_dr_error(format, args...)									\
-    log_error("%s " format, DEVICE_REQUEST_TAG, ##args)
+#define log_dr_error(format, ...)									\
+	log_error("%s " format, DEVICE_REQUEST_TAG, __VA_ARGS__)
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
@@ -63,7 +71,7 @@
  * Return: CCAPI_FALSE if the device request is not accepted,
  *         CCAPI_TRUE otherswise.
  */
-ccapi_bool_t app_receive_default_accept_cb(char const * const target,
+ccapi_bool_t app_receive_default_accept_cb(char const *const target,
 		ccapi_transport_t const transport)
 {
 	ccapi_bool_t accept_target = CCAPI_TRUE;
@@ -90,13 +98,13 @@ ccapi_bool_t app_receive_default_accept_cb(char const * const target,
  * Logs information about the received request and sends an answer to Device
  * Cloud indicating that the device request with that target is not registered.
  */
-void app_receive_default_data_cb(char const * const target,
+void app_receive_default_data_cb(char const *const target,
 		ccapi_transport_t const transport,
-		ccapi_buffer_info_t const * const request_buffer_info,
-		ccapi_buffer_info_t * const response_buffer_info)
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info)
 {
-	char * request_buffer;
-	char * request_data;
+	char *request_buffer;
+	char *request_data;
 	size_t i;
 
 	/* Log request data */
@@ -104,7 +112,7 @@ void app_receive_default_data_cb(char const * const target,
 			" target='%s' - transport='%d'", target, transport);
 	request_buffer = malloc(sizeof(char) * request_buffer_info->length + 1);
 	if (request_buffer == NULL) {
-		log_dr_error("app_receive_default_data_cb():"                         \
+		log_dr_error("%s", "app_receive_default_data_cb():"                   \
 				" request_buffer malloc error");
 		return;
 	}
@@ -113,7 +121,7 @@ void app_receive_default_data_cb(char const * const target,
 	request_buffer[request_buffer_info->length] = '\0';
 	request_data = strtrim(request_buffer);
 	if (request_data == NULL) {
-		log_dr_error("app_receive_default_data_cb():"                         \
+		log_dr_error("%s", "app_receive_default_data_cb():"                   \
 				" request_data malloc error");
 		free(request_buffer);
 		return;
@@ -127,7 +135,7 @@ void app_receive_default_data_cb(char const * const target,
 	if (response_buffer_info != NULL) {
 		response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE);
 		if (response_buffer_info->buffer == NULL) {
-			log_dr_error("app_receive_default_data_cb():" \
+			log_dr_error("%s", "app_receive_default_data_cb():" \
 					" response_buffer_info malloc error");
 			return;
 		}
@@ -150,9 +158,9 @@ void app_receive_default_data_cb(char const * const target,
  *
  * Cleans and frees the response buffer.
  */
-void app_receive_default_status_cb(char const * const target,
+void app_receive_default_status_cb(char const *const target,
 		ccapi_transport_t const transport,
-		ccapi_buffer_info_t * const response_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info,
 		ccapi_receive_error_t receive_error)
 {
 	log_dr_debug("app_receive_default_status_cb(): target='%s' -"             \
@@ -160,4 +168,56 @@ void app_receive_default_status_cb(char const * const target,
 	/* Free the response buffer */
 	if (response_buffer_info != NULL)
 		free(response_buffer_info->buffer);
+}
+
+/**
+ * strltrim() - Remove leading whitespaces from the given string
+ *
+ * @s: String to remove leading whitespaces.
+ *
+ * Return: New string without leading whitespaces.
+ */
+static char *strltrim(const char *s)
+{
+	while (isspace(*s) || !isprint(*s))
+		++s;
+
+	return strdup(s);
+}
+
+/**
+ * strrtrim() - Remove trailing whitespaces from the given string
+ *
+ * @s: String to remove trailing whitespaces.
+ *
+ * Return: New string without trailing whitespaces.
+ */
+static char *strrtrim(const char *s)
+{
+	char *r = strdup(s);
+
+	if (r != NULL) {
+		char *fr = r + strlen(s) - 1;
+		while ((isspace(*fr) || !isprint(*fr) || *fr == 0) && fr >= r)
+			--fr;
+		*++fr = 0;
+	}
+
+	return r;
+}
+
+/**
+ * strtrim() - Remove leading and trailing whitespaces from the given string
+ *
+ * @s: String to remove leading and trailing whitespaces.
+ *
+ * Return: New string without leading and trailing whitespaces.
+ */
+static char *strtrim(const char *s)
+{
+	char *r = strrtrim(s);
+	char *f = strltrim(r);
+	free(r);
+
+	return f;
 }

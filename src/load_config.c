@@ -18,13 +18,16 @@
  */
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
 #include <regex.h>
 #include <confuse.h>
+
+#include "ccapi/ccapi.h"
 #include "load_config.h"
-#include "ccimp/utils.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -68,18 +71,20 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-static int cfg_check_vendor_id(cfg_t * cfg, cfg_opt_t * opt);
+static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt);
 static int check_vendor_id(long int value);
-static int cfg_check_device_type(cfg_t * cfg, cfg_opt_t * opt);
-static int cfg_check_fw_version(cfg_t * cfg, cfg_opt_t * opt);
-static int cfg_check_dc_url(cfg_t * cfg, cfg_opt_t * opt);
-static int cfg_check_keepalive_rx(cfg_t * cfg, cfg_opt_t * opt);
-static int cfg_check_keepalive_tx(cfg_t * cfg, cfg_opt_t * opt);
-static int cfg_check_range(cfg_t * cfg, cfg_opt_t * opt, uint16_t min, uint16_t max);
-static int cfg_check_wait_times(cfg_t * cfg, cfg_opt_t * opt);
-static int cfg_check_int_positive(cfg_t * cfg, cfg_opt_t * opt);
-static void get_virtual_directories(cfg_t * const cfg, cc_cfg_t * const cc_cfg);
+static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_fw_version(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_keepalive_rx(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_keepalive_tx(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max);
+static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_int_positive(cfg_t *cfg, cfg_opt_t *opt);
+static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg);
 static int get_log_level(void);
+static int file_exists(const char *const filename);
+static int file_readable(const char *const filename);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -103,7 +108,7 @@ static cfg_t *cfg;
  * Return: 0 if the file is parsed successfully, -1 if there is an error
  *         parsing the file.
  */
-int parse_configuration(const char * const filename, cc_cfg_t * cc_cfg)
+int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 {
 	/* Virtual directory settings. */
 	static cfg_opt_t vdir_opts[] = {
@@ -257,7 +262,7 @@ int parse_configuration(const char * const filename, cc_cfg_t * cc_cfg)
  * @cc_cfg:		General configuration struct (cc_cfg_t) where the settings parsed
  *				from the configuration file are saved.
  */
-void free_cfg(cc_cfg_t * cc_cfg)
+void free_cfg(cc_cfg_t *cc_cfg)
 {
 	if (cc_cfg != NULL) {
 		unsigned int i;
@@ -288,7 +293,7 @@ void free_cfg(cc_cfg_t * cc_cfg)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_vendor_id(cfg_t * cfg, cfg_opt_t * opt)
+static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt)
 {
 	long int val = cfg_opt_getnint(opt, 0);
 
@@ -307,9 +312,9 @@ static int cfg_check_vendor_id(cfg_t * cfg, cfg_opt_t * opt)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_device_type(cfg_t * cfg, cfg_opt_t * opt)
+static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt)
 {
-	char * val = cfg_opt_getnstr(opt, 0);
+	char *val = cfg_opt_getnstr(opt, 0);
 
 	if (val == NULL || strlen(val) == 0) {
 		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
@@ -331,13 +336,13 @@ static int cfg_check_device_type(cfg_t * cfg, cfg_opt_t * opt)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_fw_version(cfg_t * cfg, cfg_opt_t * opt)
+static int cfg_check_fw_version(cfg_t *cfg, cfg_opt_t *opt)
 {
 	regex_t regex;
 	char msgbuf[100];
 	int error = 0;
 	int ret;
-	char * val = cfg_opt_getnstr(opt, 0);
+	char *val = cfg_opt_getnstr(opt, 0);
 
 	if (val == NULL || strlen(val) == 0) {
 		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
@@ -371,9 +376,9 @@ done:
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_dc_url(cfg_t * cfg, cfg_opt_t * opt)
+static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt)
 {
-	char * val = cfg_opt_getnstr(opt, 0);
+	char *val = cfg_opt_getnstr(opt, 0);
 	if (val == NULL || strlen(val) == 0) {
 		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
 		return -1;
@@ -389,7 +394,7 @@ static int cfg_check_dc_url(cfg_t * cfg, cfg_opt_t * opt)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_keepalive_rx(cfg_t * cfg, cfg_opt_t * opt)
+static int cfg_check_keepalive_rx(cfg_t *cfg, cfg_opt_t *opt)
 {
 	return cfg_check_range(cfg, opt, CCAPI_KEEPALIVES_RX_MIN, CCAPI_KEEPALIVES_RX_MAX);
 }
@@ -402,7 +407,7 @@ static int cfg_check_keepalive_rx(cfg_t * cfg, cfg_opt_t * opt)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_keepalive_tx(cfg_t * cfg, cfg_opt_t * opt)
+static int cfg_check_keepalive_tx(cfg_t *cfg, cfg_opt_t *opt)
 {
 	return cfg_check_range(cfg, opt, CCAPI_KEEPALIVES_TX_MIN, CCAPI_KEEPALIVES_TX_MAX);
 }
@@ -415,7 +420,7 @@ static int cfg_check_keepalive_tx(cfg_t * cfg, cfg_opt_t * opt)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_wait_times(cfg_t * cfg, cfg_opt_t * opt)
+static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt)
 {
 	return cfg_check_range(cfg, opt, CCAPI_KEEPALIVES_WCNT_MIN, CCAPI_KEEPALIVES_WCNT_MAX);
 }
@@ -430,7 +435,7 @@ static int cfg_check_wait_times(cfg_t * cfg, cfg_opt_t * opt)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_range(cfg_t * cfg, cfg_opt_t * opt, uint16_t min, uint16_t max)
+static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max)
 {
 	long int val = cfg_opt_getnint(opt, 0);
 
@@ -449,7 +454,7 @@ static int cfg_check_range(cfg_t * cfg, cfg_opt_t * opt, uint16_t min, uint16_t 
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_int_positive(cfg_t * cfg, cfg_opt_t * opt)
+static int cfg_check_int_positive(cfg_t *cfg, cfg_opt_t *opt)
 {
 	long int val = cfg_opt_getnint(opt, 0);
 
@@ -484,19 +489,19 @@ static int check_vendor_id(long int value)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static void get_virtual_directories(cfg_t * const cfg, cc_cfg_t * const cc_cfg)
+static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg)
 {
-	vdir_t * vdirs = NULL;
+	vdir_t *vdirs = NULL;
 	int vdirs_num;
 	int i;
 
-	cfg_t * virtual_dir_cfg = cfg_getsec(cfg, GROUP_VIRTUAL_DIRS);
+	cfg_t *virtual_dir_cfg = cfg_getsec(cfg, GROUP_VIRTUAL_DIRS);
 
 	vdirs_num = cfg_size(virtual_dir_cfg, GROUP_VIRTUAL_DIR);
 
 	vdirs = malloc(sizeof(vdir_t) * vdirs_num);
 	if (vdirs == NULL) {
-		log_info("Cannot initialize virtual directories");
+		log_info("%s", "Cannot initialize virtual directories");
 		cc_cfg->n_vdirs = 0;
 		cc_cfg->vdirs = NULL;
 		return;
@@ -504,7 +509,7 @@ static void get_virtual_directories(cfg_t * const cfg, cc_cfg_t * const cc_cfg)
 
 	for (i = 0; i < vdirs_num; i++) {
 		vdir_t vdir;
-		cfg_t * vdir_cfg = cfg_getnsec(virtual_dir_cfg, GROUP_VIRTUAL_DIR, i);
+		cfg_t *vdir_cfg = cfg_getnsec(virtual_dir_cfg, GROUP_VIRTUAL_DIR, i);
 
 		vdir.name = cfg_getstr(vdir_cfg, SETTING_NAME);
 		vdir.path = cfg_getstr(vdir_cfg, SETTING_PATH);
@@ -521,7 +526,7 @@ static void get_virtual_directories(cfg_t * const cfg, cc_cfg_t * const cc_cfg)
  */
 static int get_log_level(void)
 {
-	char * level = cfg_getstr(cfg, SETTING_LOG_LEVEL);
+	char *level = cfg_getstr(cfg, SETTING_LOG_LEVEL);
 	if (level == NULL || strlen(level) == 0)
 		return LOG_LEVEL_ERROR;
 	if (strcmp(level, LOG_LEVEL_DEBUG_STR) == 0)
@@ -529,4 +534,28 @@ static int get_log_level(void)
 	if (strcmp(level, LOG_LEVEL_INFO_STR) == 0)
 		return LOG_LEVEL_INFO;
 	return LOG_LEVEL_ERROR;
+}
+
+/**
+ * file_exists() - Check that the file with the given name exists
+ *
+ * @filename:	Full path of the file to check if it exists.
+ *
+ * Return: 1 if the file exits, 0 if it does not exist.
+ */
+static int file_exists(const char *const filename)
+{
+	return access(filename, F_OK) == 0;
+}
+
+/**
+ * file_readable() - Check that the file with the given name can be read
+ *
+ * @filename:	Full path of the file to check if it is readable.
+ *
+ * Return: 1 if the file is readable, 0 if it cannot be read.
+ */
+static int file_readable(const char *const filename)
+{
+	return access(filename, R_OK) == 0;
 }

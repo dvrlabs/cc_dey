@@ -54,10 +54,25 @@ vpath $(CCFSM_PRIVATE_DIR)/%.c
 vpath $(PLATFORM_DIR)/%.c
 
 # CFLAG Definition
+CFLAGS += $(DFLAGS)
+# Enable Compiler Warnings
+CFLAGS += -Winit-self -Wbad-function-cast -Wpointer-arith
+CFLAGS += -Wmissing-parameter-type -Wstrict-prototypes -Wformat-security
+CFLAGS += -Wformat-y2k -Wold-style-definition -Wcast-align -Wformat-nonliteral 
+CFLAGS += -Wredundant-decls -Wvariadic-macros
+CFLAGS += -Wall -Werror -Wextra -pedantic
+CFLAGS += -Wno-error=padded -Wno-error=format-nonliteral -Wno-unused-function -Wno-missing-field-initializers
+# Use ANSIC 99
+CFLAGS +=-std=c99
+# Include POSIX and GNU features.
+CFLAGS += -D_POSIX_C_SOURCE=200112L -D_GNU_SOURCE
+# Include Public Header Files.
 CFLAGS += -I $(SRC) -I $(CUSTOM_CCFSM_PUBLIC_HEADER_DIR) -I $(CCFSM_PUBLIC_HEADER_DIR)
-CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR) -I $(PLATFORM_DIR)
-CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L -D_GNU_SOURCE
-CFLAGS += -Wall -Wextra -fPIC -g -O0
+CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
+# Include Platform Header Files.
+CFLAGS += -I $(PLATFORM_DIR)
+
+CFLAGS += -fPIC -g -O0
 
 # Target output to generate.
 CC_PRIVATE_SRCS := $(CCFSM_PRIVATE_DIR)/connector_api.c

@@ -17,9 +17,6 @@
  * =======================================================================
  */
 
-#include "ccimp/ccimp_network.h"
-#include "ccimp/ccimp_os.h"
-
 #include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -30,8 +27,10 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 
+#include "ccimp/ccimp_network.h"
+#include "ccimp/ccimp_os.h"
 #include "dns_helper.h"
-#include "utils.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -55,9 +54,9 @@ typedef struct
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-static int dns_cache_is_valid(char const * const device_cloud_url, in_addr_t * const ip_addr);
-static int dns_resolve_name(char const * const domain_name, in_addr_t * const ip_addr);
-static void dns_cache_update(char const * const device_cloud_url, in_addr_t const ip_addr);
+static int dns_cache_is_valid(char const *const device_cloud_url, in_addr_t *const ip_addr);
+static int dns_resolve_name(char const *const domain_name, in_addr_t *const ip_addr);
+static void dns_cache_update(char const *const device_cloud_url, in_addr_t const ip_addr);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -77,7 +76,7 @@ void dns_cache_invalidate(void)
 	dns_cache.ip_addr = INADDR_NONE;
 }
 
-int dns_resolve(char const * const device_cloud_url, in_addr_t * const ip_addr)
+int dns_resolve(char const *const device_cloud_url, in_addr_t *const ip_addr)
 {
 	int status = -1;
 
@@ -102,7 +101,7 @@ done:
 	return status;
 }
 
-static int dns_cache_is_valid(char const * const device_cloud_url, in_addr_t * const ip_addr)
+static int dns_cache_is_valid(char const *const device_cloud_url, in_addr_t *const ip_addr)
 {
 	int valid = 0;
 
@@ -122,7 +121,7 @@ static int dns_cache_is_valid(char const * const device_cloud_url, in_addr_t * c
 	return valid;
 }
 
-static int dns_resolve_name(char const * const domain_name, in_addr_t * const ip_addr)
+static int dns_resolve_name(char const *const domain_name, in_addr_t *const ip_addr)
 {
 	int ret = -1;
 	struct addrinfo *res_list;
@@ -159,7 +158,7 @@ done:
 	return ret;
 }
 
-static void dns_cache_update(char const * const device_cloud_url, in_addr_t const ip_addr)
+static void dns_cache_update(char const *const device_cloud_url, in_addr_t const ip_addr)
 {
 	if (!dns_cache.is_redirected) {
 		strncpy(dns_cache.name, device_cloud_url, APP_MAX_HOST_NAME - 1);

@@ -22,7 +22,10 @@
 #include <pthread.h>
 #include <time.h>
 #include <sys/sysinfo.h>
-#include "utils.h"
+
+#include "ccapi/ccapi.h"
+#include "load_config.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -46,14 +49,14 @@
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 static void *system_monitor_threaded(void *cc_cfg);
-static void system_monitor_loop(const cc_cfg_t * const cc_cfg);
-static ccapi_dp_error_t init_system_monitor(const cc_cfg_t * const cc_cfg);
-static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t * const cc_cfg);
-static ccapi_timestamp_t* get_timestamp(void);
+static void system_monitor_loop(const cc_cfg_t *const cc_cfg);
+static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg);
+static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t *const cc_cfg);
+static ccapi_timestamp_t *get_timestamp(void);
 static long get_free_memory(void);
 static double get_cpu_load(void);
 static double get_cpu_temp(void);
-static uint32_t calculate_number_samples(const cc_cfg_t * const cc_cfg);
+static uint32_t calculate_number_samples(const cc_cfg_t *const cc_cfg);
 static long read_file(const char *path, char **buffer, long file_size);
 
 /*------------------------------------------------------------------------------
@@ -65,8 +68,8 @@ static long read_file(const char *path, char **buffer, long file_size);
  * @format:		Debug message to log.
  * @args:		Additional arguments.
  */
-#define log_sm_debug(format, args...)									\
-	log_debug("%s " format, SYSTEM_MONITOR_TAG, ##args)
+#define log_sm_debug(format, ...)									\
+	log_debug("%s " format, SYSTEM_MONITOR_TAG, __VA_ARGS__)
 
 /**
  * log_sm_error() - Log the given message as error
@@ -74,8 +77,8 @@ static long read_file(const char *path, char **buffer, long file_size);
  * @format:		Error message to log.
  * @args:		Additional arguments.
  */
-#define log_sm_error(format, args...)									\
-	log_error("%s " format, SYSTEM_MONITOR_TAG, ##args)
+#define log_sm_error(format, ...)									\
+	log_error("%s " format, SYSTEM_MONITOR_TAG, __VA_ARGS__)
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -99,7 +102,7 @@ static unsigned long long last_work = 0, last_total = 0;
  *
  * Return: Error code after starting the monitoring.
  */
-int start_system_monitor(const cc_cfg_t * const cc_cfg)
+int start_system_monitor(const cc_cfg_t *const cc_cfg)
 {
 	pthread_attr_t attr;
 	int any_sys_mon_enabled = (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
@@ -116,11 +119,11 @@ int start_system_monitor(const cc_cfg_t * const cc_cfg)
 	error = pthread_attr_init(&attr);
 	if (error != 0) {
 		/* On Linux this function always succeeds. */
-		log_sm_error("pthread_attr_init() error %d\n", error);
+		log_sm_error("pthread_attr_init() error %d", error);
 	}
 	error = pthread_create(&dp_thread, &attr, system_monitor_threaded, (void *) cc_cfg);
 	if (error != 0) {
-		log_sm_error("pthread_create() error %d\n", error);
+		log_sm_error("pthread_create() error %d", error);
 		pthread_attr_destroy(&attr);
 		return CCIMP_STATUS_ERROR;
 	}
@@ -174,7 +177,7 @@ static void *system_monitor_threaded(void *cc_cfg)
  *   - CPU load
  *   - CPU temperature
  */
-static void system_monitor_loop(const cc_cfg_t * const cc_cfg)
+static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 {
 	uint32_t n_samples_to_send = calculate_number_samples(cc_cfg);
 	long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
@@ -202,7 +205,7 @@ static void system_monitor_loop(const cc_cfg_t * const cc_cfg)
 			 * unsigned long timeout = 2; // seconds
 			 * dp_error = ccapi_dp_send_collection_with_reply(CCAPI_TRANSPORT_TCP, dp_collection, timeout, NULL);
 			 */
-			log_sm_debug("Sending Data Point collection\n");
+			log_sm_debug("%s", "Sending Data Point collection");
 			dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
 			if (dp_error != CCAPI_DP_ERROR_NONE)
 				log_sm_error("system_monitor_loop(): ccapi_dp_send_collection error %d", dp_error);
@@ -232,7 +235,7 @@ static void system_monitor_loop(const cc_cfg_t * const cc_cfg)
  * The return value will always be 'CCAPI_DP_ERROR_NONE' unless there is any
  * problem creating the collection.
  */
-static ccapi_dp_error_t init_system_monitor(const cc_cfg_t * const cc_cfg)
+static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg)
 {
 	ccapi_dp_error_t dp_error = ccapi_dp_create_collection(&dp_collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
@@ -263,21 +266,21 @@ static ccapi_dp_error_t init_system_monitor(const cc_cfg_t * const cc_cfg)
  * @cc_cfg:		Connector configuration struct (cc_cfg_t) where the
  * 				settings parsed from the configuration file are stored.
  */
-static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t * const cc_cfg)
+static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t *const cc_cfg)
 {
 	ccapi_timestamp_t *timestamp = get_timestamp();
 
 	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY) {
 		ccapi_dp_add(dp_collection, DATA_STREAM_MEMORY, memory, timestamp);
-		log_sm_debug("Free memory = %lu %s\n", memory, DATA_STREAM_MEMORY_UNITS);
+		log_sm_debug("Free memory = %lu %s", memory, DATA_STREAM_MEMORY_UNITS);
 	}
 	if (cc_cfg->sys_mon_parameters & SYS_MON_LOAD) {
 		ccapi_dp_add(dp_collection, DATA_STREAM_CPU_LOAD, load, timestamp);
-		log_sm_debug("CPU load = %f%s\n", load, DATA_STREAM_CPU_LOAD_UNITS);
+		log_sm_debug("CPU load = %f%s", load, DATA_STREAM_CPU_LOAD_UNITS);
 	}
 	if (cc_cfg->sys_mon_parameters & SYS_MON_TEMP) {
 		ccapi_dp_add(dp_collection, DATA_STREAM_CPU_TEMP, temp, timestamp);
-		log_sm_debug("Temperature = %f%s\n", temp, DATA_STREAM_CPU_TEMP_UNITS);
+		log_sm_debug("Temperature = %f%s", temp, DATA_STREAM_CPU_TEMP_UNITS);
 	}
 
 	if (timestamp != NULL) {
@@ -295,7 +298,7 @@ static void add_system_samples(unsigned long memory, double load, double temp, c
  *
  * Return: The timestamp of the system.
  */
-static ccapi_timestamp_t* get_timestamp(void)
+static ccapi_timestamp_t *get_timestamp(void)
 {
 	ccapi_timestamp_t *timestamp = NULL;
 	size_t len = strlen("2016-09-27T07:07:09.546Z") + 1;
@@ -333,7 +336,7 @@ static long get_free_memory(void)
 	struct sysinfo info;
 
 	if (sysinfo(&info) != 0) {
-		log_sm_error("get_free_memory(): sysinfo error");
+		log_sm_error("%s", "get_free_memory(): sysinfo error");
 		return -1;
 	}
 
@@ -349,22 +352,22 @@ static double get_cpu_load(void) {
 	char *file_data = NULL;
 	long file_size;
 	unsigned long long int fields[10];
-	unsigned long long work, total = 0;
+	unsigned long long work = 0, total = 0;
 	double usage = -1;
 	int i, result;
 
 	file_size = read_file(FILE_CPU_LOAD, &file_data, 4096);
 	if (file_size <= 0) {
-		log_sm_error("get_cpu_load(): error reading cpu load file");
+		log_sm_error("%s", "get_cpu_load(): error reading cpu load file");
 		goto done;
 	}
 
-	result = sscanf(file_data, "cpu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu",
+	result = sscanf(file_data, "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
 			&fields[0], &fields[1], &fields[2], &fields[3], &fields[4],
 			&fields[5], &fields[6], &fields[7], &fields[8], &fields[9]);
 
 	if (result < 4) {
-		log_sm_error("get_cpu_load(): cpu load not enough fields error");
+		log_sm_error("%s", "get_cpu_load(): cpu load not enough fields error");
 		goto done;
 	}
 
@@ -407,14 +410,14 @@ static double get_cpu_temp(void)
 
 	file_size = read_file(FILE_CPU_TEMP, &file_data, 1024);
 	if (file_size <= 0) {
-		log_sm_error("get_cpu_temp(): Error reading cpu temperature file");
+		log_sm_error("%s", "get_cpu_temp(): Error reading cpu temperature file");
 		return -1;
 	}
 
 	result = sscanf(file_data, "%lf", &temperature);
 	free(file_data);
 	if (result < 1) {
-		log_sm_error("get_cpu_temp(): cpu temp not enough fields error");
+		log_sm_error("%s", "get_cpu_temp(): cpu temp not enough fields error");
 		return -1;
 	}
 	return temperature / 1000;
@@ -428,7 +431,7 @@ static double get_cpu_temp(void)
  *
  * Return: The number of samples in a collection to be uploaded to Device Cloud.
  */
-static uint32_t calculate_number_samples(const cc_cfg_t * const cc_cfg)
+static uint32_t calculate_number_samples(const cc_cfg_t *const cc_cfg)
 {
 	uint32_t channels = 0;
 	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)

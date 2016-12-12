@@ -23,9 +23,9 @@
 #include <semaphore.h>
 #include <errno.h>
 #include <stdarg.h>
-#include <signal.h>
 
 #include "ccimp/ccimp_os.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -49,14 +49,13 @@
 ------------------------------------------------------------------------------*/
 typedef struct thread_info {
 	pthread_t thread;
-	struct thread_info * next;
+	struct thread_info *next;
 } thread_info_t;
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-void wait_for_ccimp_threads(void);
-static void * thread_wrapper(void * argument);
+static void *thread_wrapper(void *argument);
 static void add_thread_info(pthread_t thread);
 
 /*------------------------------------------------------------------------------
@@ -67,19 +66,19 @@ static thread_info_t * thread_info_list = NULL;
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
-ccimp_status_t ccimp_os_malloc(ccimp_os_malloc_t * const malloc_info)
+ccimp_status_t ccimp_os_malloc(ccimp_os_malloc_t *const malloc_info)
 {
 	malloc_info->ptr = malloc(malloc_info->size);
 	return malloc_info->ptr == NULL ? CCIMP_STATUS_ERROR : CCIMP_STATUS_OK;
 }
 
-ccimp_status_t ccimp_os_free(ccimp_os_free_t * const free_info)
+ccimp_status_t ccimp_os_free(ccimp_os_free_t *const free_info)
 {
 	free((void *) free_info->ptr);
 	return CCIMP_STATUS_OK;
 }
 
-ccimp_status_t ccimp_os_realloc(ccimp_os_realloc_t * const realloc_info)
+ccimp_status_t ccimp_os_realloc(ccimp_os_realloc_t *const realloc_info)
 {
 	ccimp_status_t status = CCIMP_STATUS_OK;
 
@@ -93,7 +92,7 @@ ccimp_status_t ccimp_os_realloc(ccimp_os_realloc_t * const realloc_info)
 void wait_for_ccimp_threads(void)
 {
 	while (thread_info_list != NULL) {
-		thread_info_t * const next = thread_info_list->next;
+		thread_info_t *const next = thread_info_list->next;
 
 		pthread_join(thread_info_list->thread, NULL);
 		free(thread_info_list);
@@ -101,7 +100,7 @@ void wait_for_ccimp_threads(void)
 	}
 }
 
-ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t * const create_thread_info)
+ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t *const create_thread_info)
 {
 	pthread_t pthread;
 	int ccode;
@@ -120,7 +119,7 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t * const crea
 		 * Don't do this on actual applications or the memory will be leaked.
 		 */
 		int stack_size;
-		void * sp = NULL;
+		void *sp = NULL;
 		int s;
 
 		switch(create_thread_info->type) {
@@ -159,7 +158,7 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t * const crea
 	return CCIMP_STATUS_OK;
 }
 
-ccimp_status_t ccimp_os_get_system_time(ccimp_os_system_up_time_t * const system_up_time)
+ccimp_status_t ccimp_os_get_system_time(ccimp_os_system_up_time_t *const system_up_time)
 {
 	static time_t start_system_up_time;
 	time_t present_time;
@@ -187,19 +186,19 @@ ccimp_status_t ccimp_os_yield(void)
 	return CCIMP_STATUS_OK;
 }
 
-ccimp_status_t ccimp_os_lock_create(ccimp_os_lock_create_t * const data)
+ccimp_status_t ccimp_os_lock_create(ccimp_os_lock_create_t *const data)
 {
 	ccimp_status_t status = CCIMP_STATUS_OK;
 	sem_t * const sem = (sem_t *) malloc(sizeof *sem);
 
 	if (sem == NULL) {
-		log_error("ccimp_os_lock_create() insufficient memory");
+		log_error("%s", "ccimp_os_lock_create() insufficient memory");
 		status = CCIMP_STATUS_ERROR;
 		goto done;
 	}
 
 	if (sem_init(sem, 0, 0) == -1) {
-		log_error("ccimp_os_lock_create() error");
+		log_error("%s", "ccimp_os_lock_create() error");
 		free(sem);
 		status = CCIMP_STATUS_ERROR;
 		goto done;
@@ -210,11 +209,11 @@ done:
 	return status;
 }
 
-ccimp_status_t ccimp_os_lock_acquire(ccimp_os_lock_acquire_t * const data)
+ccimp_status_t ccimp_os_lock_acquire(ccimp_os_lock_acquire_t *const data)
 {
 	struct timespec ts = { 0 };
 	int s;
-	sem_t * sem = data->lock;
+	sem_t *sem = data->lock;
 
 	assert(sem);
 
@@ -266,28 +265,28 @@ ccimp_status_t ccimp_os_lock_acquire(ccimp_os_lock_acquire_t * const data)
 	return CCIMP_STATUS_OK;
 }
 
-ccimp_status_t ccimp_os_lock_release(ccimp_os_lock_release_t * const data)
+ccimp_status_t ccimp_os_lock_release(ccimp_os_lock_release_t *const data)
 {
-	sem_t * const sem = data->lock;
+	sem_t *const sem = data->lock;
 
 	assert(sem);
 
 	if (sem_post(sem) == -1) {
-		log_error("ccimp_os_lock_release() error");
+		log_error("%s", "ccimp_os_lock_release() error");
 		return CCIMP_STATUS_ERROR;
 	}
 
 	return CCIMP_STATUS_OK;
 }
 
-ccimp_status_t ccimp_os_lock_destroy(ccimp_os_lock_destroy_t * const data)
+ccimp_status_t ccimp_os_lock_destroy(ccimp_os_lock_destroy_t *const data)
 {
-	sem_t * const sem = data->lock;
+	sem_t *const sem = data->lock;
 
 	assert(sem);
 
 	if (sem_destroy(sem) == -1) {
-		log_error("ccimp_os_lock_destroy() error");
+		log_error("%s", "ccimp_os_lock_destroy() error");
 		return CCIMP_STATUS_ERROR;
 	}
 
@@ -295,9 +294,9 @@ ccimp_status_t ccimp_os_lock_destroy(ccimp_os_lock_destroy_t * const data)
 	return CCIMP_STATUS_OK;
 }
 
-static void * thread_wrapper(void * argument)
+static void *thread_wrapper(void *argument)
 {
-	ccimp_os_create_thread_info_t * create_thread_info = (ccimp_os_create_thread_info_t *) argument;
+	ccimp_os_create_thread_info_t *create_thread_info = (ccimp_os_create_thread_info_t *) argument;
 
 	create_thread_info->start(create_thread_info->argument);
 
@@ -306,7 +305,7 @@ static void * thread_wrapper(void * argument)
 
 static void add_thread_info(pthread_t thread)
 {
-	thread_info_t * const new_thread_info = malloc(sizeof *new_thread_info);
+	thread_info_t *const new_thread_info = malloc(sizeof *new_thread_info);
 
 	new_thread_info->thread = thread;
 	new_thread_info->next = thread_info_list;

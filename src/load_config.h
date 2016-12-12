@@ -51,8 +51,8 @@
  * @path:	Local path where the virtual directory is mapped
  */
 typedef struct {
-	char * name;
-	char * path;
+	char *name;
+	char *path;
 } vdir_t;
 
 /**
@@ -78,10 +78,10 @@ typedef struct {
  */
 typedef struct {
 	uint32_t vendor_id;
-	char * device_type;
-	char * fw_version;
+	char *device_type;
+	char *fw_version;
 
-	char * url;
+	char *url;
 	ccapi_bool_t enable_reconnect;
 	uint16_t keepalive_rx;
 	uint16_t keepalive_tx;
@@ -89,7 +89,7 @@ typedef struct {
 
 	uint8_t services;
 
-	vdir_t * vdirs;
+	vdir_t *vdirs;
 	unsigned int n_vdirs;
 
 	uint16_t sys_mon_parameters;
@@ -104,7 +104,7 @@ typedef struct {
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-int parse_configuration(const char * const filename, cc_cfg_t * cc_cfg);
-void free_cfg(cc_cfg_t * const config);
+int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg);
+void free_cfg(cc_cfg_t *const config);
 
 #endif /* LOAD_CONFIG_H_ */

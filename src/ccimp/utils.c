@@ -30,6 +30,7 @@
 #include <ctype.h>
 
 #include "utils.h"
+#include "cc_logging.h"
 #include "device_request.h"
 #include "firmware_update.h"
 
@@ -42,12 +43,12 @@
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause);
-static int get_device_id_from_mac(uint8_t * const device_id,
-		const uint8_t * const mac_addr);
-static int get_ipv4_address(uint8_t * const ipv4_addr);
-static uint8_t * get_mac_addr(uint8_t * const mac_addr);
-static uint8_t * get_interface_mac_addr(const struct ifreq * const iface,
-		uint8_t * const mac_addr, const char * const pattern);
+static int get_device_id_from_mac(uint8_t *const device_id,
+		const uint8_t *const mac_addr);
+static int get_ipv4_address(uint8_t *const ipv4_addr);
+static uint8_t *get_mac_addr(uint8_t *const mac_addr);
+static uint8_t *get_interface_mac_addr(const struct ifreq *const iface,
+		uint8_t *const mac_addr, const char *const pattern);
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
@@ -61,13 +62,13 @@ static uint8_t * get_interface_mac_addr(const struct ifreq * const iface,
  * Return: The created ccapi_start_t struct with the data read from the
  *         configuration file.
  */
-ccapi_start_t * create_ccapi_start_struct(const cc_cfg_t * const cc_cfg)
+ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 {
 	uint8_t mac_address[6];
 
 	ccapi_start_t * start = malloc(sizeof *start);
 	if (start == NULL) {
-		log_error("create_ccapi_start_struct(): malloc failed for ccapi_start_t");
+		log_error("%s","create_ccapi_start_struct(): malloc failed for ccapi_start_t");
 		return start;
 	}
 
@@ -75,7 +76,7 @@ ccapi_start_t * create_ccapi_start_struct(const cc_cfg_t * const cc_cfg)
 	start->device_type = cc_cfg->device_type;
 	start->vendor_id = cc_cfg->vendor_id;
 	if (get_device_id_from_mac(start->device_id, get_mac_addr(mac_address)) != 0) {
-		log_error("create_ccapi_start_struct(): cannot calculate device id");
+		log_error("%s", "create_ccapi_start_struct(): cannot calculate device id");
 		free_ccapi_start_struct(start);
 		start = NULL;
 		return start;
@@ -93,7 +94,7 @@ ccapi_start_t * create_ccapi_start_struct(const cc_cfg_t * const cc_cfg)
 	if (cc_cfg->services & DATA_SERVICE) {
 		ccapi_receive_service_t * dreq_service = malloc(sizeof *dreq_service);
 		if (dreq_service == NULL) {
-			log_error("create_ccapi_start_struct(): malloc failed for ccapi_receive_service_t");
+			log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_receive_service_t");
 			free_ccapi_start_struct(start);
 			start = NULL;
 			return start;
@@ -113,7 +114,7 @@ ccapi_start_t * create_ccapi_start_struct(const cc_cfg_t * const cc_cfg)
 	if (cc_cfg->services & FS_SERVICE) {
 		ccapi_filesystem_service_t * fs_service = malloc(sizeof *fs_service);
 		if (fs_service == NULL) {
-			log_error("create_ccapi_start_struct(): malloc failed for ccapi_filesystem_service_t");
+			log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_filesystem_service_t");
 			free_ccapi_start_struct(start);
 			start = NULL;
 			return start;
@@ -127,7 +128,6 @@ ccapi_start_t * create_ccapi_start_struct(const cc_cfg_t * const cc_cfg)
 
 	/* Initialize firmware service. */
 	start->service.firmware = NULL;
-	/* TODO */
 	if (cc_cfg->fw_version == NULL) {
 		start->service.firmware = NULL;
 	} else {
@@ -148,14 +148,14 @@ ccapi_start_t * create_ccapi_start_struct(const cc_cfg_t * const cc_cfg)
 			ccapi_fw_service_t * const fw_service = malloc(sizeof *fw_service);
 
 			if (fw_list == NULL) {
-				log_error("create_ccapi_start_struct(): malloc failed for ccapi_firmware_target_t");
+				log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_firmware_target_t");
 				free_ccapi_start_struct(start);
 				start = NULL;
 				return start;
 			}
 
 			if (fw_service == NULL) {
-				log_error("create_ccapi_start_struct(): malloc failed for ccapi_fw_service_t");
+				log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_fw_service_t");
 				free_ccapi_start_struct(start);
 				start = NULL;
 				return start;
@@ -194,11 +194,11 @@ ccapi_start_t * create_ccapi_start_struct(const cc_cfg_t * const cc_cfg)
  * Return: The created ccapi_start_t struct with the data read from the
  *         configuration file.
  */
-ccapi_tcp_info_t * create_ccapi_tcp_start_info_struct(const cc_cfg_t * const cc_cfg)
+ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg)
 {
-	ccapi_tcp_info_t * tcp_info = malloc(sizeof *tcp_info);
+	ccapi_tcp_info_t *tcp_info = malloc(sizeof *tcp_info);
 	if (tcp_info == NULL) {
-		log_error("create_ccapi_tcp_start_info_struct(): malloc failed for ccapi_tcp_info_t");
+		log_error("%s", "create_ccapi_tcp_start_info_struct(): malloc failed for ccapi_tcp_info_t");
 		return tcp_info;
 	}
 
@@ -232,7 +232,7 @@ ccapi_tcp_info_t * create_ccapi_tcp_start_info_struct(const cc_cfg_t * const cc_
  *
  * @ccapi_start:	CCAPI start struct (ccapi_start_t) to be released.
  */
-void free_ccapi_start_struct(ccapi_start_t * ccapi_start)
+void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
 {
 	if (ccapi_start != NULL) {
 		if (ccapi_start->service.firmware != NULL)
@@ -249,7 +249,7 @@ void free_ccapi_start_struct(ccapi_start_t * ccapi_start)
  *
  * @ccapi_start:	CCAPI TCP info struct (ccapi_tcp_info_t) to be released.
  */
-void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t * const tcp_info)
+void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info)
 {
 	free(tcp_info);
 }
@@ -260,43 +260,19 @@ void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t * const tcp_info)
  * @vdirs:		List of virtual directories
  * @n_vdirs:	Number of elements in the list
  */
-void add_virtual_directories(const vdir_t * const vdirs, int n_vdirs)
+void add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
 {
 	int i;
 
 	for (i = 0; i < n_vdirs; i++) {
 		ccapi_fs_error_t add_dir_error;
-		const vdir_t * v_dir = vdirs + i;
+		const vdir_t *v_dir = vdirs + i;
 
 		log_info("New virtual directory %s (%s)", v_dir->name, v_dir->path);
 		add_dir_error = ccapi_fs_add_virtual_dir(v_dir->name, v_dir->path);
 		if (add_dir_error != CCAPI_FS_ERROR_NONE)
 			log_error("add_virtual_directories() failed with error %d", add_dir_error);
 	}
-}
-
-/**
- * file_exists() - Check that the file with the given name exists
- *
- * @filename:	Full path of the file to check if it exists.
- *
- * Return: 1 if the file exits, 0 if it does not exist.
- */
-int file_exists(const char * const filename)
-{
-	return access(filename, F_OK) == 0;
-}
-
-/**
- * file_readable() - Check that the file with the given name can be read
- *
- * @filename:	Full path of the file to check if it is readable.
- *
- * Return: 1 if the file is readable, 0 if it cannot be read.
- */
-int file_readable(const char * const filename)
-{
-	return access(filename, R_OK) == 0;
 }
 
 /**
@@ -321,11 +297,11 @@ static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
  *
  * Return: 0 on success, -1 otherwise.
  */
-static int get_device_id_from_mac(uint8_t * const device_id, const uint8_t * const mac_addr)
+static int get_device_id_from_mac(uint8_t *const device_id, const uint8_t *const mac_addr)
 {
-	const char * const deviceid_file = "/etc/cc.did";
+	const char *const deviceid_file = "/etc/cc.did";
 	unsigned int const device_id_length = 16;
-	FILE * fp = NULL;
+	FILE *fp = NULL;
 	unsigned int n_items;
 
 	memset(device_id, 0x00, device_id_length);
@@ -363,7 +339,7 @@ static int get_device_id_from_mac(uint8_t * const device_id, const uint8_t * con
 				device_id[14], device_id[15]);
 		fclose(fp);
 		if (n_items != device_id_length * 2 + 3)
-			log_debug("Could not store Device ID");
+			log_debug("%s", "Could not store Device ID");
 	}
 
 	return 0;
@@ -378,14 +354,14 @@ static int get_device_id_from_mac(uint8_t * const device_id, const uint8_t * con
  *
  * Return: 0 on success, -1 otherwise.
  */
-static int get_ipv4_address(uint8_t * const ipv4_addr)
+static int get_ipv4_address(uint8_t *const ipv4_addr)
 {
 	unsigned int const ipv4_len = 4;
-	struct ifaddrs * ifaddr = NULL, *ifa = NULL;
+	struct ifaddrs *ifaddr = NULL, *ifa = NULL;
 	int retval = -1;
 
 	if (getifaddrs(&ifaddr) == -1) {
-		log_error("get_ipv4_address(): getifaddrs() failed");
+		log_error("%s", "get_ipv4_address(): getifaddrs() failed");
 		goto done;
 	}
 
@@ -409,7 +385,7 @@ static int get_ipv4_address(uint8_t * const ipv4_addr)
 
 			ipv4 = inet_addr(host);
 			if (ipv4 != htonl(INADDR_LOOPBACK)) {
-				log_info("get_ipv4_address(): Interface name [%s] - IP Address [%s]\n", ifa->ifa_name, host);
+				log_info("get_ipv4_address(): Interface name [%s] - IP Address [%s]", ifa->ifa_name, host);
 				memcpy(ipv4_addr, &ipv4, ipv4_len);
 				retval = 0;
 				break;
@@ -432,30 +408,30 @@ done:
  *
  * Return: The MAC address of primary interface.
  */
-static uint8_t * get_mac_addr(uint8_t * const mac_addr)
+static uint8_t *get_mac_addr(uint8_t *const mac_addr)
 {
 	unsigned int const max_interfaces = 8;
 	size_t const buf_size = max_interfaces * sizeof(struct ifreq);
 	struct ifconf ifconf;
-	uint8_t * retval = NULL;
+	uint8_t *retval = NULL;
 	int sock = -1;
 
-	char * const buf = malloc(sizeof(char) * buf_size);
+	char *const buf = malloc(sizeof(char) * buf_size);
 	if (buf == NULL) {
-		log_error("get_mac_addr(): malloc failed for char");
+		log_error("%s", "get_mac_addr(): malloc failed for char");
 		goto done;
 	}
 
 	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (sock == -1) {
-		log_error("get_mac_addr(): socket() failed");
+		log_error("%s", "get_mac_addr(): socket() failed");
 		goto done;
 	}
 
 	ifconf.ifc_len = buf_size;
 	ifconf.ifc_buf = buf;
 	if (ioctl(sock, SIOCGIFCONF, &ifconf) < 0) {
-		log_error("get_mac_addr(): Error using ioctl SIOCGIFCONF.\n");
+		log_error("%s", "get_mac_addr(): Error using ioctl SIOCGIFCONF.");
 		goto done;
 	}
 
@@ -469,11 +445,11 @@ static uint8_t * get_mac_addr(uint8_t * const mac_addr)
 
 		for (i = 0; i < entries; i++) {
 			struct ifreq ifr;
-			struct ifreq * ifreq = &ifconf.ifc_req[i];
+			struct ifreq *ifreq = &ifconf.ifc_req[i];
 
 			strcpy(ifr.ifr_name, ifreq->ifr_name);
 			if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
-				log_error("get_mac_addr(): Error using ioctl SIOCGIFFLAGS.\n");
+				log_error("%s", "get_mac_addr(): Error using ioctl SIOCGIFFLAGS.");
 				continue;
 			}
 
@@ -483,14 +459,14 @@ static uint8_t * get_mac_addr(uint8_t * const mac_addr)
 							|| get_interface_mac_addr(&ifr, mac_addr, "^wlan([0-9]{1,3})$") != NULL) {
 						memcpy(mac_addr, ifr.ifr_hwaddr.sa_data, 6);
 						retval = mac_addr;
-						log_info("Primary interface %s - MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+						log_info("Primary interface %s - MAC %02x:%02x:%02x:%02x:%02x:%02x",
 								ifr.ifr_name, mac_addr[0], mac_addr[1],
 								mac_addr[2], mac_addr[3], mac_addr[4],
 								mac_addr[5]);
 						break;
 					}
 				} else {
-					log_error("get_mac_addr(): Error using ioctl SIOCGIFHWADDR.\n");
+					log_error("%s", "get_mac_addr(): Error using ioctl SIOCGIFHWADDR.");
 				}
 			}
 		}
@@ -512,14 +488,14 @@ done:
  *
  * Return: The MAC address of the interface, or NULL if it does not matches.
  */
-static uint8_t * get_interface_mac_addr(const struct ifreq * const iface,
-		uint8_t * const mac_addr, const char * const pattern)
+static uint8_t *get_interface_mac_addr(const struct ifreq *const iface,
+		uint8_t *const mac_addr, const char *const pattern)
 {
 	regex_t regex;
 	char msgbuf[100];
-	uint8_t * retval = NULL;
+	uint8_t *retval = NULL;
 
-	const char * name = iface->ifr_name;
+	const char *name = iface->ifr_name;
 
 	int error = regcomp(&regex, pattern, REG_EXTENDED);
 	if (error != 0) {
@@ -539,54 +515,3 @@ done:
 	return retval;
 }
 
-/**
- * strltrim() - Remove leading whitespaces from the given string
- *
- * @s: String to remove leading whitespaces.
- *
- * Return: New string without leading whitespaces.
- */
-char * strltrim(const char *s)
-{
-	while (isspace(*s) || !isprint(*s))
-		++s;
-
-	return strdup(s);
-}
-
-/**
- * strrtrim() - Remove trailing whitespaces from the given string
- *
- * @s: String to remove trailing whitespaces.
- *
- * Return: New string without trailing whitespaces.
- */
-char * strrtrim(const char * s)
-{
-	char *r = strdup(s);
-
-	if (r != NULL) {
-		char *fr = r + strlen(s) - 1;
-		while ((isspace(*fr) || !isprint(*fr) || *fr == 0) && fr >= r)
-			--fr;
-		*++fr = 0;
-	}
-
-	return r;
-}
-
-/**
- * strtrim() - Remove leading and trailing whitespaces from the given string
- *
- * @s: String to remove leading and trailing whitespaces.
- *
- * Return: New string without leading and trailing whitespaces.
- */
-char * strtrim(const char * s)
-{
-	char *r = strrtrim(s);
-	char *f = strltrim(r);
-	free(r);
-
-	return f;
-}

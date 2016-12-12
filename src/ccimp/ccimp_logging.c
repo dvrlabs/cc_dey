@@ -18,6 +18,7 @@
  */
 
 #include "ccimp/ccimp_logging.h"
+#include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -29,7 +30,6 @@
 #if (defined CCIMP_DEBUG_ENABLED)
 #include <stdio.h>
 #include <stdlib.h>
-#include "utils.h"
 
 #define MAX_CHARS				256
 #define CCAPI_DEBUG_PREFIX		"CCAPI: "
@@ -43,7 +43,7 @@ static size_t bufsize = 0;
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
-void ccimp_hal_logging_vprintf(debug_t const debug, char const * const format, va_list args)
+void ccimp_hal_logging_vprintf(debug_t const debug, char const *const format, va_list args)
 {
 	switch (debug) {
 	case debug_beg: {
