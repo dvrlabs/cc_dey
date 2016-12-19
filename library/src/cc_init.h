@@ -24,14 +24,53 @@
 #include "cc_config.h"
 
 /*------------------------------------------------------------------------------
+                 D A T A    T Y P E S    D E F I N I T I O N S
+ ------------------------------------------------------------------------------*/
+typedef enum {
+	CC_INIT_ERROR_NONE,
+	CC_INIT_CCAPI_START_ERROR_NULL_PARAMETER,
+	CC_INIT_CCAPI_START_ERROR_INVALID_VENDORID,
+	CC_INIT_CCAPI_START_ERROR_INVALID_DEVICEID,
+	CC_INIT_CCAPI_START_ERROR_INVALID_URL,
+	CC_INIT_CCAPI_START_ERROR_INVALID_DEVICETYPE,
+	CC_INIT_CCAPI_START_ERROR_INVALID_CLI_REQUEST_CALLBACK,
+	CC_INIT_CCAPI_START_ERROR_INVALID_FIRMWARE_INFO,
+	CC_INIT_CCAPI_START_ERROR_INVALID_FIRMWARE_DATA_CALLBACK,
+	CC_INIT_CCAPI_START_ERROR_INSUFFICIENT_MEMORY,
+	CC_INIT_CCAPI_START_ERROR_THREAD_FAILED,
+	CC_INIT_CCAPI_START_ERROR_LOCK_FAILED,
+	CC_INIT_CCAPI_START_ERROR_ALREADY_STARTED,
+	CC_INIT_ERROR_INSUFFICIENT_MEMORY,
+	CC_INIT_ERROR_PARSE_CONFIGURATION,
+	CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY
+} cc_init_error_t;
+
+typedef enum {
+	CC_START_ERROR_NONE,
+	CC_START_CCAPI_TCP_START_ERROR_ALREADY_STARTED,
+	CC_START_CCAPI_TCP_START_ERROR_CCAPI_STOPPED,
+	CC_START_CCAPI_TCP_START_ERROR_NULL_POINTER,
+	CC_START_CCAPI_TCP_START_ERROR_INSUFFICIENT_MEMORY,
+	CC_START_CCAPI_TCP_START_ERROR_KEEPALIVES,
+	CC_START_CCAPI_TCP_START_ERROR_IP,
+	CC_START_CCAPI_TCP_START_ERROR_INVALID_MAC,
+	CC_START_CCAPI_TCP_START_ERROR_PHONE,
+	CC_START_CCAPI_TCP_START_ERROR_INIT,
+	CC_START_CCAPI_TCP_START_ERROR_TIMEOUT,
+	CC_START_ERROR_NOT_INITIALIZE,
+	CC_START_ERROR_SYSTEM_MONITOR
+} cc_start_error_t;
+
+typedef enum {
+	CC_STOP_ERROR_NONE,
+	CC_STOP_CCAPI_STOP_ERROR_NOT_STARTED
+} cc_stop_error_t;
+
+/*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg);
-ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg);
-void free_ccapi_start_struct(ccapi_start_t *ccapi_start);
-void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info);
-void add_virtual_directories(const vdir_t *const vdirs, int n_vdirs);
-int start_system_monitor(const cc_cfg_t *const cc_cfg);
-void stop_system_monitor(void);
+cc_init_error_t init_cloud_connection(void);
+cc_start_error_t start_cloud_connection(void);
+cc_stop_error_t stop_cloud_connection(void);
 
 #endif /* CC_INIT_H_ */

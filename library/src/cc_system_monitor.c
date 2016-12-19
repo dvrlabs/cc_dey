@@ -103,7 +103,7 @@ static unsigned long long last_work = 0, last_total = 0;
  *
  * Return: Error code after starting the monitoring.
  */
-int start_system_monitor(const cc_cfg_t *const cc_cfg)
+cc_sys_mon_error_t start_system_monitor(const cc_cfg_t *const cc_cfg)
 {
 	pthread_attr_t attr;
 	int any_sys_mon_enabled = (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
@@ -115,7 +115,7 @@ int start_system_monitor(const cc_cfg_t *const cc_cfg)
 
 	if (!(cc_cfg->services & SYS_MONITOR_SERVICE)
 			|| !any_sys_mon_enabled || cc_cfg->sys_mon_sample_rate <= 0)
-		return CCAPI_DP_ERROR_NONE;
+		return CC_SYS_MON_ERROR_NONE;
 
 	error = pthread_attr_init(&attr);
 	if (error != 0) {
@@ -129,7 +129,7 @@ int start_system_monitor(const cc_cfg_t *const cc_cfg)
 		return CCIMP_STATUS_ERROR;
 	}
 	pthread_attr_destroy(&attr);
-	return CCAPI_DP_ERROR_NONE;
+	return CC_SYS_MON_ERROR_NONE;
 }
 
 /*

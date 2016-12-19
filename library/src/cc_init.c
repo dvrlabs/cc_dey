@@ -28,11 +28,13 @@
 #include <net/if.h>
 #include <regex.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "cc_init.h"
 #include "cc_logging.h"
 #include "cc_device_request.h"
 #include "cc_firmware_update.h"
+#include "cc_system_monitor.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -44,6 +46,13 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
+static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg);
+static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg);
+static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg);
+static ccapi_tcp_start_error_t initialize_tcp_transport(const cc_cfg_t *const cc_cfg);
+static void free_ccapi_start_struct(ccapi_start_t *ccapi_start);
+static void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info);
+static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs);
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause);
 static int get_device_id_from_mac(uint8_t *const device_id,
 		const uint8_t *const mac_addr);
@@ -53,22 +62,179 @@ static uint8_t *get_interface_mac_addr(const struct ifreq *const iface,
 		uint8_t *const mac_addr, const char *const pattern);
 
 /*------------------------------------------------------------------------------
+                         G L O B A L  V A R I A B L E S
+------------------------------------------------------------------------------*/
+static cc_cfg_t *cc_cfg = NULL;
+
+/*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+/*
+ * init_cloud_connection() - Initialize Cloud connection
+ *
+ * Return:	0 if Cloud connection is successfully initialized, error code
+ *			otherwise.
+ */
+cc_init_error_t init_cloud_connection(void)
+{
+	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID;
+	ccapi_start_error_t ccapi_error;
+	int error;
+
+	cc_cfg = malloc(sizeof(cc_cfg_t));
+	if (cc_cfg == NULL) {
+		log_error("Cannot allocate memory for configuration (errno %d: %s)",
+				errno, strerror(errno));
+		return CC_INIT_ERROR_INSUFFICIENT_MEMORY;
+	}
+
+	error = parse_configuration(CC_CONFIG_FILE, cc_cfg);
+	if (error != 0)
+		return CC_INIT_ERROR_PARSE_CONFIGURATION;
+
+	closelog();
+	if (cc_cfg->log_console)
+		log_options = log_options | LOG_PERROR;
+	init_logger(cc_cfg->log_level, log_options);
+
+	ccapi_error = initialize_ccapi(cc_cfg);
+	if (ccapi_error != CCAPI_START_ERROR_NONE)
+		return ccapi_error;
+
+	error = add_virtual_directories(cc_cfg->vdirs, cc_cfg->n_vdirs);
+	if (error != 0)
+		return CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY;
+
+	return CC_INIT_ERROR_NONE;
+}
+
+/*
+ * start_cloud_connection() - Start Cloud connection
+ *
+ * Return:	0 if Cloud connection is successfully started, error code otherwise.
+ */
+cc_start_error_t start_cloud_connection(void)
+{
+	ccapi_tcp_start_error_t tcp_start_error;
+	cc_sys_mon_error_t sys_mon_error;
+
+	if (cc_cfg == NULL) {
+		log_error("%s", "Initialize the connection before starting\n");
+		return CC_START_ERROR_NOT_INITIALIZE;
+	}
+
+	tcp_start_error = initialize_tcp_transport(cc_cfg);
+	if (tcp_start_error != CCAPI_TCP_START_ERROR_NONE)
+		return tcp_start_error;
+
+	sys_mon_error = start_system_monitor(cc_cfg);
+	if (sys_mon_error != CC_SYS_MON_ERROR_NONE)
+		return CC_START_ERROR_SYSTEM_MONITOR;
+
+	return CC_START_ERROR_NONE;
+}
+
+/*
+ * stop_cloud_connection() - Stop Cloud connection
+ *
+ * Return:	0 if Cloud connection is successfully stopped, error code otherwise.
+ */
+cc_stop_error_t stop_cloud_connection(void)
+{
+	ccapi_stop_error_t stop_error;
+
+	stop_system_monitor();
+	stop_error = ccapi_stop(CCAPI_STOP_GRACEFULLY);
+
+	if (stop_error == CCAPI_STOP_ERROR_NONE) {
+		log_info("%s", "ccapi_stop success\n");
+	} else {
+		log_error("ccapi_stop error %d\n", stop_error);
+	}
+
+	free_cfg(cc_cfg);
+	cc_cfg = NULL;
+	closelog();
+
+	return stop_error;
+}
+
+/*
+ * initialize_ccapi() - Initialize CCAPI layer
+ *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the settings parsed
+ *			from the configuration file are stored.
+ *
+ * Return:	CCAPI_START_ERROR_NONE on success, any other ccapi_start_error_t
+ * 			otherwise.
+ */
+static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg)
+{
+	ccapi_start_t *start_st = NULL;
+	ccapi_start_error_t error;
+
+	start_st = create_ccapi_start_struct(cc_cfg);
+	if (start_st == NULL)
+		return CCAPI_START_ERROR_NULL_PARAMETER;
+
+	error = ccapi_start(start_st);
+	if (error != CCAPI_START_ERROR_NONE)
+		log_error("ccapi_start error %d\n", error);
+
+	free_ccapi_start_struct(start_st);
+	return error;
+}
+
+/*
+ * initialize_tcp_transport() - Start TCP transport
+ *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the settings parsed
+ * 			from the configuration file are stored.
+ *
+ * Return: CCAPI_TCP_START_ERROR_NONE on success, any other
+ *         ccapi_tcp_start_error_t otherwise.
+ */
+static ccapi_tcp_start_error_t initialize_tcp_transport(
+		const cc_cfg_t *const cc_cfg)
+{
+	ccapi_tcp_info_t *tcp_info = NULL;
+	ccapi_tcp_start_error_t error;
+
+	tcp_info = create_ccapi_tcp_start_info_struct(cc_cfg);
+	if (tcp_info == NULL)
+		return CCAPI_TCP_START_ERROR_NULL_POINTER;
+
+	do {
+		error = ccapi_start_transport_tcp(tcp_info);
+		if (error == CCAPI_TCP_START_ERROR_NONE) {
+			log_info("%s",
+					"ccapi_start_transport_tcp() timed out, retrying in 30 seconds");
+			sleep(30);
+		}
+	} while (error == CCAPI_TCP_START_ERROR_TIMEOUT);
+
+	if (error) {
+		log_error("ccapi_start_transport_tcp failed with error %d\n", error);
+	}
+
+	free_ccapi_tcp_start_info_struct(tcp_info);
+	return error;
+}
+
 /*
  * create_ccapi_start_struct() - Create a ccapi_start_t struct from the given config
  *
  * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
  * 			settings parsed from the configuration file are stored.
  *
- * Return: The created ccapi_start_t struct with the data read from the
- *         configuration file.
+ * Return:	The created ccapi_start_t struct with the data read from the
+ * 			configuration file.
  */
-ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
+static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 {
 	uint8_t mac_address[6];
 
-	ccapi_start_t * start = malloc(sizeof *start);
+	ccapi_start_t *start = malloc(sizeof *start);
 	if (start == NULL) {
 		log_error("%s","create_ccapi_start_struct(): malloc failed for ccapi_start_t");
 		return start;
@@ -94,7 +260,7 @@ ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 
 	/* Initialize device request service . */
 	if (cc_cfg->services & DATA_SERVICE) {
-		ccapi_receive_service_t * dreq_service = malloc(sizeof *dreq_service);
+		ccapi_receive_service_t *dreq_service = malloc(sizeof *dreq_service);
 		if (dreq_service == NULL) {
 			log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_receive_service_t");
 			free_ccapi_start_struct(start);
@@ -114,7 +280,7 @@ ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 
 	/* Initialize file system service. */
 	if (cc_cfg->services & FS_SERVICE) {
-		ccapi_filesystem_service_t * fs_service = malloc(sizeof *fs_service);
+		ccapi_filesystem_service_t *fs_service = malloc(sizeof *fs_service);
 		if (fs_service == NULL) {
 			log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_filesystem_service_t");
 			free_ccapi_start_struct(start);
@@ -196,7 +362,7 @@ ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
  * Return: The created ccapi_start_t struct with the data read from the
  *         configuration file.
  */
-ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg)
+static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg)
 {
 	ccapi_tcp_info_t *tcp_info = malloc(sizeof *tcp_info);
 	if (tcp_info == NULL) {
@@ -234,7 +400,7 @@ ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cf
  *
  * @ccapi_start:	CCAPI start struct (ccapi_start_t) to be released.
  */
-void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
+static void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
 {
 	if (ccapi_start != NULL) {
 		if (ccapi_start->service.firmware != NULL)
@@ -251,7 +417,7 @@ void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
  *
  * @ccapi_start:	CCAPI TCP info struct (ccapi_tcp_info_t) to be released.
  */
-void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info)
+static void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info)
 {
 	free(tcp_info);
 }
@@ -261,9 +427,12 @@ void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info)
  *
  * @vdirs:		List of virtual directories
  * @n_vdirs:	Number of elements in the list
+ *
+ * Return: 0 on success, -1 otherwise.
  */
-void add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
+static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
 {
+	int error = 0;
 	int i;
 
 	for (i = 0; i < n_vdirs; i++) {
@@ -272,9 +441,13 @@ void add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
 
 		log_info("New virtual directory %s (%s)", v_dir->name, v_dir->path);
 		add_dir_error = ccapi_fs_add_virtual_dir(v_dir->name, v_dir->path);
-		if (add_dir_error != CCAPI_FS_ERROR_NONE)
+		if (add_dir_error != CCAPI_FS_ERROR_NONE) {
+			error = -1;
 			log_error("add_virtual_directories() failed with error %d", add_dir_error);
+		}
 	}
+
+	return error;
 }
 
 /**

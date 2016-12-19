@@ -23,9 +23,17 @@
 #include "cc_config.h"
 
 /*------------------------------------------------------------------------------
+                 D A T A    T Y P E S    D E F I N I T I O N S
+------------------------------------------------------------------------------*/
+typedef enum {
+	CC_SYS_MON_ERROR_NONE,
+	CC_SYS_MON_ERROR_THREAD
+} cc_sys_mon_error_t;
+
+/*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-int start_system_monitor(const cc_cfg_t * const cc_cfg);
+cc_sys_mon_error_t start_system_monitor(const cc_cfg_t * const cc_cfg);
 void stop_system_monitor(void);
 
 #endif /* CC_SYSTEM_MONITOR_H_ */
