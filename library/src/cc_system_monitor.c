@@ -25,6 +25,7 @@
 
 #include "ccapi/ccapi.h"
 #include "cc_config.h"
+#include "cc_system_monitor.h"
 #include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
