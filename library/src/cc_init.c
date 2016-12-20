@@ -29,15 +29,17 @@
 #include <regex.h>
 #include <ctype.h>
 
-#include "utils.h"
+#include "cc_init.h"
 #include "cc_logging.h"
-#include "device_request.h"
-#include "firmware_update.h"
+#include "cc_device_request.h"
+#include "cc_firmware_update.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 #define DEVICE_ID_FORMAT	"%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX"
+
+#define CC_CONFIG_FILE		"/etc/cc.conf"
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S

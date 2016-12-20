@@ -17,8 +17,8 @@
  * =======================================================================
  */
 
-#ifndef FIRMWARE_UPDATE_H_
-#define FIRMWARE_UPDATE_H_
+#ifndef CC_FIRMWARE_UPDATE_H_
+#define CC_FIRMWARE_UPDATE_H_
 
 #include "ccapi/ccapi.h"
 
@@ -27,4 +27,4 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t cancel_reason);
 void app_fw_reset_cb(unsigned int const target, ccapi_bool_t * system_reset, ccapi_firmware_target_version_t * version);
 
-#endif /* FIRMWARE_UPDATE_H_ */
+#endif /* CC_FIRMWARE_UPDATE_H_ */

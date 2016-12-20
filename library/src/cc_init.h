@@ -17,13 +17,21 @@
  * =======================================================================
  */
 
-#ifndef DEVICE_REQUEST_H_
-#define DEVICE_REQUEST_H_
+#ifndef CC_INIT_H_
+#define CC_INIT_H_
 
 #include "ccapi/ccapi.h"
+#include "cc_config.h"
 
-ccapi_bool_t app_receive_default_accept_cb(char const *const target, ccapi_transport_t const transport);
-void app_receive_default_data_cb(char const *const target, ccapi_transport_t const transport, ccapi_buffer_info_t const *const request_buffer_info, ccapi_buffer_info_t *const response_buffer_info);
-void app_receive_default_status_cb(char const *const target, ccapi_transport_t const transport, ccapi_buffer_info_t *const response_buffer_info, ccapi_receive_error_t receive_error);
+/*------------------------------------------------------------------------------
+                    F U N C T I O N  D E C L A R A T I O N S
+------------------------------------------------------------------------------*/
+ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg);
+ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg);
+void free_ccapi_start_struct(ccapi_start_t *ccapi_start);
+void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info);
+void add_virtual_directories(const vdir_t *const vdirs, int n_vdirs);
+int start_system_monitor(const cc_cfg_t *const cc_cfg);
+void stop_system_monitor(void);
 
-#endif /* DEVICE_REQUEST_H_ */
+#endif /* CC_INIT_H_ */

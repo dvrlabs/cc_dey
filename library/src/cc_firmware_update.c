@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "firmware_update.h"
+#include "cc_firmware_update.h"
 #include "cc_logging.h"
 
 /*------------------------------------------------------------------------------

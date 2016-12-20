@@ -17,8 +17,8 @@
  * =======================================================================
  */
 
-#ifndef LOAD_CONFIG_H_
-#define LOAD_CONFIG_H_
+#ifndef CC_CONFIG_H_
+#define CC_CONFIG_H_
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -107,4 +107,4 @@ typedef struct {
 int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg);
 void free_cfg(cc_cfg_t *const config);
 
-#endif /* LOAD_CONFIG_H_ */
+#endif /* CC_CONFIG_H_ */

@@ -26,7 +26,7 @@
 #include <confuse.h>
 
 #include "ccapi/ccapi.h"
-#include "load_config.h"
+#include "cc_config.h"
 #include "cc_logging.h"
 
 /*------------------------------------------------------------------------------

@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#include "device_request.h"
+#include "cc_device_request.h"
 #include "cc_logging.h"
 
 /*------------------------------------------------------------------------------
