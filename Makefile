@@ -17,10 +17,12 @@
 #
 # ***************************************************************************
 
-SUBDIRS := library
+SUBDIRS := library app
 
 all: $(SUBDIRS)
-	
+
+app: library
+
 .PHONY: $(SUBDIRS)
 $(SUBDIRS):
 	$(MAKE) -C $@
