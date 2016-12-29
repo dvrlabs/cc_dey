@@ -204,14 +204,13 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 	if (tcp_info == NULL)
 		return CCAPI_TCP_START_ERROR_NULL_POINTER;
 
-	do {
+	error = ccapi_start_transport_tcp(tcp_info);
+	while (error == CCAPI_TCP_START_ERROR_TIMEOUT) {
+		log_info("%s",
+			"ccapi_start_transport_tcp() timed out, retrying in 30 seconds");
+		sleep(30);
 		error = ccapi_start_transport_tcp(tcp_info);
-		if (error == CCAPI_TCP_START_ERROR_NONE) {
-			log_info("%s",
-					"ccapi_start_transport_tcp() timed out, retrying in 30 seconds");
-			sleep(30);
-		}
-	} while (error == CCAPI_TCP_START_ERROR_TIMEOUT);
+	}
 
 	if (error) {
 		log_error("ccapi_start_transport_tcp failed with error %d\n", error);
