@@ -83,7 +83,7 @@ CC_DEY_SRCS := $(wildcard $(SRC)/*.c)
 SRCS = $(CC_DEY_SRCS) $(PLATFORM_SRCS) $(CC_PRIVATE_SRCS) $(CCAPI_PRIVATE_SRCS)
 
 # Libraries to Link
-LDLIBS += -lconfuse -lpthread -lcrypto -lz
+LDLIBS += -lconfuse -lpthread -lcrypto -lz -lssl
 
 # Linking Flags.
 LDFLAGS += $(DFLAGS) -shared -Wl,-soname,lib$(NAME).so.$(MAJOR),--sort-common
