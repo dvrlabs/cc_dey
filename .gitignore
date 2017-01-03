@@ -5,3 +5,4 @@
 *~
 *.map
 libcloud.so*
+app/cc-daemon

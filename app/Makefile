@@ -74,7 +74,7 @@ SRCS = $(APP_SRCS)
 LIBS += -lconfuse -lpthread -lcrypto -lz -lcloud
 
 # Generated Executable Name.
-EXECUTABLE = ccdey
+EXECUTABLE = cc-daemon
 
 .PHONY: all
 all:  $(EXECUTABLE)
