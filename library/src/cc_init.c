@@ -407,6 +407,7 @@ static void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
 
 		free(ccapi_start->service.firmware);
 		free(ccapi_start->service.file_system);
+		free(ccapi_start->service.receive);
 		free(ccapi_start);
 	}
 }
