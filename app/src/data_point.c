@@ -69,7 +69,7 @@ ccapi_dp_error_t init_sample_data_stream(ccapi_dp_collection_handle_t *dp_collec
 
 	dp_error = ccapi_dp_create_collection(&collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
-		log_dp_error("ccapi_dp_create_collection() error %d\n", dp_error);
+		log_dp_error("ccapi_dp_create_collection() error %d", dp_error);
 		return dp_error;
 	} else {
 		*dp_collection = collection;
@@ -78,7 +78,7 @@ ccapi_dp_error_t init_sample_data_stream(ccapi_dp_collection_handle_t *dp_collec
 	dp_error = ccapi_dp_add_data_stream_to_collection_extra(collection,
 			STREAM_NAME, "int32 ts_iso", "counts", NULL);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
-		log_dp_error("ccapi_dp_add_data_stream_to_collection_extra() error %d\n",
+		log_dp_error("ccapi_dp_add_data_stream_to_collection_extra() error %d",
 				dp_error);
 		free(collection);
 	}
@@ -89,12 +89,11 @@ ccapi_dp_error_t init_sample_data_stream(ccapi_dp_collection_handle_t *dp_collec
 ccapi_dp_error_t add_sample_data_point(ccapi_dp_collection_handle_t dp_collection)
 {
 	ccapi_dp_error_t dp_error;
-
 	ccapi_timestamp_t *timestamp = get_timestamp();
 
 	dp_error = ccapi_dp_add(dp_collection, STREAM_NAME, get_incremental(), timestamp);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
-		log_dp_error("ccapi_dp_add() failed with error: %d\n", dp_error);
+		log_dp_error("ccapi_dp_add() failed with error: %d", dp_error);
 	}
 
 	free_timestamp(timestamp);
@@ -106,11 +105,11 @@ ccapi_dp_error_t send_sample_data_stream(ccapi_dp_collection_handle_t dp_collect
 {
 	ccapi_dp_error_t dp_error;
 
-	log_dp_debug("%s", "Sending Data Stream with new incremental value\n");
+	log_dp_debug("%s", "Sending Data Stream with new incremental value");
 
 	dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
-		log_dp_error("ccapi_dp_send_collection() error %d\n", dp_error);
+		log_dp_error("ccapi_dp_send_collection() error %d", dp_error);
 	}
 
 	return dp_error;
@@ -118,7 +117,7 @@ ccapi_dp_error_t send_sample_data_stream(ccapi_dp_collection_handle_t dp_collect
 
 ccapi_dp_error_t destroy_sample_data_stream(ccapi_dp_collection_handle_t dp_collection)
 {
-	log_dp_debug("%s", "Destroying Data Stream\n");
+	log_dp_debug("%s", "Destroying Data Stream");
 	return ccapi_dp_destroy_collection(dp_collection);
 }
 
@@ -134,7 +133,7 @@ static int get_incremental(void)
 	else
 		incremental++;
 
-	log_dp_debug("Incremental = %d\n", incremental);
+	log_dp_debug("Incremental = %d", incremental);
 
 	return incremental;
 }

@@ -65,7 +65,7 @@ static int start_connector(void)
 
 	init_error = init_cloud_connection();
 	if (init_error != CC_INIT_ERROR_NONE && init_error != CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY) {
-		log_error("Cannot initialize cloud connection, error %d\n", init_error);
+		log_error("Cannot initialize cloud connection, error %d", init_error);
 		return EXIT_FAILURE;
 	}
 
@@ -75,7 +75,7 @@ static int start_connector(void)
 
 	start_error = start_cloud_connection();
 	if (start_error != CC_START_ERROR_NONE) {
-		log_error("Cannot start cloud connection, error %d\n", start_error);
+		log_error("Cannot start cloud connection, error %d", start_error);
 		return EXIT_FAILURE;
 	}
 
@@ -105,13 +105,13 @@ static ccapi_receive_error_t register_custom_device_requests(void)
 	receive_error = ccapi_receive_add_target(TARGET_GET_TIME, get_time_cb,
 			get_time_status_cb, 0);
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d\n", TARGET_GET_TIME,
+		log_error("Cannot register target '%s', error %d", TARGET_GET_TIME,
 				receive_error);
 	}
 	receive_error = ccapi_receive_add_target(TARGET_STOP_CC, stop_cb,
 			stop_status_cb, 0);
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d\n", TARGET_STOP_CC,
+		log_error("Cannot register target '%s', error %d", TARGET_STOP_CC,
 				receive_error);
 	}
 
@@ -157,6 +157,6 @@ void graceful_shutdown(void)
 
 static void sigint_handler(int signum)
 {
-	log_debug("sigint_handler(): received signal %d to close Cloud connection.\n", signum);
+	log_debug("sigint_handler(): received signal %d to close Cloud connection.", signum);
 	exit(0);
 }

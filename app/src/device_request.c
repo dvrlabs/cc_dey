@@ -72,7 +72,7 @@ void stop_cb(char const *const target, ccapi_transport_t const transport,
 
 	response_buffer_info->buffer = malloc(sizeof(char) * strlen(stop_response) + 1);
 	if (response_buffer_info->buffer == NULL) {
-		log_dr_error("%s\n", "stop_cb(): response_buffer_info malloc error");
+		log_dr_error("%s", "stop_cb(): response_buffer_info malloc error");
 		return;
 	}
 
@@ -132,7 +132,7 @@ void get_time_cb(char const *const target,
 
 	response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE + 1);
 	if (response_buffer_info->buffer == NULL) {
-		log_dr_error("%s\n", "get_time_cb(): response_buffer_info malloc error");
+		log_dr_error("%s", "get_time_cb(): response_buffer_info malloc error");
 		return;
 	}
 

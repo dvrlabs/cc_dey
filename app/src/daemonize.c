@@ -81,7 +81,7 @@ int start_daemon(int argc, char *argv[], int (*daemon_process)(void))
 	if (create_daemon) {
 		lock_fd = get_lock(name);
 		if (lock_fd < 0) {
-			log_error("Unable to start %s. It may be currently running\n", name);
+			log_error("Unable to start %s. It may be currently running", name);
 			goto error;
 		}
 		daemonize(name);
@@ -92,7 +92,7 @@ int start_daemon(int argc, char *argv[], int (*daemon_process)(void))
 
 error:
 	/* Clean up. */
-	log_debug("%s", "Daemon terminated\n");
+	log_debug("%s", "Daemon terminated");
 	release_lock(lock_fd);
 	closelog();
 	result = EXIT_FAILURE;
@@ -112,14 +112,14 @@ static void daemonize(char const *const name)
 		return;
 	}
 
-	log_debug("Start daemon %s\n", name);
+	log_debug("Start daemon %s", name);
 
 	/* Open .pid file while root. We can write it once we know child PID. */
 	umask(0022);
 	snprintf(pid_filename, sizeof(pid_filename), "/var/run/%s.pid", name);
 	pid_fp = fopen(pid_filename, "w+");
 	if (pid_fp == NULL) {
-		log_error("Unable to open pid file (errno: %d)\n", errno);
+		log_error("Unable to open pid file (errno: %d)", errno);
 		exit(EXIT_FAILURE);
 	}
 
@@ -141,7 +141,7 @@ static void daemonize(char const *const name)
 
 		/* Write the PID of the newly created child process into the file. */
 		if (fprintf(pid_fp, "%d\n", pid) <= 0 || fclose(pid_fp) != 0) {
-			log_error("Unable to write pid file (errno: %d)\n", errno);
+			log_error("Unable to write pid file (errno: %d)", errno);
 			/* Do we want to do anything about the child that has just started
 			 * at this point. */
 			exit(EXIT_FAILURE);
@@ -249,17 +249,17 @@ static int get_lock(char const *const file_name)
 
 	fd = open(full_path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
-		log_error("Could not open PID file '%s'\n", full_path);
+		log_error("Could not open PID file '%s'", full_path);
 		goto error;
 	}
 
 	if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
-		log_error("Could not open lock PID file '%s'\n", full_path);
+		log_error("Could not open lock PID file '%s'", full_path);
 		goto error;
 	}
 
 	if (ftruncate(fd, 0) != 0) {
-		log_error("Could not truncate PID file '%s'\n", full_path);
+		log_error("Could not truncate PID file '%s'", full_path);
 		goto error;
 	}
 
@@ -268,7 +268,7 @@ static int get_lock(char const *const file_name)
 		int len = snprintf(buf, sizeof(buf), "%ld", (long) getpid());
 
 		if (write(fd, buf, len) != len) {
-			log_error("Error writing to PID file '%s'\n", full_path);
+			log_error("Error writing to PID file '%s'", full_path);
 			goto error;
 		}
 	}
@@ -294,10 +294,10 @@ static void release_lock(int const fd)
 		return;
 
 	if (ftruncate(fd, 0) == -1)
-		log_error("%s", "Could not truncate PID file\n");
+		log_error("%s", "Could not truncate PID file");
 
 	if (lockf(fd, F_ULOCK, 0) == -1)
-		log_error("%s", "Unable to unlock\n");
+		log_error("%s", "Unable to unlock");
 
 	close(fd);
 }
