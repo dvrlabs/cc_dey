@@ -22,6 +22,8 @@
 
 #include <ccapi/ccapi.h>
 
+#define DATA_POINTS_BATCH_SIZE 10
+
 ccapi_dp_error_t init_sample_data_stream(ccapi_dp_collection_handle_t *dp_collection);
 ccapi_dp_error_t add_sample_data_point(ccapi_dp_collection_handle_t dp_collection);
 ccapi_dp_error_t send_sample_data_stream(ccapi_dp_collection_handle_t dp_collection);

@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
  */
 static int start_connector(void)
 {
-	int init_dp = 0;
+	int dp_initialized = 0;
 	cc_init_error_t init_error;
 	cc_start_error_t start_error;
 
@@ -71,7 +71,7 @@ static int start_connector(void)
 
 	register_custom_device_requests();
 
-	init_dp = init_sample_data_stream(&dp_collection) == CCAPI_DP_ERROR_NONE;
+	dp_initialized = init_sample_data_stream(&dp_collection) == CCAPI_DP_ERROR_NONE;
 
 	start_error = start_cloud_connection();
 	if (start_error != CC_START_ERROR_NONE) {
@@ -79,16 +79,21 @@ static int start_connector(void)
 		return EXIT_FAILURE;
 	}
 
-	do {
-		int enable_send_dp = init_dp;
-		if (enable_send_dp)
-			enable_send_dp &= add_sample_data_point(dp_collection) == CCAPI_DP_ERROR_NONE;
+	/* Send sample data points in a loop until application is stopped. */
+	{
+		int count = 0;
+		do {
+			if (dp_initialized && add_sample_data_point(dp_collection) == CCAPI_DP_ERROR_NONE) {
+				count++;
+				if (count >= DATA_POINTS_BATCH_SIZE) {
+					send_sample_data_stream(dp_collection);
+					count = 0;
+				}
+			}
 
-		if (enable_send_dp)
-			send_sample_data_stream(dp_collection);
-
-		sleep(2);
-	} while (check_stop() != CCAPI_TRUE);
+			sleep(2);
+		} while (check_stop() != CCAPI_TRUE);
+	}
 
 	return EXIT_SUCCESS;
 }
