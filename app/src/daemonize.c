@@ -52,6 +52,15 @@ static volatile sig_atomic_t signal_from_child = 0;
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+/**
+ * start_daemon() - Start a new daemon.
+ *
+ * @argc:			Number of arguments.
+ * @argv:			Arguments array.
+ * @daemon_process:	Function to execute after daemonize.
+ *
+ * Return: 0 on success, 1 otherwise.
+ */
 int start_daemon(int argc, char *argv[], int (*daemon_process)(void))
 {
 	int result = EXIT_FAILURE;
@@ -101,6 +110,11 @@ done:
 	return result;
 }
 
+/**
+ * daemonize() - Daemonize the current process using the given name.
+ *
+ * @name: Daemon name.
+ */
 static void daemonize(char const *const name)
 {
 	pid_t pid, sid, parent;
@@ -235,7 +249,7 @@ static void signal_handler(int signum)
 /**
  * get_lock() - Try to get lock
  *
- * @file_name:	Name of the file used as lock inside '/var/lock'
+ * @file_name:	Name of the file used as lock inside '/var/lock'.
  *
  * Return: File descriptor of lock file, or -1 on error.
  */
@@ -285,8 +299,7 @@ done:
 /**
  * release_lock() - Release the lock obtained with 'get_lock(file_name)'
  *
- * @fd:	File descriptor of lock file
- *
+ * @fd:	File descriptor of lock file.
  */
 static void release_lock(int const fd)
 {

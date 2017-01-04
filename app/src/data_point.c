@@ -62,6 +62,13 @@ static void free_timestamp(ccapi_timestamp_t *timestamp);
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+/*
+ * init_sample_data_stream() - Initialize the 'incremental' data stream
+ *
+ * @dp_collection:	Data stream structure.
+ *
+ * Return: Error code after initializing the data stream.
+ */
 ccapi_dp_error_t init_sample_data_stream(ccapi_dp_collection_handle_t *dp_collection)
 {
 	ccapi_dp_collection_handle_t collection;
@@ -86,6 +93,13 @@ ccapi_dp_error_t init_sample_data_stream(ccapi_dp_collection_handle_t *dp_collec
 	return dp_error;
 }
 
+/*
+ * add_sample_data_point() - Add a new 'incremental' data point to the stream
+ *
+ * @dp_collection:	Data stream structure.
+ *
+ * Return: Error code after adding a new data point to the stream.
+ */
 ccapi_dp_error_t add_sample_data_point(ccapi_dp_collection_handle_t dp_collection)
 {
 	ccapi_dp_error_t dp_error;
@@ -101,6 +115,13 @@ ccapi_dp_error_t add_sample_data_point(ccapi_dp_collection_handle_t dp_collectio
 	return dp_error;
 }
 
+/*
+ * send_sample_data_stream() - Send the 'incremental' data points to Device Cloud
+ *
+ * @dp_collection:	Data stream structure.
+ *
+ * Return: Error code after sending the data points to Device Cloud.
+ */
 ccapi_dp_error_t send_sample_data_stream(ccapi_dp_collection_handle_t dp_collection)
 {
 	ccapi_dp_error_t dp_error;
@@ -115,6 +136,13 @@ ccapi_dp_error_t send_sample_data_stream(ccapi_dp_collection_handle_t dp_collect
 	return dp_error;
 }
 
+/*
+ * destroy_sample_data_stream() - Destroy the 'incremental' data stream
+ *
+ * @dp_collection:	Data stream structure.
+ *
+ * Return: Error code after destroying the data stream.
+ */
 ccapi_dp_error_t destroy_sample_data_stream(ccapi_dp_collection_handle_t dp_collection)
 {
 	log_dp_debug("%s", "Destroying Data Stream");
@@ -122,7 +150,9 @@ ccapi_dp_error_t destroy_sample_data_stream(ccapi_dp_collection_handle_t dp_coll
 }
 
 /*
- * get_incremental() - Retrieves an incremental value each time
+ * get_incremental() - Retrieve an incremental value each time
+ *
+ * Return: The incremental value.
  */
 static int get_incremental(void)
 {

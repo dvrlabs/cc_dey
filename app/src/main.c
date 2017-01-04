@@ -98,6 +98,11 @@ static int start_connector(void)
 	return EXIT_SUCCESS;
 }
 
+/*
+ * register_custom_device_requests() - Register custom device requests
+ *
+ * Return: Error code after registering the custom device requests.
+ */
 static ccapi_receive_error_t register_custom_device_requests(void)
 {
 	ccapi_receive_error_t receive_error;
@@ -133,6 +138,9 @@ static ccapi_bool_t check_stop(void)
 	return stop;
 }
 
+/*
+ * add_sigkill_signal() - Add the kill signal to the process
+ */
 static void add_sigkill_signal(void)
 {
 	struct sigaction new_action;
@@ -148,6 +156,9 @@ static void add_sigkill_signal(void)
 		sigaction(SIGINT, &new_action, NULL);
 }
 
+/*
+ * graceful_shutdown() - Stop Cloud Connector and all threads
+ */
 void graceful_shutdown(void)
 {
 	stop = CCAPI_TRUE;
@@ -155,6 +166,11 @@ void graceful_shutdown(void)
 	wait_for_ccimp_threads();
 }
 
+/**
+ * sigint_handler() - Manage signal received.
+ *
+ * @signum: Received signal.
+ */
 static void sigint_handler(int signum)
 {
 	log_debug("sigint_handler(): received signal %d to close Cloud connection.", signum);

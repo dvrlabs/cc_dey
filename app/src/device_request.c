@@ -60,6 +60,17 @@
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+/*
+ * stop_cb() - Data callback for 'stop_cc' device requests
+ *
+ * @target:					Target ID of the device request (stop_cc).
+ * @transport:				Communication transport used by the device request.
+ * @request_buffer_info:	Buffer containing the device request.
+ * @response_buffer_info:	Buffer to store the answer of the request.
+ *
+ * Logs information about the received request and executes the corresponding
+ * command.
+ */
 void stop_cb(char const *const target, ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
