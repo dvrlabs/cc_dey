@@ -66,9 +66,7 @@ void stop_cb(char const *const target, ccapi_transport_t const transport,
 {
 	static char const stop_response[] = "I'll stop";
 
-	UNUSED_ARGUMENT(target);
 	UNUSED_ARGUMENT(request_buffer_info);
-	UNUSED_ARGUMENT(response_buffer_info);
 
 	log_dr_debug("stop_cb(): target='%s' - transport='%d'", target, transport);
 
@@ -78,13 +76,8 @@ void stop_cb(char const *const target, ccapi_transport_t const transport,
 		return;
 	}
 
-	if (request_buffer_info->length != 0) {
-		response_buffer_info->length = sprintf(response_buffer_info->buffer,
-				"Invalid argument, '%s' does not take arguments", target);
-	} else {
-		response_buffer_info->length = snprintf(response_buffer_info->buffer,
-				MAX_RESPONSE_SIZE, "%s", stop_response);
-	}
+	response_buffer_info->length = snprintf(response_buffer_info->buffer,
+			MAX_RESPONSE_SIZE, "%s", stop_response);
 }
 
 /*
@@ -113,7 +106,8 @@ void stop_status_cb(char const *const target,
 	if (response_buffer_info != NULL)
 		free(response_buffer_info->buffer);
 
-	kill(getpid(), SIGINT);
+	if (receive_error == CCAPI_RECEIVE_ERROR_NONE)
+		kill(getpid(), SIGINT);
 }
 
 /*
@@ -132,6 +126,8 @@ void get_time_cb(char const *const target,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
 {
+	UNUSED_ARGUMENT(request_buffer_info);
+
 	log_dr_debug("get_time_cb(): target='%s' - transport='%d'", target, transport);
 
 	response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE + 1);
@@ -140,14 +136,9 @@ void get_time_cb(char const *const target,
 		return;
 	}
 
-	if (request_buffer_info->length != 0) {
-		response_buffer_info->length = sprintf(response_buffer_info->buffer,
-				"Invalid argument, '%s' does not take arguments", target);
-	} else {
-		time_t t = time(NULL);
-		response_buffer_info->length = snprintf(response_buffer_info->buffer,
-				MAX_RESPONSE_SIZE, "Time: %s", ctime(&t));
-	}
+	time_t t = time(NULL);
+	response_buffer_info->length = snprintf(response_buffer_info->buffer,
+			MAX_RESPONSE_SIZE, "Time: %s", ctime(&t));
 }
 
 /*
