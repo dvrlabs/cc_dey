@@ -71,6 +71,8 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
+static int fill_connector_config(cc_cfg_t *cc_cfg);
+static int set_connector_config(cc_cfg_t *cc_cfg);
 static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt);
 static int check_vendor_id(long int value);
 static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt);
@@ -90,6 +92,7 @@ static int file_readable(const char *const filename);
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
 static cfg_t *cfg;
+static const char *cfg_path;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
@@ -186,6 +189,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 		return -1;
 	}
 
+	cfg_path = filename;
 	cfg = cfg_init(opts, CFGF_IGNORE_UNKNOWN);
 	cfg_set_validate_func(cfg, SETTING_VENDOR_ID, cfg_check_vendor_id);
 	cfg_set_validate_func(cfg, SETTING_DEVICE_TYPE, cfg_check_device_type);
@@ -212,15 +216,134 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 		return -1;
 	}
 
+	return fill_connector_config(cc_cfg);
+}
+
+/*
+ * close_configuration() - Close configuration and free internal vars
+ *
+ * Note that after calling this method, the configuration must be parsed again
+ * from the configuration file using 'parse_configuration()' method before
+ * trying to use any other configuration function.
+ */
+void close_configuration(void)
+{
+	cfg_free(cfg);
+}
+
+/*
+ * free_configuration() - Release the configuration var
+ *
+ * @cc_cfg:	General configuration struct (cc_cfg_t) holding the
+ * 			current connector configuration.
+ */
+void free_configuration(cc_cfg_t *cc_cfg)
+{
+	if (cc_cfg != NULL) {
+		unsigned int i;
+
+		free(cc_cfg->device_type);
+		cc_cfg->device_type = NULL;
+		free(cc_cfg->fw_version);
+		cc_cfg->fw_version = NULL;
+		free(cc_cfg->url);
+		cc_cfg->url = NULL;
+
+		for (i = 0; i < cc_cfg->n_vdirs; i++) {
+			cc_cfg->vdirs[i].name = NULL;
+			cc_cfg->vdirs[i].path = NULL;
+		}
+		free(cc_cfg->vdirs);
+		cc_cfg->vdirs = 0;
+
+		free(cc_cfg);
+		cc_cfg = NULL;
+	}
+}
+
+/*
+ * get_configuration() - Retrieve current connector configuration
+ *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) that will hold
+ * 			the current connector configuration.
+ *
+ * Return: 0 if the configuration is retrieved successfully, -1 otherwise.
+ */
+int get_configuration(cc_cfg_t *cc_cfg)
+{
+	/* Check if configuration is initialized. */
+	if (cfg == NULL) {
+		log_error("%s", "Configuration is not initialized");
+		return -1;
+	}
+
+	return fill_connector_config(cc_cfg);
+}
+
+/*
+ * save_configuration() - Save the given connector configuration
+ *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) containing
+ *			the connector settings to save.
+ *
+ * Return: 0 if the configuration is saved successfully, -1 otherwise.
+ */
+int save_configuration(cc_cfg_t *cc_cfg)
+{
+	FILE *fp;
+
+	/* Check if configuration is initialized. */
+	if (cfg == NULL) {
+		log_error("%s", "Configuration is not initialized");
+		goto error;
+	}
+
+	/* Set the current configuration. */
+	if (set_connector_config(cc_cfg)) {
+		log_error("%s", "Error setting configuration values");
+		goto error;
+	}
+
+	/* Write configuration to file. */
+	fp = fopen(cfg_path, "w+");
+	if (fp == NULL) {
+		log_error("Error opening configuration file to write '%s'", cfg_path);
+		goto error;
+	}
+	cfg_print(cfg, fp);
+	fclose(fp);
+
+	return 0;
+
+error:
+	return -1;
+}
+
+/*
+ * fill_connector_config() - Fill the connector configuration struct
+ *
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
+ * 			settings parsed from the configuration will be saved.
+ *
+ * Return: 0 if the configuration is filled successfully, -1 otherwise.
+ */
+static int fill_connector_config(cc_cfg_t *cc_cfg)
+{
 	/* Fill general settings. */
 	cc_cfg->vendor_id = cfg_getint(cfg, SETTING_VENDOR_ID);
 	if (check_vendor_id(cc_cfg->vendor_id) != 0)
 		return -1;
-	cc_cfg->device_type = cfg_getstr(cfg, SETTING_DEVICE_TYPE);
-	cc_cfg->fw_version = cfg_getstr(cfg, SETTING_FW_VERSION);
+	cc_cfg->device_type = strdup(cfg_getstr(cfg, SETTING_DEVICE_TYPE));
+	if (cc_cfg->device_type == NULL)
+		return -1;
+	cc_cfg->fw_version = strdup(cfg_getstr(cfg, SETTING_FW_VERSION));
+	if (cc_cfg->fw_version == NULL)
+		return -1;
 
 	/* Fill connection settings. */
-	cc_cfg->url = cfg_getstr(cfg, SETTING_DC_URL);
+	cc_cfg->url = strdup(cfg_getstr(cfg, SETTING_DC_URL));
+	if (cc_cfg->url == NULL)
+		return -1;
 	cc_cfg->enable_reconnect = cfg_getbool(cfg, SETTING_ENABLE_RECONNECT);
 	cc_cfg->keepalive_rx = cfg_getint(cfg, SETTING_KEEPALIVE_RX);
 	cc_cfg->keepalive_tx = cfg_getint(cfg, SETTING_KEEPALIVE_TX);
@@ -232,10 +355,11 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 		cc_cfg->services = cc_cfg->services | FS_SERVICE;
 		get_virtual_directories(cfg, cc_cfg);
 	}
-	if (cfg_getbool(cfg, ENABLE_DATA_SERVICE))
+	if (cfg_getbool(cfg, ENABLE_DATA_SERVICE)) {
 		cc_cfg->services = cc_cfg->services | DATA_SERVICE;
-	if (cfg_getbool(cfg, ENABLE_SYSTEM_MONITOR))
-		cc_cfg->services = cc_cfg->services | SYS_MONITOR_SERVICE;
+		if (cfg_getbool(cfg, ENABLE_SYSTEM_MONITOR))
+			cc_cfg->services = cc_cfg->services | SYS_MONITOR_SERVICE;
+	}
 
 	/* Fill system monitor settings. */
 	cc_cfg->sys_mon_parameters = 0;
@@ -257,32 +381,57 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 }
 
 /*
- * free_cfg() - Release the configuration var
+ * set_connector_config() - Sets the connector configuration as current
  *
- * @cc_cfg:		General configuration struct (cc_cfg_t) where the settings parsed
- *				from the configuration file are saved.
+ * @cc_cfg:	Connector configuration struct (cc_cfg_t) containing the
+ * 			connector configuration.
+ *
+ * Return: 0 if the configuration is set successfully, -1 otherwise.
  */
-void free_cfg(cc_cfg_t *cc_cfg)
+static int set_connector_config(cc_cfg_t *cc_cfg)
 {
-	if (cc_cfg != NULL) {
-		unsigned int i;
+	/* Set general settings. */
+	if (check_vendor_id(cc_cfg->vendor_id) != 0)
+		return -1;
+	cfg_setint(cfg, SETTING_VENDOR_ID, cc_cfg->vendor_id);
+	cfg_setstr(cfg, SETTING_DEVICE_TYPE, cc_cfg->device_type);
+	cfg_setstr(cfg, SETTING_FW_VERSION, cc_cfg->fw_version);
 
-		cc_cfg->device_type = NULL;
-		cc_cfg->fw_version = NULL;
-		cc_cfg->url = NULL;
+	/* Fill connection settings. */
+	cfg_setstr(cfg, SETTING_DC_URL, cc_cfg->url);
+	cfg_setbool(cfg, SETTING_ENABLE_RECONNECT, cc_cfg->enable_reconnect);
+	cfg_setint(cfg, SETTING_KEEPALIVE_RX, cc_cfg->keepalive_rx);
+	cfg_setint(cfg, SETTING_KEEPALIVE_TX, cc_cfg->keepalive_tx);
+	cfg_setint(cfg, SETTING_WAIT_TIMES, cc_cfg->wait_count);
 
-		for (i = 0; i < cc_cfg->n_vdirs; i++) {
-			cc_cfg->vdirs[i].name = NULL;
-			cc_cfg->vdirs[i].path = NULL;
-		}
-		free(cc_cfg->vdirs);
-		cc_cfg->vdirs = 0;
+	/* Fill services settings. */
+	cfg_setbool(cfg, ENABLE_FS_SERVICE, cc_cfg->services & FS_SERVICE ? cfg_true : cfg_false);
+	cfg_setbool(cfg, ENABLE_DATA_SERVICE, cc_cfg->services & DATA_SERVICE ? cfg_true : cfg_false);
+	cfg_setbool(cfg, ENABLE_SYSTEM_MONITOR, cc_cfg->services & SYS_MONITOR_SERVICE ? cfg_true : cfg_false);
+	/* TODO: Set virtual directories */
 
-		free(cc_cfg);
-		cc_cfg = NULL;
+	/* Fill system monitor settings. */
+	cfg_setbool(cfg, ENABLE_SYS_MON_MEMORY, cc_cfg->sys_mon_parameters & SYS_MON_MEMORY ? cfg_true : cfg_false);
+	cfg_setbool(cfg, ENABLE_SYS_MON_LOAD, cc_cfg->sys_mon_parameters & SYS_MON_LOAD ? cfg_true : cfg_false);
+	cfg_setbool(cfg, ENABLE_SYS_MON_TEMP, cc_cfg->sys_mon_parameters & SYS_MON_TEMP ? cfg_true : cfg_false);
+	cfg_setint(cfg, SETTING_SYS_MON_SAMPLE_RATE, cc_cfg->sys_mon_sample_rate);
+	cfg_setint(cfg, SETTING_SYS_MON_UPLOAD_SIZE, cc_cfg->sys_mon_num_samples_upload);
+
+	/* Fill logging settings. */
+	switch (cc_cfg->log_level) {
+	case LOG_LEVEL_DEBUG:
+		cfg_setstr(cfg, SETTING_LOG_LEVEL, LOG_LEVEL_DEBUG_STR);
+		break;
+	case LOG_LEVEL_INFO:
+		cfg_setstr(cfg, SETTING_LOG_LEVEL, LOG_LEVEL_INFO_STR);
+		break;
+	default:
+		cfg_setstr(cfg, SETTING_LOG_LEVEL, LOG_LEVEL_ERROR_STR);
+		break;
 	}
+	cfg_setbool(cfg, SETTING_LOG_CONSOLE, cc_cfg->log_console);
 
-	cfg_free(cfg);
+	return 0;
 }
 
 /*

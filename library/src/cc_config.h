@@ -105,6 +105,9 @@ typedef struct {
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg);
-void free_cfg(cc_cfg_t *const config);
+void free_configuration(cc_cfg_t *const config);
+int get_configuration(cc_cfg_t *cc_cfg);
+int save_configuration(cc_cfg_t *cc_cfg);
+void close_configuration(void);
 
 #endif /* CC_CONFIG_H_ */

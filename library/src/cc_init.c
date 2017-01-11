@@ -81,7 +81,7 @@ cc_init_error_t init_cloud_connection(void)
 	ccapi_start_error_t ccapi_error;
 	int error;
 
-	cc_cfg = malloc(sizeof(cc_cfg_t));
+	cc_cfg = calloc(1, sizeof(cc_cfg_t));
 	if (cc_cfg == NULL) {
 		log_error("Cannot allocate memory for configuration (errno %d: %s)",
 				errno, strerror(errno));
@@ -152,7 +152,8 @@ cc_stop_error_t stop_cloud_connection(void)
 		log_error("ccapi_stop error %d\n", stop_error);
 	}
 
-	free_cfg(cc_cfg);
+	free_configuration(cc_cfg);
+	close_configuration();
 	cc_cfg = NULL;
 	closelog();
 
