@@ -35,6 +35,7 @@
 #include "cc_device_request.h"
 #include "cc_firmware_update.h"
 #include "cc_system_monitor.h"
+#include "rci_config.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -60,10 +61,14 @@ static int get_ipv4_address(uint8_t *const ipv4_addr);
 static uint8_t *get_mac_addr(uint8_t *const mac_addr);
 static uint8_t *get_interface_mac_addr(const struct ifreq *const iface,
 		uint8_t *const mac_addr, const char *const pattern);
+static uint32_t fw_string_to_int(const char *fw_string);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
+extern ccapi_rci_data_t const ccapi_rci_data;
+extern connector_remote_config_data_t rci_internal_data;
+static ccapi_rci_service_t rci_service;
 static cc_cfg_t *cc_cfg = NULL;
 
 /*------------------------------------------------------------------------------
@@ -259,7 +264,11 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	start->service.cli = NULL;
 
 	/* Initialize RCI service. */
-	start->service.rci = NULL;
+	rci_service.rci_data = &ccapi_rci_data;
+	start->service.rci = &rci_service;
+	rci_internal_data.firmware_target_zero_version = fw_string_to_int(cc_cfg->fw_version);
+	rci_internal_data.vendor_id = cc_cfg->vendor_id;
+	rci_internal_data.device_type = cc_cfg->device_type;
 
 	/* Initialize device request service . */
 	if (cc_cfg->services & DATA_SERVICE) {
@@ -694,3 +703,28 @@ done:
 	return retval;
 }
 
+/**
+ * fw_string_to_int() - Convert firmware version string into uint32_t
+ *
+ * @fw_wstring:		Firmware version string
+ *
+ * Return: The firmware version as a uint32_t
+ */
+static uint32_t fw_string_to_int(const char *fw_string)
+{
+	unsigned int fw_version[4] = {0};
+	uint32_t fw_int = 0;
+	int num_parts;
+
+	num_parts = sscanf(fw_string, "%u.%u.%u.%u", &fw_version[0],
+			&fw_version[1], &fw_version[2], &fw_version[3]);
+	if (num_parts == 0 || num_parts > 4)
+		fw_int = 0;
+	else
+		fw_int = (fw_version[0] << 24) |
+			 (fw_version[1] << 16) |
+			 (fw_version[2] << 8)  |
+			  fw_version[3];
+
+	return fw_int;
+}

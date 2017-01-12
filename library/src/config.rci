@@ -1,0 +1,7 @@
+globalerror load_fail "Load fail"
+globalerror save_fail "Save fail"
+globalerror memory_fail "Insufficient memory"
+globalerror not_implemented "Not implemented"
+
+group state device_state  "Device State"
+    element system_up_time "System Up time" type uint32 access read_only units "seconds"
