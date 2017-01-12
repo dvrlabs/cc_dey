@@ -69,7 +69,7 @@ typedef enum {
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-cc_init_error_t init_cloud_connection(void);
+cc_init_error_t init_cloud_connection(const char *config_file);
 cc_start_error_t start_cloud_connection(void);
 cc_stop_error_t stop_cloud_connection(void);
 

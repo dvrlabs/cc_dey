@@ -72,10 +72,13 @@ static cc_cfg_t *cc_cfg = NULL;
 /*
  * init_cloud_connection() - Initialize Cloud connection
  *
+ * @config_file:	Absolute path of the configuration file to use. NULL to use
+ * 					the default one (/etc/cc.conf).
+ *
  * Return:	0 if Cloud connection is successfully initialized, error code
  *			otherwise.
  */
-cc_init_error_t init_cloud_connection(void)
+cc_init_error_t init_cloud_connection(const char *config_file)
 {
 	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID;
 	ccapi_start_error_t ccapi_error;
@@ -88,7 +91,7 @@ cc_init_error_t init_cloud_connection(void)
 		return CC_INIT_ERROR_INSUFFICIENT_MEMORY;
 	}
 
-	error = parse_configuration(CC_CONFIG_FILE, cc_cfg);
+	error = parse_configuration(config_file ? config_file : CC_CONFIG_FILE, cc_cfg);
 	if (error != 0)
 		return CC_INIT_ERROR_PARSE_CONFIGURATION;
 

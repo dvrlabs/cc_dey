@@ -29,7 +29,7 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-static int start_connector(void);
+static int start_connector(const char *config_file);
 static ccapi_receive_error_t register_custom_device_requests(void);
 static ccapi_bool_t check_stop(void);
 static void add_sigkill_signal(void);
@@ -53,9 +53,12 @@ int main(int argc, char *argv[])
 /*
  * start_connector() - Start Cloud Connector
  *
+ * @config_file:	Absolute path of the configuration file to use. NULL to use
+ * 					the default one (/etc/cc.conf).
+ *
  * Return: 0 on success, 1 otherwise.
  */
-static int start_connector(void)
+static int start_connector(const char *config_file)
 {
 	int dp_initialized = 0;
 	cc_init_error_t init_error;
@@ -63,7 +66,7 @@ static int start_connector(void)
 
 	add_sigkill_signal();
 
-	init_error = init_cloud_connection();
+	init_error = init_cloud_connection(config_file);
 	if (init_error != CC_INIT_ERROR_NONE && init_error != CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY) {
 		log_error("Cannot initialize cloud connection, error %d", init_error);
 		return EXIT_FAILURE;

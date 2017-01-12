@@ -23,6 +23,6 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-int start_daemon(int argc, char *argv[], int (*deamon_process)(void));
+int start_daemon(int argc, char *argv[], int (*daemon_process)(const char *config_file));
 
 #endif /* DAEMONIZE_H_ */

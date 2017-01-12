@@ -34,6 +34,21 @@
 #include <signal.h>
 #include <limits.h>
 #include <cc_logging.h>
+#include <getopt.h>
+
+/*------------------------------------------------------------------------------
+                             D E F I N I T I O N S
+------------------------------------------------------------------------------*/
+#define USAGE \
+	"Cloud Connector client.\n" \
+	"Copyright(c) Digi International Inc.\n" \
+	"\n" \
+	"Usage: %s [options]\n\n" \
+	"  -d  --daemon              Daemonize the process\n" \
+	"  -c  --config-file=<PATH>  Use a custom configuration file instead of\n" \
+	"                            the default one located in /etc/cc.conf\n" \
+	"  -h  --help                Print help and exit\n" \
+	"\n"
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
@@ -61,24 +76,42 @@ static volatile sig_atomic_t signal_from_child = 0;
  *
  * Return: 0 on success, 1 otherwise.
  */
-int start_daemon(int argc, char *argv[], int (*daemon_process)(void))
+int start_daemon(int argc, char *argv[], int (*daemon_process)(const char *config_file))
 {
-	int result = EXIT_FAILURE;
+	int result = EXIT_SUCCESS;
 	char *name = basename(argv[0]);
-	int opt;
+	static int opt, opt_index;
 	int create_daemon = 0;
 	int lock_fd = -1;
 	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID | LOG_PERROR;
+	char *config_file = NULL;
+	static const char *short_options = "dc:h";
+	static const struct option long_options[] = {
+			{"daemon", no_argument, NULL, 'd'},
+			{"config-file", required_argument, NULL, 'c'},
+			{"help", no_argument, NULL, 'h'},
+			{NULL, 0, NULL, 0}
+	};
 
-	while ((opt = getopt(argc, argv, "d")) != -1) {
+	while (1) {
+		opt = getopt_long(argc, argv, short_options, long_options,
+				&opt_index);
+		if (opt == -1)
+			break;
+
 		switch (opt) {
 		case 'd':
 			create_daemon = 1;
-			log_options = LOG_CONS | LOG_NDELAY | LOG_PID | LOG_PERROR;
 			break;
-
+		case 'c':
+			config_file = optarg;
+			break;
+		case 'h':
+			usage(name);
+			goto done;
 		default:
 			usage(name);
+			result = EXIT_FAILURE;
 			goto done;
 		}
 	}
@@ -97,7 +130,7 @@ int start_daemon(int argc, char *argv[], int (*daemon_process)(void))
 	}
 
 	/* Do the real work. */
-	daemon_process();
+	daemon_process(config_file);
 
 error:
 	/* Clean up. */
@@ -322,5 +355,5 @@ static void release_lock(int const fd)
  */
 static void usage(char const *const name)
 {
-	printf("usage: %s [-d]\n", name);
+	printf(USAGE, name);
 }
