@@ -97,6 +97,11 @@ typedef struct {
 	uint32_t sys_mon_sample_rate;
 	uint32_t sys_mon_num_samples_upload;
 
+	ccapi_bool_t use_static_location;
+	float latitude;
+	float longitude;
+	float altitude;
+
 	int log_level;
 	ccapi_bool_t log_console;
 } cc_cfg_t;

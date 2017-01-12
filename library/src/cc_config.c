@@ -59,6 +59,15 @@
 #define SETTING_SYS_MON_SAMPLE_RATE	"system_monitor_sample_rate"
 #define SETTING_SYS_MON_UPLOAD_SIZE	"system_monitor_upload_samples_size"
 
+#define SETTING_USE_STATIC_LOCATION "static_location"
+#define SETTING_LATITUDE			"latitude"
+#define SETTING_LATITUDE_MIN		(-90.0)
+#define SETTING_LATITUDE_MAX		(90.0)
+#define SETTING_LONGITUDE			"longitude"
+#define SETTING_LONGITUDE_MIN		(-180.0)
+#define SETTING_LONGITUDE_MAX		(180.0)
+#define SETTING_ALTITUDE			"altitude"
+
 #define SETTING_LOG_LEVEL			"log_level"
 #define SETTING_LOG_CONSOLE			"log_console"
 
@@ -81,7 +90,10 @@ static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_rx(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_tx(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max);
+static int cfg_check_float_range(cfg_t *cfg, cfg_opt_t *opt, float min, float max);
 static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_latitude(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_longitude(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_int_positive(cfg_t *cfg, cfg_opt_t *opt);
 static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg);
 static int get_log_level(void);
@@ -170,6 +182,12 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			CFG_INT		(SETTING_SYS_MON_SAMPLE_RATE,	5,		CFGF_NONE),
 			CFG_INT		(SETTING_SYS_MON_UPLOAD_SIZE,	10,		CFGF_NONE),
 
+			/* Static location settings */
+			CFG_BOOL	(SETTING_USE_STATIC_LOCATION,	cfg_true,	CFGF_NONE),
+			CFG_FLOAT	(SETTING_LATITUDE,		0.0,		CFGF_NONE),
+			CFG_FLOAT	(SETTING_LONGITUDE,		0.0,		CFGF_NONE),
+			CFG_FLOAT	(SETTING_ALTITUDE,		0.0,		CFGF_NONE),
+
 			/* Logging settings. */
 			CFG_STR		(SETTING_LOG_LEVEL,	LOG_LEVEL_ERROR_STR,CFGF_NONE),
 			CFG_BOOL	(SETTING_LOG_CONSOLE,	cfg_false,		CFGF_NONE),
@@ -202,6 +220,8 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			cfg_check_int_positive);
 	cfg_set_validate_func(cfg, SETTING_SYS_MON_UPLOAD_SIZE,
 			cfg_check_int_positive);
+	cfg_set_validate_func(cfg, SETTING_LATITUDE, cfg_check_latitude);
+	cfg_set_validate_func(cfg, SETTING_LONGITUDE, cfg_check_longitude);
 
 	/* Parse the configuration file. */
 	switch (cfg_parse(cfg, filename)) {
@@ -373,6 +393,12 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	cc_cfg->sys_mon_sample_rate = cfg_getint(cfg, SETTING_SYS_MON_SAMPLE_RATE);
 	cc_cfg->sys_mon_num_samples_upload = cfg_getint(cfg, SETTING_SYS_MON_UPLOAD_SIZE);
 
+	/* Fill static location settings. */
+	cc_cfg->use_static_location = cfg_getbool(cfg, SETTING_USE_STATIC_LOCATION);
+	cc_cfg->latitude = (float) cfg_getfloat(cfg, SETTING_LATITUDE);
+	cc_cfg->longitude = (float) cfg_getfloat(cfg, SETTING_LONGITUDE);
+	cc_cfg->altitude = (float) cfg_getfloat(cfg, SETTING_ALTITUDE);
+
 	/* Fill logging settings. */
 	cc_cfg->log_level = get_log_level();
 	cc_cfg->log_console = cfg_getbool(cfg, SETTING_LOG_CONSOLE);
@@ -416,6 +442,12 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 	cfg_setbool(cfg, ENABLE_SYS_MON_TEMP, cc_cfg->sys_mon_parameters & SYS_MON_TEMP ? cfg_true : cfg_false);
 	cfg_setint(cfg, SETTING_SYS_MON_SAMPLE_RATE, cc_cfg->sys_mon_sample_rate);
 	cfg_setint(cfg, SETTING_SYS_MON_UPLOAD_SIZE, cc_cfg->sys_mon_num_samples_upload);
+
+	/* Fill static location settings. */
+	cfg_setbool(cfg, SETTING_USE_STATIC_LOCATION, cc_cfg->use_static_location);
+	cfg_setfloat(cfg, SETTING_LATITUDE, cc_cfg->latitude);
+	cfg_setfloat(cfg, SETTING_LONGITUDE, cc_cfg->longitude);
+	cfg_setfloat(cfg, SETTING_ALTITUDE, cc_cfg->altitude);
 
 	/* Fill logging settings. */
 	switch (cc_cfg->log_level) {
@@ -575,6 +607,33 @@ static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt)
 }
 
 /*
+ * cfg_check_latitude() - Check latitude value is between -90.0 and 90.0
+ *
+ * @cfg:	The section were the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_latitude(cfg_t *cfg, cfg_opt_t *opt)
+{
+	return cfg_check_float_range(cfg, opt, SETTING_LATITUDE_MIN, SETTING_LATITUDE_MAX);
+}
+
+/*
+ * cfg_check_longitude() - Check longitude value is between -180.0 and 180.0
+ *
+ * @cfg:	The section were the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_longitude(cfg_t *cfg, cfg_opt_t *opt)
+{
+	return cfg_check_float_range(cfg, opt, SETTING_LONGITUDE_MIN, SETTING_LONGITUDE_MAX);
+}
+
+
+/*
  * cfg_check_range() - Check a parameter value is between given range
  *
  * @cfg:	The section were the option is defined.
@@ -590,6 +649,27 @@ static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t ma
 
 	if (val > max || val < min) {
 		cfg_error(cfg, "Invalid %s (%s): value must be between %d and %d", opt->name, val, min, max);
+		return -1;
+	}
+	return 0;
+}
+
+/*
+ * cfg_check_float_range() - Check a parameter float value is between given range
+ *
+ * @cfg:	The section were the option is defined.
+ * @opt:	The option to check.
+ * @min:	Minimum value of the parameter.
+ * @max:	Maximum value of the parameter.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_float_range(cfg_t *cfg, cfg_opt_t *opt, float min, float max)
+{
+	float val = cfg_opt_getnfloat(opt, 0);
+
+	if (val > max || val < min) {
+		cfg_error(cfg, "Invalid %s (%f): value must be between %f and %f", opt->name, val, min, max);
 		return -1;
 	}
 	return 0;
