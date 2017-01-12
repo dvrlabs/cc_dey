@@ -648,7 +648,7 @@ static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t ma
 	long int val = cfg_opt_getnint(opt, 0);
 
 	if (val > max || val < min) {
-		cfg_error(cfg, "Invalid %s (%s): value must be between %d and %d", opt->name, val, min, max);
+		cfg_error(cfg, "Invalid %s (%d): value must be between %d and %d", opt->name, val, min, max);
 		return -1;
 	}
 	return 0;
