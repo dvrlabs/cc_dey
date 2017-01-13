@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include "rci_state_device_state.h"
 #include "cc_logging.h"
+#include <linux/kernel.h>       /* for struct sysinfo */
+#include <sys/sysinfo.h>
 
 ccapi_state_device_state_error_id_t rci_state_device_state_start(
 		ccapi_rci_info_t * const info)
@@ -42,10 +44,19 @@ ccapi_state_device_state_error_id_t rci_state_device_state_end(
 ccapi_state_device_state_error_id_t rci_state_device_state_system_up_time_get(
 		ccapi_rci_info_t * const info, uint32_t * const value)
 {
+	ccapi_state_device_state_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	struct sysinfo s_info;
+	int error;
 	UNUSED_PARAMETER(info);
-	UNUSED_PARAMETER(value);
 	log_debug("    Called '%s'", __func__);
 
-	log_error("%s", "RCI request for system up time not implemented.");
-	return CCAPI_GLOBAL_ERROR_NOT_IMPLEMENTED;
+	error = sysinfo(&s_info);
+	if (error) {
+		log_error("sysinfo failed: %s", strerror(error));
+		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
+	} else {
+		*value = s_info.uptime;
+	}
+
+	return ret;
 }
