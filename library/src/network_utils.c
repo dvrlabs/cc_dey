@@ -32,22 +32,25 @@
 #include "network_utils.h"
 #include "cc_logging.h"
 /*
- * get_ipv4_address() - Retrieves the IPv4 address of the first interface
+ * get_ipv4_and_name() - Retrieves the IPv4 address of the first interface
  *
  * @ipv4_addr:	Pointer to store the IPv4.
+ * @name: 		Address of pointer to malloc for the interface name.
+ *				NULL may be use to ignore this paramter. Otherwise, if 0 is
+ *				returned, the caller is responsible for freeing *name.
  *
  * The interface must be different from loopback.
  *
  * Return: 0 on success, -1 otherwise.
  */
-int get_ipv4_address(uint8_t *const ipv4_addr)
+int get_ipv4_and_name(uint8_t *const ipv4_addr, char **name)
 {
 	unsigned int const ipv4_len = 4;
 	struct ifaddrs *ifaddr = NULL, *ifa = NULL;
 	int retval = -1;
 
 	if (getifaddrs(&ifaddr) == -1) {
-		log_error("%s", "get_ipv4_address(): getifaddrs() failed");
+		log_error("%s", "get_ipv4_and_name(): getifaddrs() failed");
 		goto done;
 	}
 
@@ -65,14 +68,16 @@ int get_ipv4_address(uint8_t *const ipv4_addr)
 			int s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host,
 					NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
 			if (s != 0) {
-				log_error("get_ipv4_address(): getnameinfo() failed: %s", gai_strerror(s));
+				log_error("get_ipv4_and_name(): getnameinfo() failed: %s", gai_strerror(s));
 				continue;
 			}
 
 			ipv4 = inet_addr(host);
 			if (ipv4 != htonl(INADDR_LOOPBACK)) {
-				log_info("get_ipv4_address(): Interface name [%s] - IP Address [%s]", ifa->ifa_name, host);
+				log_info("get_ipv4_and_name(): Interface name [%s] - IP Address [%s]", ifa->ifa_name, host);
 				memcpy(ipv4_addr, &ipv4, ipv4_len);
+				if (name != NULL)
+					*name = strdup(ifa->ifa_name);
 				retval = 0;
 				break;
 			}

@@ -381,7 +381,7 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 	tcp_info->connection.password = NULL;
 	tcp_info->connection.start_timeout = 10;
 	tcp_info->connection.ip.type = CCAPI_IPV4;
-	if (get_ipv4_address(tcp_info->connection.ip.address.ipv4) != 0
+	if (get_ipv4_and_name(tcp_info->connection.ip.address.ipv4, NULL) != 0
 			|| get_mac_addr(tcp_info->connection.info.lan.mac_address) == NULL) {
 		free_ccapi_tcp_start_info_struct(tcp_info);
 		tcp_info = NULL;

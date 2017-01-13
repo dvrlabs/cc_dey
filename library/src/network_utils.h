@@ -24,7 +24,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-int get_ipv4_address(uint8_t * const ipv4_addr);
+int get_ipv4_and_name(uint8_t *const ipv4_addr, char **name);
 uint8_t *get_mac_addr(uint8_t * const mac_addr);
 uint8_t *get_interface_mac_addr(const struct ifreq * const iface,
 		uint8_t * const mac_addr, const char * const pattern);
