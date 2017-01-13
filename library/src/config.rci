@@ -5,3 +5,13 @@ globalerror not_implemented "Not implemented"
 
 group state device_state  "Device State"
     element system_up_time "System Up time" type uint32 access read_only units "seconds"
+
+group state gps_stats "GPS"
+    element latitude "Latitude" type string access read_only
+    element longitude "Longitude" type string access read_only
+
+group setting static_location "Static location"
+    element use_static_location "Use static location" type on_off
+    element latitude "Static location latitude value" type float min -90 max 90
+    element longitude "Static location longitude value" type float min -180 max 180
+    element altitude "Static location altitude value" type float

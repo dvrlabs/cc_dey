@@ -52,11 +52,82 @@ static char const * const connector_rci_errors[] = {
 	CONNECTOR_GLOBAL_ERROR_NOT_IMPLEMENTED /*not_implemented*/
 };
 
+static connector_group_element_t CONST setting_static_location_elements[] =
+{
+	{  /*use_static_location*/
+		connector_element_access_read_write,
+		connector_element_type_on_off,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*latitude*/
+		connector_element_access_read_write,
+		connector_element_type_float,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*longitude*/
+		connector_element_access_read_write,
+		connector_element_type_float,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*altitude*/
+		connector_element_access_read_write,
+		connector_element_type_float,
+		{
+			0,
+			NULL
+		}
+	}
+};
+
+static connector_group_t CONST connector_setting_groups[] =
+{
+	{  /*static_location*/
+		1 , /* instances */
+		{
+			ARRAY_SIZE(setting_static_location_elements),
+			setting_static_location_elements
+		},
+		{
+			0,
+			NULL
+		}  /* errors*/
+	}
+};
+
 static connector_group_element_t CONST state_device_state_elements[] =
 {
 	{  /*system_up_time*/
 		connector_element_access_read_only,
 		connector_element_type_uint32,
+		{
+			0,
+			NULL
+		}
+	}
+};
+
+static connector_group_element_t CONST state_gps_stats_elements[] =
+{
+	{  /*latitude*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*longitude*/
+		connector_element_access_read_only,
+		connector_element_type_string,
 		{
 			0,
 			NULL
@@ -76,14 +147,25 @@ static connector_group_t CONST connector_state_groups[] =
 			0,
 			NULL
 		}  /* errors*/
+	},
+	{  /*gps_stats*/
+		1 , /* instances */
+		{
+			ARRAY_SIZE(state_gps_stats_elements),
+			state_gps_stats_elements
+		},
+		{
+			0,
+			NULL
+		}  /* errors*/
 	}
 };
 
 static connector_remote_group_table_t CONST connector_group_table[] =
 {
 	{
-		NULL,
-		0
+		connector_setting_groups,
+		ARRAY_SIZE(connector_setting_groups)
 	},
 	{
 		connector_state_groups,

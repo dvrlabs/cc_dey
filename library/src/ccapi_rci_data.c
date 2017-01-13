@@ -20,11 +20,54 @@
 #include "ccapi/ccapi.h"
 #include "ccapi_rci_functions.h"
 
+static ccapi_rci_element_t const setting_static_location_elements[] =
+{
+	{  /*use_static_location*/
+		(ccapi_rci_function_t)rci_setting_static_location_use_static_location_set,
+		(ccapi_rci_function_t)rci_setting_static_location_use_static_location_get
+	},
+	{  /*latitude*/
+		(ccapi_rci_function_t)rci_setting_static_location_latitude_set,
+		(ccapi_rci_function_t)rci_setting_static_location_latitude_get
+	},
+	{  /*longitude*/
+		(ccapi_rci_function_t)rci_setting_static_location_longitude_set,
+		(ccapi_rci_function_t)rci_setting_static_location_longitude_get
+	},
+	{  /*altitude*/
+		(ccapi_rci_function_t)rci_setting_static_location_altitude_set,
+		(ccapi_rci_function_t)rci_setting_static_location_altitude_get
+	}
+};
+
+static ccapi_rci_group_t const ccapi_setting_groups[] =
+{
+	{  /*static_location*/
+		setting_static_location_elements,
+		ARRAY_SIZE(setting_static_location_elements),
+		{
+			(ccapi_rci_function_t)rci_setting_static_location_start,
+			(ccapi_rci_function_t)rci_setting_static_location_end
+		}
+	}
+};
+
 static ccapi_rci_element_t const state_device_state_elements[] =
 {
 	{  /*system_up_time*/
 		NULL,
 		(ccapi_rci_function_t)rci_state_device_state_system_up_time_get
+	}
+};
+
+static ccapi_rci_element_t const state_gps_stats_elements[] = {
+	{  /*latitude*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_gps_stats_latitude_get
+	},
+	{  /*longitude*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_gps_stats_longitude_get
 	}
 };
 
@@ -37,6 +80,14 @@ static ccapi_rci_group_t const ccapi_state_groups[] =
 			(ccapi_rci_function_t)rci_state_device_state_start,
 			(ccapi_rci_function_t)rci_state_device_state_end
 		}
+	},
+	{  /*gps_stats*/
+		state_gps_stats_elements,
+		ARRAY_SIZE(state_gps_stats_elements),
+		{
+			(ccapi_rci_function_t)rci_state_gps_stats_start,
+			(ccapi_rci_function_t)rci_state_gps_stats_end
+		}
 	}
 };
 
@@ -44,8 +95,8 @@ extern connector_remote_config_data_t const rci_internal_data;
 ccapi_rci_data_t const ccapi_rci_data =
 {
 	{
-		NULL,
-		0
+		ccapi_setting_groups,
+		ARRAY_SIZE(ccapi_setting_groups)
 	},
 	{
 		ccapi_state_groups,

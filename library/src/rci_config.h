@@ -30,12 +30,32 @@ typedef enum {
 } connector_global_error_id_t;
 
 typedef enum {
+	connector_setting_static_location_use_static_location,
+	connector_setting_static_location_latitude,
+	connector_setting_static_location_longitude,
+	connector_setting_static_location_altitude,
+	connector_setting_static_location_COUNT
+} connector_setting_static_location_id_t;
+
+typedef enum {
+	connector_setting_static_location, connector_setting_COUNT
+} connector_setting_id_t;
+
+typedef enum {
 	connector_state_device_state_system_up_time,
 	connector_state_device_state_COUNT
 } connector_state_device_state_id_t;
 
 typedef enum {
-	connector_state_device_state, connector_state_COUNT
+	connector_state_gps_stats_latitude,
+	connector_state_gps_stats_longitude,
+	connector_state_gps_stats_COUNT
+} connector_state_gps_stats_id_t;
+
+typedef enum {
+	connector_state_device_state,
+	connector_state_gps_stats,
+	connector_state_COUNT
 } connector_state_id_t;
 
 #endif
