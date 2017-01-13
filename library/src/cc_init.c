@@ -69,7 +69,7 @@ static uint32_t fw_string_to_int(const char *fw_string);
 extern ccapi_rci_data_t const ccapi_rci_data;
 extern connector_remote_config_data_t rci_internal_data;
 static ccapi_rci_service_t rci_service;
-static cc_cfg_t *cc_cfg = NULL;
+cc_cfg_t *cc_cfg = NULL;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S

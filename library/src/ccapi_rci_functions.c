@@ -20,22 +20,33 @@
 #include <stdio.h>
 #include "ccapi/ccapi.h"
 #include "ccapi_rci_functions.h"
+#include "cc_config.h"
 #include "cc_logging.h"
+
+extern cc_cfg_t *cc_cfg;
 
 ccapi_global_error_id_t rci_session_start_cb(ccapi_rci_info_t * const info)
 {
+	ccapi_global_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
 	UNUSED_PARAMETER(info);
-	log_debug("    Called '%s'", __func__);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	log_debug("    Called '%s'", __func__);
+	if (get_configuration(cc_cfg) != 0)
+		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
+
+	return ret;
 }
 
 ccapi_global_error_id_t rci_session_end_cb(ccapi_rci_info_t * const info)
 {
-	UNUSED_PARAMETER(info);
-	log_debug("    Called '%s'", __func__);
+	ccapi_global_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	log_debug("    Called '%s'", __func__);
+	if (info->action == CCAPI_RCI_ACTION_SET)
+		if (save_configuration(cc_cfg) != 0)
+			ret = CCAPI_GLOBAL_ERROR_SAVE_FAIL;
+
+	return ret;
 }
 
 ccapi_global_error_id_t rci_action_start_cb(ccapi_rci_info_t * const info)
@@ -63,7 +74,8 @@ ccapi_global_error_id_t rci_do_command_cb(ccapi_rci_info_t * const info)
 	return CCAPI_GLOBAL_ERROR_NOT_IMPLEMENTED;
 }
 
-ccapi_global_error_id_t rci_set_factory_defaults_cb(ccapi_rci_info_t * const info)
+ccapi_global_error_id_t rci_set_factory_defaults_cb(
+		ccapi_rci_info_t * const info)
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
