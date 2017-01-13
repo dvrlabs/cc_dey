@@ -135,6 +135,26 @@ static connector_group_element_t CONST state_gps_stats_elements[] =
 	}
 };
 
+static connector_group_element_t CONST state_primary_interface_elements[] =
+{
+	{  /*connection_type*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*ip_addr*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	}
+};
+
 static connector_group_t CONST connector_state_groups[] =
 {
 	{  /*device_state*/
@@ -142,6 +162,17 @@ static connector_group_t CONST connector_state_groups[] =
 		{
 			ARRAY_SIZE(state_device_state_elements),
 			state_device_state_elements
+		},
+		{
+			0,
+			NULL
+		}  /* errors*/
+	},
+	{  /*primary_interface*/
+		1 , /* instances */
+		{
+			ARRAY_SIZE(state_primary_interface_elements),
+			state_primary_interface_elements
 		},
 		{
 			0,

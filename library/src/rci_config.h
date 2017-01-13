@@ -47,6 +47,12 @@ typedef enum {
 } connector_state_device_state_id_t;
 
 typedef enum {
+	connector_state_primary_interface_connection_type,
+	connector_state_primary_interface_ip_addr,
+	connector_state_primary_interface_COUNT
+} connector_state_primary_interface_id_t;
+
+typedef enum {
 	connector_state_gps_stats_latitude,
 	connector_state_gps_stats_longitude,
 	connector_state_gps_stats_COUNT

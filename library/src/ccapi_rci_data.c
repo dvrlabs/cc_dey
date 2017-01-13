@@ -60,6 +60,18 @@ static ccapi_rci_element_t const state_device_state_elements[] =
 	}
 };
 
+static ccapi_rci_element_t const state_primary_interface_elements[] =
+{
+	{  /*connection_type*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_primary_interface_connection_type_get
+	},
+	{  /*ip_addr*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_primary_interface_ip_addr_get
+	}
+};
+
 static ccapi_rci_element_t const state_gps_stats_elements[] = {
 	{  /*latitude*/
 		NULL,
@@ -79,6 +91,14 @@ static ccapi_rci_group_t const ccapi_state_groups[] =
 		{
 			(ccapi_rci_function_t)rci_state_device_state_start,
 			(ccapi_rci_function_t)rci_state_device_state_end
+		}
+	},
+	{  /*primary_interface*/
+		state_primary_interface_elements,
+		ARRAY_SIZE(state_primary_interface_elements),
+		{
+			(ccapi_rci_function_t)rci_state_primary_interface_start,
+			(ccapi_rci_function_t)rci_state_primary_interface_end
 		}
 	},
 	{  /*gps_stats*/

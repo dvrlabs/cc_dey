@@ -6,6 +6,10 @@ globalerror not_implemented "Not implemented"
 group state device_state  "Device State"
     element system_up_time "System Up time" type uint32 access read_only units "seconds"
 
+group state primary_interface "Primary interface"
+    element connection_type "Connection type" type string access read_only
+    element ip_addr "IP address:" type string access read_only
+
 group state gps_stats "GPS"
     element latitude "Latitude" type string access read_only
     element longitude "Longitude" type string access read_only

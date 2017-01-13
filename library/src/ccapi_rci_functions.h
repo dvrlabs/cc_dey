@@ -26,6 +26,7 @@
 #include "rci_setting_static_location.h"
 #include "rci_state_device_state.h"
 #include "rci_state_gps_stats.h"
+#include "rci_state_primary_interface.h"
 
 #define UNUSED_PARAMETER(a) (void)(a)
 
