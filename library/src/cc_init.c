@@ -314,7 +314,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 					cc_cfg->fw_version);
 			start->service.firmware = NULL;
 		} else {
-			uint8_t n_targets = 1;
+			uint8_t n_targets = 2;
 			ccapi_firmware_target_t *fw_list = NULL;
 			ccapi_fw_service_t *fw_service = NULL;
 
@@ -343,6 +343,15 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 			fw_list[0].version.minor = (uint8_t) fw_version_minor;
 			fw_list[0].version.revision = (uint8_t) fw_version_revision;
 			fw_list[0].version.build = (uint8_t) fw_version_build;
+
+			fw_list[1].chunk_size = 0;
+			fw_list[1].description = "Update manifest";
+			fw_list[1].filespec = "[mM][aA][nN][iI][fF][eE][sS][tT]\\.[tT][xX][tT]";
+			fw_list[1].maximum_size = 0;
+			fw_list[1].version.major = (uint8_t) fw_version_major;
+			fw_list[1].version.minor = (uint8_t) fw_version_minor;
+			fw_list[1].version.revision = (uint8_t) fw_version_revision;
+			fw_list[1].version.build = (uint8_t) fw_version_build;
 
 			fw_service->target.count = n_targets;
 			fw_service->target.item = fw_list;
