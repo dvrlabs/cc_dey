@@ -88,6 +88,33 @@ static connector_group_element_t CONST setting_static_location_elements[] =
 	}
 };
 
+static connector_group_element_t CONST setting_system_elements[] = {
+	{  /*description*/
+		connector_element_access_read_write,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*contact*/
+		connector_element_access_read_write,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*location*/
+		connector_element_access_read_write,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	}
+};
+
 static connector_group_t CONST connector_setting_groups[] =
 {
 	{  /*static_location*/
@@ -95,6 +122,17 @@ static connector_group_t CONST connector_setting_groups[] =
 		{
 			ARRAY_SIZE(setting_static_location_elements),
 			setting_static_location_elements
+		},
+		{
+			0,
+			NULL
+		}  /* errors*/
+	},
+	{  /*system*/
+		1 , /* instances */
+		{
+			ARRAY_SIZE(setting_system_elements),
+			setting_system_elements
 		},
 		{
 			0,

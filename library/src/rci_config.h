@@ -38,7 +38,16 @@ typedef enum {
 } connector_setting_static_location_id_t;
 
 typedef enum {
-	connector_setting_static_location, connector_setting_COUNT
+	connector_setting_system_description,
+	connector_setting_system_contact,
+	connector_setting_system_location,
+	connector_setting_system_COUNT
+} connector_setting_system_id_t;
+
+typedef enum {
+	connector_setting_static_location,
+	connector_setting_system,
+	connector_setting_COUNT
 } connector_setting_id_t;
 
 typedef enum {

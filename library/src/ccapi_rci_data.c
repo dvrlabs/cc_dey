@@ -40,6 +40,21 @@ static ccapi_rci_element_t const setting_static_location_elements[] =
 	}
 };
 
+static ccapi_rci_element_t const setting_system_elements[] = {
+	{  /*description*/
+		(ccapi_rci_function_t)rci_setting_system_description_set,
+		(ccapi_rci_function_t)rci_setting_system_description_get
+	},
+	{  /*contact*/
+		(ccapi_rci_function_t)rci_setting_system_contact_set,
+		(ccapi_rci_function_t)rci_setting_system_contact_get
+	},
+	{  /*location*/
+		(ccapi_rci_function_t)rci_setting_system_location_set,
+		(ccapi_rci_function_t)rci_setting_system_location_get
+	}
+};
+
 static ccapi_rci_group_t const ccapi_setting_groups[] =
 {
 	{  /*static_location*/
@@ -48,6 +63,14 @@ static ccapi_rci_group_t const ccapi_setting_groups[] =
 		{
 			(ccapi_rci_function_t)rci_setting_static_location_start,
 			(ccapi_rci_function_t)rci_setting_static_location_end
+		}
+	},
+	{  /*system*/
+		setting_system_elements,
+		ARRAY_SIZE(setting_system_elements),
+		{
+			(ccapi_rci_function_t)rci_setting_system_start,
+			(ccapi_rci_function_t)rci_setting_system_end
 		}
 	}
 };

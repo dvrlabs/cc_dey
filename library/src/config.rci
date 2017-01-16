@@ -19,3 +19,8 @@ group setting static_location "Static location"
     element latitude "Static location latitude value" type float min -90 max 90
     element longitude "Static location longitude value" type float min -180 max 180
     element altitude "Static location altitude value" type float
+
+group setting system "System"
+    element description "Description" type string max 63
+    element contact "Contact" type string max 63
+    element location "Location" type string max 63
