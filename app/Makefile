@@ -71,10 +71,10 @@ APP_SRCS = $(wildcard $(SRC)/*.c)
 SRCS = $(APP_SRCS)
 
 # Libraries to Link
-LIBS += -lconfuse -lpthread -lcrypto -lz -lcloud -lssl
+LIBS += -lconfuse -lpthread -lcrypto -lz -lcloudconnector -lssl
 
 # Generated Executable Name.
-EXECUTABLE = cc-daemon
+EXECUTABLE = cloud-connector
 
 .PHONY: all
 all:  $(EXECUTABLE)

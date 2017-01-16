@@ -20,7 +20,7 @@
 CC ?= gcc
 
 # Generated Library name.
-NAME := cloud
+NAME := cloudconnector
 # Generated Library version.
 MAJOR := 1
 MINOR := 0
