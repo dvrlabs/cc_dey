@@ -65,6 +65,8 @@
 #define SETTING_NAME				"name"
 #define SETTING_PATH				"path"
 
+#define SETTING_FW_DOWNLOAD_PATH	"firmware_download_path"
+
 #define SETTING_SYS_MON_SAMPLE_RATE	"system_monitor_sample_rate"
 #define SETTING_SYS_MON_UPLOAD_SIZE	"system_monitor_upload_samples_size"
 
@@ -108,6 +110,7 @@ static int cfg_check_description(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_contact(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_location(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_string_length(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max);
+static int cfg_check_fw_download_path(cfg_t *cfg, cfg_opt_t *opt);
 static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg);
 static int get_log_level(void);
 static int file_exists(const char *const filename);
@@ -186,6 +189,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			/* Services settings. */
 			CFG_BOOL	(ENABLE_FS_SERVICE,		cfg_true,		CFGF_NONE),
 			CFG_BOOL	(ENABLE_DATA_SERVICE,	cfg_true,		CFGF_NONE),
+			CFG_STR		(SETTING_FW_DOWNLOAD_PATH, NULL,		CFGF_NODEFAULT),
 
 			/* File system settings. */
 			CFG_SEC		(GROUP_VIRTUAL_DIRS, virtual_dirs_opts, CFGF_NONE),
@@ -235,6 +239,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_RX, cfg_check_keepalive_rx);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_TX, cfg_check_keepalive_tx);
 	cfg_set_validate_func(cfg, SETTING_WAIT_TIMES, cfg_check_wait_times);
+	cfg_set_validate_func(cfg, SETTING_FW_DOWNLOAD_PATH, cfg_check_fw_download_path);
 	cfg_set_validate_func(cfg, SETTING_SYS_MON_SAMPLE_RATE,
 			cfg_check_int_positive);
 	cfg_set_validate_func(cfg, SETTING_SYS_MON_UPLOAD_SIZE,
@@ -300,6 +305,9 @@ void free_configuration(cc_cfg_t *cc_cfg)
 		}
 		free(cc_cfg->vdirs);
 		cc_cfg->vdirs = 0;
+
+		free(cc_cfg->fw_download_path);
+		cc_cfg->fw_download_path = NULL;
 
 		free(cc_cfg);
 		cc_cfg = NULL;
@@ -414,6 +422,9 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 		if (cfg_getbool(cfg, ENABLE_SYSTEM_MONITOR))
 			cc_cfg->services = cc_cfg->services | SYS_MONITOR_SERVICE;
 	}
+	cc_cfg->fw_download_path = strdup(cfg_getstr(cfg, SETTING_FW_DOWNLOAD_PATH));
+	if (cc_cfg->fw_download_path == NULL)
+		return -1;
 
 	/* Fill system monitor settings. */
 	cc_cfg->sys_mon_parameters = 0;
@@ -471,6 +482,7 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 	cfg_setbool(cfg, ENABLE_FS_SERVICE, cc_cfg->services & FS_SERVICE ? cfg_true : cfg_false);
 	cfg_setbool(cfg, ENABLE_DATA_SERVICE, cc_cfg->services & DATA_SERVICE ? cfg_true : cfg_false);
 	cfg_setbool(cfg, ENABLE_SYSTEM_MONITOR, cc_cfg->services & SYS_MONITOR_SERVICE ? cfg_true : cfg_false);
+	cfg_setstr(cfg, SETTING_FW_DOWNLOAD_PATH, cc_cfg->fw_download_path);
 	/* TODO: Set virtual directories */
 
 	/* Fill system monitor settings. */
@@ -793,6 +805,33 @@ static int cfg_check_string_length(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uin
 	}
 	if (max != 0 && strlen(val) > max) {
 		cfg_error(cfg, "Invalid %s (%s): cannot be longer than %d character(s)", opt->name, val, max);
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * cfg_check_fw_download_path() - Check firmware download path is an existing dir
+ *
+ * @cfg:	The section were the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_fw_download_path(cfg_t *cfg, cfg_opt_t *opt)
+{
+	char *val = cfg_opt_getnstr(opt, 0);
+
+	if (val == NULL || strlen(val) == 0) {
+		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
+		return -1;
+	}
+
+	if (access(val, R_OK | W_OK) < 0) {
+		cfg_error(cfg,
+				"Invalid %s (%s): directory does not exist or do not have R/W access",
+				opt->name, val);
 		return -1;
 	}
 

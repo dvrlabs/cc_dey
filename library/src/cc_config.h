@@ -72,6 +72,7 @@ typedef struct {
  * @services:					Enabled services
  * @vdirs:						List of virtual directories
  * @n_vdirs:					Number of virtual directories in the list
+ * @fw_download_path			Absolute path to download firmware files
  * @sys_mon_parameters:			Enabled parameters to monitor
  * @sys_mon_sample_rate:		Frequency at which gather system information
  * @sys_mon_num_samples_upload:	Number of samples of each channel to gather before uploading
@@ -101,6 +102,8 @@ typedef struct {
 
 	vdir_t *vdirs;
 	unsigned int n_vdirs;
+
+	char *fw_download_path;
 
 	uint16_t sys_mon_parameters;
 
