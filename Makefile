@@ -27,6 +27,6 @@ app: library
 $(SUBDIRS):
 	$(MAKE) -C $@
 
-.PHONY: clean
-clean:
+.PHONY: clean install
+clean install:
 	for a in $(SUBDIRS); do $(MAKE) -C $$a $@; done

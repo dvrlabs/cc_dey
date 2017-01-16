@@ -89,6 +89,11 @@ exec: $(OBJS)
 	
 $(EXECUTABLE): exec
 
+.PHONY: install
+install: $(EXECUTABLE)
+	install -d $(DESTDIR)/usr/bin
+	install -m 0755 $< $(DESTDIR)/usr/bin/
+
 .PHONY: clean
 clean:
 	-rm -f $(EXECUTABLE) $(OBJS) $(EXECUTABLE).map

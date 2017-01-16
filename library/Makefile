@@ -103,6 +103,22 @@ lib$(NAME).so.$(VERSION): $(OBJS)
 lib$(NAME).a: $(OBJS)
 	$(AR) -rcs $@ $^
 
+.PHONY: install
+install: lib$(NAME).so lib$(NAME).a
+	# Install libraries
+	install -d $(DESTDIR)/usr/lib
+	install -m 0644 lib$(NAME).a $(DESTDIR)/usr/lib/
+	install -m 0755 lib$(NAME).so.$(VERSION) $(DESTDIR)/usr/lib/
+	ln -sf lib$(NAME).so.$(VERSION) $(DESTDIR)/usr/lib/lib$(NAME).so.$(MAJOR)
+	ln -sf lib$(NAME).so.$(VERSION) $(DESTDIR)/usr/lib/lib$(NAME).so
+	# Install header files
+	install -d $(DESTDIR)/usr/include/ccapi
+	install -m 0644 src/cc_api/include/ccapi/*.h $(DESTDIR)/usr/include/ccapi/
+	install -m 0644 src/cc_init.h src/cc_logging.h $(DESTDIR)/usr/include/
+	# Install certificates
+	install -d $(DESTDIR)/etc/ssl/certs
+	install -m 0644 src/cc_api/source/cc_ansic/public/certificates/*.crt $(DESTDIR)/etc/ssl/certs/
+
 .PHONY: clean
 clean:
 	-rm -f *.so* lib$(NAME).a $(OBJS)
