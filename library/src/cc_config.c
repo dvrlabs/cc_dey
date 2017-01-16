@@ -46,6 +46,15 @@
 #define SETTING_VENDOR_ID			"vendor_id"
 #define SETTING_DEVICE_TYPE			"device_type"
 #define SETTING_FW_VERSION			"firmware_version"
+#define SETTING_DESCRIPTION			"description"
+#define SETTING_DESCRIPTION_MIN		0
+#define SETTING_DESCRIPTION_MAX		63
+#define SETTING_CONTACT				"contact"
+#define SETTING_CONTACT_MIN			0
+#define SETTING_CONTACT_MAX			63
+#define SETTING_LOCATION			"location"
+#define SETTING_LOCATION_MIN		0
+#define SETTING_LOCATION_MAX		63
 
 #define SETTING_DC_URL				"url"
 #define SETTING_ENABLE_RECONNECT	"enable_reconnect"
@@ -95,6 +104,10 @@ static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_latitude(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_longitude(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_int_positive(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_description(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_contact(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_location(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_string_length(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max);
 static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg);
 static int get_log_level(void);
 static int file_exists(const char *const filename);
@@ -159,6 +172,9 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			CFG_INT		(SETTING_VENDOR_ID,		0x0,			CFGF_NODEFAULT),
 			CFG_STR		(SETTING_DEVICE_TYPE,	"DEY device",	CFGF_NONE),
 			CFG_STR		(SETTING_FW_VERSION,	NULL,			CFGF_NODEFAULT),
+			CFG_STR		(SETTING_DESCRIPTION,	"",				CFGF_NONE),
+			CFG_STR		(SETTING_CONTACT,		"",				CFGF_NONE),
+			CFG_STR		(SETTING_LOCATION,		"",				CFGF_NONE),
 
 			/* Connection settings. */
 			CFG_STR		(SETTING_DC_URL, "devicecloud.digi.com", CFGF_NONE),
@@ -212,6 +228,9 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 	cfg_set_validate_func(cfg, SETTING_VENDOR_ID, cfg_check_vendor_id);
 	cfg_set_validate_func(cfg, SETTING_DEVICE_TYPE, cfg_check_device_type);
 	cfg_set_validate_func(cfg, SETTING_FW_VERSION, cfg_check_fw_version);
+	cfg_set_validate_func(cfg, SETTING_DESCRIPTION, cfg_check_description);
+	cfg_set_validate_func(cfg, SETTING_CONTACT, cfg_check_contact);
+	cfg_set_validate_func(cfg, SETTING_LOCATION, cfg_check_location);
 	cfg_set_validate_func(cfg, SETTING_DC_URL, cfg_check_dc_url);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_RX, cfg_check_keepalive_rx);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_TX, cfg_check_keepalive_tx);
@@ -266,6 +285,12 @@ void free_configuration(cc_cfg_t *cc_cfg)
 		cc_cfg->device_type = NULL;
 		free(cc_cfg->fw_version);
 		cc_cfg->fw_version = NULL;
+		free(cc_cfg->description);
+		cc_cfg->description = NULL;
+		free(cc_cfg->contact);
+		cc_cfg->contact = NULL;
+		free(cc_cfg->location);
+		cc_cfg->location = NULL;
 		free(cc_cfg->url);
 		cc_cfg->url = NULL;
 
@@ -359,6 +384,15 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	cc_cfg->fw_version = strdup(cfg_getstr(cfg, SETTING_FW_VERSION));
 	if (cc_cfg->fw_version == NULL)
 		return -1;
+	cc_cfg->description = strdup(cfg_getstr(cfg, SETTING_DESCRIPTION));
+	if (cc_cfg->description == NULL)
+		return -1;
+	cc_cfg->contact = strdup(cfg_getstr(cfg, SETTING_CONTACT));
+	if (cc_cfg->contact == NULL)
+		return -1;
+	cc_cfg->location = strdup(cfg_getstr(cfg, SETTING_LOCATION));
+	if (cc_cfg->location == NULL)
+		return -1;
 
 	/* Fill connection settings. */
 	cc_cfg->url = strdup(cfg_getstr(cfg, SETTING_DC_URL));
@@ -422,6 +456,9 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 	cfg_setint(cfg, SETTING_VENDOR_ID, cc_cfg->vendor_id);
 	cfg_setstr(cfg, SETTING_DEVICE_TYPE, cc_cfg->device_type);
 	cfg_setstr(cfg, SETTING_FW_VERSION, cc_cfg->fw_version);
+	cfg_setstr(cfg, SETTING_DESCRIPTION, cc_cfg->description);
+	cfg_setstr(cfg, SETTING_CONTACT, cc_cfg->contact);
+	cfg_setstr(cfg, SETTING_LOCATION, cc_cfg->location);
 
 	/* Fill connection settings. */
 	cfg_setstr(cfg, SETTING_DC_URL, cc_cfg->url);
@@ -632,7 +669,6 @@ static int cfg_check_longitude(cfg_t *cfg, cfg_opt_t *opt)
 	return cfg_check_float_range(cfg, opt, SETTING_LONGITUDE_MIN, SETTING_LONGITUDE_MAX);
 }
 
-
 /*
  * cfg_check_range() - Check a parameter value is between given range
  *
@@ -691,6 +727,75 @@ static int cfg_check_int_positive(cfg_t *cfg, cfg_opt_t *opt)
 		cfg_error(cfg, "Invalid %s (%ld): must be greater than 0", opt->name, val);
 		return -1;
 	}
+	return 0;
+}
+
+/*
+ * cfg_check_description() - Check description value length is in range
+ *
+ * @cfg:	The section were the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_description(cfg_t *cfg, cfg_opt_t *opt)
+{
+	return cfg_check_string_length(cfg, opt, SETTING_DESCRIPTION_MIN, SETTING_DESCRIPTION_MAX);
+}
+
+/*
+ * cfg_check_contact() - Check contact value length is in range
+ *
+ * @cfg:	The section were the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_contact(cfg_t *cfg, cfg_opt_t *opt)
+{
+	return cfg_check_string_length(cfg, opt, SETTING_CONTACT_MIN, SETTING_CONTACT_MAX);
+}
+
+/*
+ * cfg_check_location() - Check location value length is in range
+ *
+ * @cfg:	The section were the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_location(cfg_t *cfg, cfg_opt_t *opt)
+{
+	return cfg_check_string_length(cfg, opt, SETTING_LOCATION_MIN, SETTING_LOCATION_MAX);
+}
+
+/*
+ * cfg_check_string_length() - Check the length of a string is in range
+ *
+ * @cfg:	The section were the option is defined.
+ * @opt:	The option to check.
+ * @min: 	The string minimum length.
+ * @max:	The string maximum length. 0 to unlimited.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_string_length(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max)
+{
+	char *val = cfg_opt_getnstr(opt, 0);
+
+	if ((val == NULL || strlen(val) == 0) && min > 0) {
+		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
+		return -1;
+	}
+	if (strlen(val) < min) {
+		cfg_error(cfg, "Invalid %s (%s): cannot be shorter than %d character(s)", opt->name, val, min);
+		return -1;
+	}
+	if (max != 0 && strlen(val) > max) {
+		cfg_error(cfg, "Invalid %s (%s): cannot be longer than %d character(s)", opt->name, val, max);
+		return -1;
+	}
+
 	return 0;
 }
 

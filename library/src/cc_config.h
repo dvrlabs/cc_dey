@@ -61,6 +61,9 @@ typedef struct {
  * @vendor_id:					Identifier of the Device Cloud user account
  * @device_type:				Name of the device running Cloud Connector
  * @fw_version:					Version of the firmware running Cloud Connector
+ * @description:				Description of the device
+ * @contact:					Contact information of the device
+ * @location:					Location of the device (not GPS location)
  * @url:						Device Cloud URL
  * @enable_reconnect:			Enabled reconnection when connection is lost
  * @keepalive_rx:				Keep alive receiving frequency (seconds)
@@ -80,6 +83,9 @@ typedef struct {
 	uint32_t vendor_id;
 	char *device_type;
 	char *fw_version;
+	char *description;
+	char *contact;
+	char *location;
 
 	char *url;
 	ccapi_bool_t enable_reconnect;
