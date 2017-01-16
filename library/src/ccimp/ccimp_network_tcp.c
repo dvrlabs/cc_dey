@@ -496,6 +496,7 @@ static int app_verify_device_cloud_certificate(SSL *const ssl)
 	}
 
 done:
+	X509_free(device_cloud_cert);
 	return ret;
 }
 
