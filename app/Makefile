@@ -89,8 +89,9 @@ $(EXECUTABLE): $(OBJS)
 
 .PHONY: install
 install: $(EXECUTABLE)
-	install -d $(DESTDIR)/usr/bin
+	install -d $(DESTDIR)/usr/bin $(DESTDIR)/etc
 	install -m 0755 $< $(DESTDIR)/usr/bin/
+	install -m 0644 cfg_files/*.conf $(DESTDIR)/etc/
 
 .PHONY: clean
 clean:
