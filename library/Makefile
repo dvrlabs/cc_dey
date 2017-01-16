@@ -44,6 +44,7 @@ INSTALL_HEADERS_DIR = /usr/include/cloudconnector
 
 # Location of Platform Source Code.
 PLATFORM_DIR = $(SRC)/ccimp
+MINIUNZ_DIR = $(SRC)/miniunz
 
 # Resolves where to find Source files.
 vpath $(CCFSM_PRIVATE_DIR)/%.c
@@ -66,7 +67,7 @@ CFLAGS += -D_POSIX_C_SOURCE=200112L -D_GNU_SOURCE
 CFLAGS += -I $(SRC) -I $(CUSTOM_CCFSM_PUBLIC_HEADER_DIR) -I $(CCFSM_PUBLIC_HEADER_DIR)
 CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
 # Include Platform Header Files.
-CFLAGS += -I $(PLATFORM_DIR)
+CFLAGS += -I $(MINIUNZ_DIR) -I $(PLATFORM_DIR)
 CFLAGS += $(shell pkg-config --cflags recovery)
 
 CFLAGS += -g -O0
@@ -76,8 +77,9 @@ CC_PRIVATE_SRCS := $(CCFSM_PRIVATE_DIR)/connector_api.c
 CCAPI_PRIVATE_SRCS := $(wildcard $(CCAPI_PRIVATE_DIR)/*.c)
 PLATFORM_SRCS := $(wildcard $(PLATFORM_DIR)/*.c)
 CC_DEY_SRCS := $(wildcard $(SRC)/*.c)
+CC_MINIUNZ_SRCS := $(wildcard $(SRC)/miniunz/*.c)
 
-SRCS = $(CC_DEY_SRCS) $(PLATFORM_SRCS) $(CC_PRIVATE_SRCS) $(CCAPI_PRIVATE_SRCS)
+SRCS = $(CC_DEY_SRCS) $(CC_MINIUNZ_SRCS) $(PLATFORM_SRCS) $(CC_PRIVATE_SRCS) $(CCAPI_PRIVATE_SRCS)
 
 OBJS = $(SRCS:.c=.o)
 
