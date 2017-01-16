@@ -475,6 +475,8 @@ static long read_file(const char *path, char **buffer, long file_size)
 	if (ferror(fd)) {
 		log_sm_error("read_file(): fread error: %s", path);
 		read_size = -1;
+	} else {
+		(*buffer)[read_size - 1] = '\0';
 	}
 
 	fclose(fd);
