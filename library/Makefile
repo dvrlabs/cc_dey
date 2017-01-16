@@ -67,6 +67,7 @@ CFLAGS += -I $(SRC) -I $(CUSTOM_CCFSM_PUBLIC_HEADER_DIR) -I $(CCFSM_PUBLIC_HEADE
 CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
 # Include Platform Header Files.
 CFLAGS += -I $(PLATFORM_DIR)
+CFLAGS += $(shell pkg-config --cflags recovery)
 
 CFLAGS += -g -O0
 

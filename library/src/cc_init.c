@@ -36,6 +36,8 @@
 
 #define CC_CONFIG_FILE		"/etc/cc.conf"
 
+#define FW_SWU_CHUNK_SIZE	128 * 1024 /* 128KB, CC6UL flash sector size */
+
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
@@ -312,10 +314,11 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 					cc_cfg->fw_version);
 			start->service.firmware = NULL;
 		} else {
-			ccapi_firmware_target_t *fw_list;
-			ccapi_fw_service_t *fw_service;
+			uint8_t n_targets = 1;
+			ccapi_firmware_target_t *fw_list = NULL;
+			ccapi_fw_service_t *fw_service = NULL;
 
-			fw_list = malloc(sizeof *fw_list);
+			fw_list = malloc(n_targets * sizeof *fw_list);
 			if (fw_list == NULL) {
 				log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_firmware_target_t");
 				free_ccapi_start_struct(start);
@@ -332,16 +335,16 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 				return start;
 			}
 
-			fw_list->chunk_size = 0;
-			fw_list->description = "System image";
-			fw_list->filespec = ".*\\.[zZ][iI][pP]";
-			fw_list->maximum_size = 0;
-			fw_list->version.major = (uint8_t) fw_version_major;
-			fw_list->version.minor = (uint8_t) fw_version_minor;
-			fw_list->version.revision = (uint8_t) fw_version_revision;
-			fw_list->version.build = (uint8_t) fw_version_build;
+			fw_list[0].chunk_size = FW_SWU_CHUNK_SIZE;
+			fw_list[0].description = "System";
+			fw_list[0].filespec = ".*\\.[sS][wW][uU]";
+			fw_list[0].maximum_size = 0;
+			fw_list[0].version.major = (uint8_t) fw_version_major;
+			fw_list[0].version.minor = (uint8_t) fw_version_minor;
+			fw_list[0].version.revision = (uint8_t) fw_version_revision;
+			fw_list[0].version.build = (uint8_t) fw_version_build;
 
-			fw_service->target.count = 1;
+			fw_service->target.count = n_targets;
 			fw_service->target.item = fw_list;
 
 			fw_service->callback.request = app_fw_request_cb;
