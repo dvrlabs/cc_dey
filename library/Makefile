@@ -91,7 +91,7 @@ LDFLAGS += $(DFLAGS) -shared -Wl,-soname,lib$(NAME).so.$(MAJOR),--sort-common
 OBJS = $(SRCS:.c=.o)
 
 .PHONY: all
-all:  lib$(NAME).so
+all:  lib$(NAME).so lib$(NAME).a
 
 lib$(NAME).so: lib$(NAME).so.$(VERSION)
 	ln -sf lib$(NAME).so.$(VERSION) lib$(NAME).so.$(MAJOR)
@@ -100,7 +100,10 @@ lib$(NAME).so: lib$(NAME).so.$(VERSION)
 lib$(NAME).so.$(VERSION): $(OBJS)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
+lib$(NAME).a: $(OBJS)
+	$(AR) -rcs $@ $^
+
 .PHONY: clean
 clean:
-	-rm -f *.so* $(OBJS)
+	-rm -f *.so* lib$(NAME).a $(OBJS)
 
