@@ -122,4 +122,3 @@ install: lib$(NAME).so lib$(NAME).a
 .PHONY: clean
 clean:
 	-rm -f *.so* lib$(NAME).a $(OBJS)
-

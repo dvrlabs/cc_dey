@@ -84,10 +84,8 @@ LDFLAGS += -L$(CC_LIB_SRC)/.. $(DFLAGS) -Wl,-Map,$(EXECUTABLE).map,--sort-common
 
 OBJS = $(SRCS:.c=.o)
 
-exec: $(OBJS)
+$(EXECUTABLE): $(OBJS)
 	$(CC) $(LDFLAGS) $^ $(LIBS) -o $(EXECUTABLE)
-	
-$(EXECUTABLE): exec
 
 .PHONY: install
 install: $(EXECUTABLE)
@@ -97,4 +95,3 @@ install: $(EXECUTABLE)
 .PHONY: clean
 clean:
 	-rm -f $(EXECUTABLE) $(OBJS) $(EXECUTABLE).map
-
