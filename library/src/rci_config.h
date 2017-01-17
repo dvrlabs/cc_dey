@@ -68,8 +68,19 @@ typedef enum {
 } connector_state_gps_stats_id_t;
 
 typedef enum {
+	connector_state_device_information_dey_version,
+	connector_state_device_information_kernel_version,
+	connector_state_device_information_uboot_version,
+	connector_state_device_information_hardware,
+	connector_state_device_information_kinetis,
+	connector_state_device_information_COUNT
+} connector_state_device_information_id_t;
+
+typedef enum {
 	connector_state_device_state,
+	connector_state_primary_interface,
 	connector_state_gps_stats,
+	connector_state_device_information,
 	connector_state_COUNT
 } connector_state_id_t;
 

@@ -28,6 +28,7 @@
 #include "rci_state_device_state.h"
 #include "rci_state_gps_stats.h"
 #include "rci_state_primary_interface.h"
+#include "rci_state_device_info.h"
 
 #define UNUSED_PARAMETER(a) (void)(a)
 

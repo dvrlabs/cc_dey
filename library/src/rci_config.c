@@ -173,6 +173,29 @@ static connector_group_element_t CONST state_gps_stats_elements[] =
 	}
 };
 
+static connector_group_element_t CONST state_device_information_elements[] = {
+	{  /*dey_version*/
+		connector_element_access_read_only,
+		connector_element_type_string
+	},
+	{  /*kernel_version*/
+		connector_element_access_read_only,
+		connector_element_type_string
+	},
+	{  /*uboot_version*/
+		connector_element_access_read_only,
+		connector_element_type_string
+	},
+	{  /*hardware*/
+		connector_element_access_read_only,
+		connector_element_type_string
+	},
+	{  /*kinetis*/
+		connector_element_access_read_only,
+		connector_element_type_string
+	}
+};
+
 static connector_group_element_t CONST state_primary_interface_elements[] =
 {
 	{  /*connection_type*/
@@ -222,6 +245,17 @@ static connector_group_t CONST connector_state_groups[] =
 		{
 			ARRAY_SIZE(state_gps_stats_elements),
 			state_gps_stats_elements
+		},
+		{
+			0,
+			NULL
+		}  /* errors*/
+	},
+	{  /*device_information*/
+		1 , /* instances */
+		{
+			ARRAY_SIZE(state_device_information_elements),
+			state_device_information_elements
 		},
 		{
 			0,

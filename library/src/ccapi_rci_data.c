@@ -106,6 +106,29 @@ static ccapi_rci_element_t const state_gps_stats_elements[] = {
 	}
 };
 
+static ccapi_rci_element_t const state_device_information_elements[] = {
+	{  /*dey_version*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_device_information_dey_version_get
+	},
+	{  /*kernel_version*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_device_information_kernel_version_get
+	},
+	{  /*uboot_version*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_device_information_uboot_version_get
+	},
+	{  /*hardware*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_device_information_hardware_get
+	},
+	{  /*kinetis*/
+		NULL,
+		(ccapi_rci_function_t)rci_state_device_information_kinetis_get
+	}
+};
+
 static ccapi_rci_group_t const ccapi_state_groups[] =
 {
 	{  /*device_state*/
@@ -130,6 +153,14 @@ static ccapi_rci_group_t const ccapi_state_groups[] =
 		{
 			(ccapi_rci_function_t)rci_state_gps_stats_start,
 			(ccapi_rci_function_t)rci_state_gps_stats_end
+		}
+	},
+	{  /*device_information*/
+		state_device_information_elements,
+		ARRAY_SIZE(state_device_information_elements),
+		{
+			(ccapi_rci_function_t)rci_state_device_information_start,
+			(ccapi_rci_function_t)rci_state_device_information_end
 		}
 	}
 };
