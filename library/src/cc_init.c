@@ -312,9 +312,10 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 					cc_cfg->fw_version);
 			start->service.firmware = NULL;
 		} else {
-			ccapi_firmware_target_t * const fw_list = malloc(sizeof *fw_list);
-			ccapi_fw_service_t * const fw_service = malloc(sizeof *fw_service);
+			ccapi_firmware_target_t *fw_list;
+			ccapi_fw_service_t *fw_service;
 
+			fw_list = malloc(sizeof *fw_list);
 			if (fw_list == NULL) {
 				log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_firmware_target_t");
 				free_ccapi_start_struct(start);
@@ -322,8 +323,10 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 				return start;
 			}
 
+			fw_service = malloc(sizeof *fw_service);
 			if (fw_service == NULL) {
 				log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_fw_service_t");
+				free(fw_list);
 				free_ccapi_start_struct(start);
 				start = NULL;
 				return start;

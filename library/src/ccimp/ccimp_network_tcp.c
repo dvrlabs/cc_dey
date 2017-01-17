@@ -225,7 +225,6 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 	} else {
 #if (defined APP_SSL)
 		app_ssl_t *const ssl_ptr = data->handle;
-		pfd = data->handle;
 		pfd = ssl_ptr->sfd;
 #else
 		pfd = data->handle;
