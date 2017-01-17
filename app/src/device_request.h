@@ -20,7 +20,7 @@
 #ifndef DEVICE_REQUEST_H_
 #define DEVICE_REQUEST_H_
 
-#include <ccapi/ccapi.h>
+#include <cloudconnector.h>
 
 #define TARGET_GET_TIME		"get_time"
 #define TARGET_STOP_CC		"stop_cc"

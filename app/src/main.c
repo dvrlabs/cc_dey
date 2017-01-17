@@ -19,8 +19,7 @@
 
 #include <unistd.h>
 #include <signal.h>
-#include <cc_init.h>
-#include <cc_logging.h>
+#include <cloudconnector.h>
 
 #include "daemonize.h"
 #include "data_point.h"

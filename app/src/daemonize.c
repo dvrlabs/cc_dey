@@ -33,7 +33,7 @@
 #include <pwd.h>
 #include <signal.h>
 #include <limits.h>
-#include <cc_logging.h>
+#include <cloudconnector.h>
 #include <getopt.h>
 
 /*------------------------------------------------------------------------------

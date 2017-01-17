@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
-#include <cc_logging.h>
 
 #include "device_request.h"
 

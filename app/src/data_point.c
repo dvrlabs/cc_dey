@@ -19,7 +19,6 @@
 
 #include <stdio.h>
 #include <time.h>
-#include <cc_logging.h>
 
 #include "data_point.h"
 

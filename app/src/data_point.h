@@ -20,7 +20,7 @@
 #ifndef DATA_POINT_H_
 #define DATA_POINT_H_
 
-#include <ccapi/ccapi.h>
+#include <cloudconnector.h>
 
 #define DATA_POINTS_BATCH_SIZE 10
 
