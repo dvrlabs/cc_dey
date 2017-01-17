@@ -4,5 +4,5 @@
 *.o
 *~
 *.map
-libcloudconnector.so*
+libcloudconnector.*
 app/cloud-connector
