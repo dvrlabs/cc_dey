@@ -75,6 +75,10 @@ typedef struct {
  * @sys_mon_parameters:			Enabled parameters to monitor
  * @sys_mon_sample_rate:		Frequency at which gather system information
  * @sys_mon_num_samples_upload:	Number of samples of each channel to gather before uploading
+ * @use_static_location			If true, use static location as GPS value
+ * @latitude					Latitude value for static location
+ * @longitude					Longitude value for static location
+ * @altitude					Altitude value for static location
  * @log_level:					Level of messaging to log
  * @log_console:				Enable messages logging to the console
  *
