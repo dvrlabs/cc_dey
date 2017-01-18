@@ -88,6 +88,58 @@ static connector_group_element_t CONST setting_static_location_elements[] =
 	}
 };
 
+static connector_group_element_t CONST setting_system_monitor_elements[] =
+{
+	{  /*enable_sysmon*/
+		connector_element_access_read_write,
+		connector_element_type_on_off,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*sample_rate*/
+		connector_element_access_read_write,
+		connector_element_type_uint32,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*n_dp_upload*/
+		connector_element_access_read_write,
+		connector_element_type_uint32,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*enable_sysmon_mem*/
+		connector_element_access_read_write,
+		connector_element_type_on_off,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*enable_sysmon_cpuload*/
+		connector_element_access_read_write,
+		connector_element_type_on_off,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*enable_sysmon_cputemp*/
+		connector_element_access_read_write,
+		connector_element_type_on_off,
+		{
+			0,
+			NULL
+		}
+	}
+};
+
 static connector_group_element_t CONST setting_system_elements[] = {
 	{  /*description*/
 		connector_element_access_read_write,
@@ -122,6 +174,17 @@ static connector_group_t CONST connector_setting_groups[] =
 		{
 			ARRAY_SIZE(setting_static_location_elements),
 			setting_static_location_elements
+		},
+		{
+			0,
+			NULL
+		}  /* errors*/
+	},
+	{  /*system_monitor*/
+		1 , /* instances */
+		{
+			ARRAY_SIZE(setting_system_monitor_elements),
+			setting_system_monitor_elements
 		},
 		{
 			0,

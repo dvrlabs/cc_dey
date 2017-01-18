@@ -40,6 +40,34 @@ static ccapi_rci_element_t const setting_static_location_elements[] =
 	}
 };
 
+static ccapi_rci_element_t const setting_system_monitor_elements[] =
+{
+	{  /*enable_sysmon*/
+		(ccapi_rci_function_t)rci_setting_system_monitor_enable_sysmon_set,
+		(ccapi_rci_function_t)rci_setting_system_monitor_enable_sysmon_get
+	},
+	{  /*sample_rate*/
+		(ccapi_rci_function_t)rci_setting_system_monitor_sample_rate_set,
+		(ccapi_rci_function_t)rci_setting_system_monitor_sample_rate_get
+	},
+	{  /*n_dp_upload*/
+		(ccapi_rci_function_t)rci_setting_system_monitor_n_dp_upload_set,
+		(ccapi_rci_function_t)rci_setting_system_monitor_n_dp_upload_get
+	},
+	{  /*enable_sysmon_mem*/
+		(ccapi_rci_function_t)rci_setting_system_monitor_enable_sysmon_mem_set,
+		(ccapi_rci_function_t)rci_setting_system_monitor_enable_sysmon_mem_get
+	},
+	{  /*enable_sysmon_cpuload*/
+		(ccapi_rci_function_t)rci_setting_system_monitor_enable_sysmon_cpuload_set,
+		(ccapi_rci_function_t)rci_setting_system_monitor_enable_sysmon_cpuload_get
+	},
+	{  /*enable_sysmon_cputemp*/
+		(ccapi_rci_function_t)rci_setting_system_monitor_enable_sysmon_cputemp_set,
+		(ccapi_rci_function_t)rci_setting_system_monitor_enable_sysmon_cputemp_get
+	}
+};
+
 static ccapi_rci_element_t const setting_system_elements[] = {
 	{  /*description*/
 		(ccapi_rci_function_t)rci_setting_system_description_set,
@@ -63,6 +91,14 @@ static ccapi_rci_group_t const ccapi_setting_groups[] =
 		{
 			(ccapi_rci_function_t)rci_setting_static_location_start,
 			(ccapi_rci_function_t)rci_setting_static_location_end
+		}
+	},
+	{  /*system_monitor*/
+		setting_system_monitor_elements,
+		ARRAY_SIZE(setting_system_monitor_elements),
+		{
+			(ccapi_rci_function_t)rci_setting_system_monitor_start,
+			(ccapi_rci_function_t)rci_setting_system_monitor_end
 		}
 	},
 	{  /*system*/

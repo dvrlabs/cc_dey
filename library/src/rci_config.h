@@ -38,6 +38,16 @@ typedef enum {
 } connector_setting_static_location_id_t;
 
 typedef enum {
+	connector_setting_system_monitor_enable_sysmon,
+	connector_setting_system_monitor_sample_rate,
+	connector_setting_system_monitor_n_dp_upload,
+	connector_setting_system_monitor_enable_sysmon_mem,
+	connector_setting_system_monitor_enable_sysmon_cpuload,
+	connector_setting_system_monitor_enable_sysmon_cputemp,
+	connector_setting_system_monitor_COUNT
+} connector_setting_system_monitor_id_t;
+
+typedef enum {
 	connector_setting_system_description,
 	connector_setting_system_contact,
 	connector_setting_system_location,
