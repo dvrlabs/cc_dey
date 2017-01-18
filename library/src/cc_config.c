@@ -538,8 +538,8 @@ static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt)
 		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
 		return -1;
 	}
-	if (strlen(val) > 255) {
-		cfg_error(cfg, "Invalid %s (%s): maximum length 255", opt->name, val);
+	if (strlen(val) > 32) {
+		cfg_error(cfg, "Invalid %s (%s): maximum length 32", opt->name, val);
 		return -1;
 	}
 
