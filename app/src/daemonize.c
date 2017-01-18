@@ -39,9 +39,13 @@
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+#define VERSION		"0.1" GIT_REVISION
+
 #define USAGE \
 	"Cloud Connector client.\n" \
 	"Copyright(c) Digi International Inc.\n" \
+	"\n" \
+	"Version: %s\n" \
 	"\n" \
 	"Usage: %s [options]\n\n" \
 	"  -d  --daemon              Daemonize the process\n" \
@@ -355,5 +359,5 @@ static void release_lock(int const fd)
  */
 static void usage(char const *const name)
 {
-	printf(USAGE, name);
+	printf(USAGE, VERSION, name);
 }
