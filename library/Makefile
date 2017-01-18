@@ -113,13 +113,15 @@ install: lib$(NAME).so lib$(NAME).a
 	ln -sf lib$(NAME).so.$(VERSION) $(DESTDIR)/usr/lib/lib$(NAME).so.$(MAJOR)
 	ln -sf lib$(NAME).so.$(VERSION) $(DESTDIR)/usr/lib/lib$(NAME).so
 	# Install header files
-	install -d $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccapi/ \
-		   $(DESTDIR)$(INSTALL_HEADERS_DIR)/custom/ \
-		   $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccimp/
+	install -d $(DESTDIR)/usr/lib/pkgconfig/ \
+		  $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccapi/ \
+		  $(DESTDIR)$(INSTALL_HEADERS_DIR)/custom/ \
+		  $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccimp/
 	install -m 0644 src/cc_api/include/ccapi/*.h $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccapi/
 	install -m 0644 src/cc_api/include/custom/*.h $(DESTDIR)$(INSTALL_HEADERS_DIR)/custom/
 	install -m 0644 src/cc_api/include/ccimp/ccimp_types.h $(DESTDIR)/$(INSTALL_HEADERS_DIR)/ccimp/
 	install -m 0644 src/cloudconnector.h src/cc_init.h src/cc_logging.h $(DESTDIR)/$(INSTALL_HEADERS_DIR)/
+	install -m 0644 cloudconnector.pc $(DESTDIR)/usr/lib/pkgconfig/
 	# Install certificates
 	install -d $(DESTDIR)/etc/ssl/certs
 	install -m 0644 src/cc_api/source/cc_ansic/public/certificates/*.crt $(DESTDIR)/etc/ssl/certs/

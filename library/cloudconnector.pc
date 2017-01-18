@@ -1,0 +1,13 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: cloudconnector
+Description: Cloud Connector library
+Version:1.0
+
+Requires:
+Libs: -L${libdir} -lcloudconnector
+Libs.private: -lconfuse -lpthread -lcrypto -lz -lssl
+Cflags: -I${includedir}/cloudconnector -I${includedir}
