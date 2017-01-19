@@ -21,6 +21,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <ifaddrs.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -29,67 +30,113 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "ccimp/dns_helper.h"
+#include "ccimp/ccimp_network.h"
 #include "network_utils.h"
 #include "cc_logging.h"
+
+#define cast_for_alignment(cast, ptr)	((cast) ((void *) (ptr)))
+
 /*
- * get_ipv4_and_name() - Retrieves the IPv4 address of the first interface
+ * get_iface_info() - Retrieve information about the network interface used to
+ * 					  connect to url.
  *
- * @ipv4_addr:	Pointer to store the IPv4.
- * @name: 		Address of pointer to malloc for the interface name.
- *				NULL may be use to ignore this paramter. Otherwise, if 0 is
- *				returned, the caller is responsible for freeing *name.
- *
- * The interface must be different from loopback.
+ * @url:		URL to connect to to determine network interface.
+ * @iface_info:	Struct to fill with the network interface information
  *
  * Return: 0 on success, -1 otherwise.
  */
-int get_ipv4_and_name(uint8_t *const ipv4_addr, char **name)
+int get_iface_info(const char *url, iface_info_t *iface_info)
 {
 	unsigned int const ipv4_len = 4;
 	struct ifaddrs *ifaddr = NULL, *ifa = NULL;
 	int retval = -1;
+	struct sockaddr_in sin = {0};
+	struct sockaddr_in info;
+	in_addr_t ip_addr = {0};
+	int sockfd = -1;
+	struct ifreq ifr;
+	socklen_t len = sizeof(struct sockaddr);
 
-	if (getifaddrs(&ifaddr) == -1) {
-		log_error("%s", "get_ipv4_and_name(): getifaddrs() failed");
+	/* 1 - Open a connection to url */
+	if (dns_resolve(url, &ip_addr) != 0) {
+		log_error("%s: dns_resolve() failed (url: %s)", __func__, url);
 		goto done;
 	}
 
-	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-		int family;
+	if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0) {
+		log_error("%s: socket() failed", __func__);
+		goto done;
+	}
 
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = ip_addr;
+#if (defined APP_SSL)
+	sin.sin_port = htons(CCIMP_SSL_PORT);
+#else
+	sin.sin_port = htons(CCIMP_TCP_PORT);
+#endif
+
+	if(connect(sockfd, (struct sockaddr *) &sin, sizeof(struct sockaddr_in)) < 0) {
+		log_error("%s: connect() failed", __func__);
+		goto done;
+	}
+
+	if (getsockname(sockfd, (struct sockaddr *) &info, &len) < 0) {
+		log_error("%s: getsockname() failed", __func__);
+		goto done;
+	}
+
+	/* 2 - Get the name of the interface used */
+	if (getifaddrs(&ifaddr) == -1) {
+		log_error("%s: getifaddrs() failed", __func__);
+		goto done;
+	}
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
 		if (ifa->ifa_addr == NULL)
 			continue;
 
-		family = ifa->ifa_addr->sa_family;
-		if (family == AF_INET) {
-			char host[NI_MAXHOST];
-			in_addr_t ipv4;
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			char buf[32];
+			struct sockaddr_in * const sa = cast_for_alignment(struct sockaddr_in *, ifa->ifa_addr);
+			char *ipv4_string;
 
-			int s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host,
-					NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
-			if (s != 0) {
-				log_error("get_ipv4_and_name(): getnameinfo() failed: %s", gai_strerror(s));
-				continue;
-			}
+			inet_ntop(ifa->ifa_addr->sa_family, (void *)&(sa->sin_addr), buf, sizeof(buf));
+			ipv4_string = inet_ntoa(info.sin_addr);
+			if (!strcmp(ipv4_string, buf)) {
+				strncpy(ifr.ifr_name, ifa->ifa_name, sizeof(ifr.ifr_name));
+				if (ioctl(sockfd, SIOCGIFHWADDR, &ifr) != 0) {
+					log_error("%s: ioctl SIOCGIFFLAGS failed", __func__);
+					goto done;
+				}
 
-			ipv4 = inet_addr(host);
-			if (ipv4 != htonl(INADDR_LOOPBACK)) {
-				log_info("get_ipv4_and_name(): Interface name [%s] - IP Address [%s]", ifa->ifa_name, host);
-				memcpy(ipv4_addr, &ipv4, ipv4_len);
-				if (name != NULL)
-					*name = strdup(ifa->ifa_name);
+				strncpy(iface_info->name, ifa->ifa_name, sizeof(iface_info->name));
+				memcpy(iface_info->mac_addr, ifr.ifr_hwaddr.sa_data, sizeof(iface_info->mac_addr));
+				memcpy(iface_info->ipv4_addr, &(info.sin_addr), ipv4_len);
+				log_debug("%s: Interface name [%s] - IP Address [%s] - MAC [%02x:%02x:%02x:%02x:%02x:%02x]",
+						  __func__, ifa->ifa_name, ipv4_string,
+						  iface_info->mac_addr[0], iface_info->mac_addr[1], iface_info->mac_addr[2],
+						  iface_info->mac_addr[3], iface_info->mac_addr[4], iface_info->mac_addr[5]);
 				retval = 0;
-				break;
+				goto done;
 			}
 		}
 	}
+
 done:
 	freeifaddrs(ifaddr);
+	if (sockfd > 0)
+		close(sockfd);
+
 	return retval;
 }
 
 /**
  * get_mac_addr() - Get the primary MAC address of the device.
+ *
+ * This is not guaranteed to be the MAC of the active network interface, and
+ * should be only used for device identification purposes, where the same MAC
+ * is desired no matter which network interface is active.
  *
  * @mac_addr:	Pointer to store the MAC address.
  *

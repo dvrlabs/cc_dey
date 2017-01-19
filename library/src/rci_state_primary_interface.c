@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include "rci_state_primary_interface.h"
+#include "cc_config.h"
 #include "cc_logging.h"
 #include "network_utils.h"
 
@@ -26,20 +27,24 @@
 static char *iface_ip;
 static char *iface_name;
 
+extern cc_cfg_t *cc_cfg;
+
 ccapi_state_primary_interface_error_id_t rci_state_primary_interface_start(
 		ccapi_rci_info_t * const info)
 {
 	ccapi_state_primary_interface_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
-	static uint8_t ipv4[4];
+	iface_info_t interface_info;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (get_ipv4_and_name(ipv4, &iface_name) != 0) {
+	if (get_iface_info(cc_cfg->url, &interface_info) != 0) {
 		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
 	} else {
+		iface_name = strdup(interface_info.name);
 		iface_ip = malloc(IPV4_STRING_MAX_LENGTH * sizeof(char));
-		snprintf(iface_ip, IPV4_STRING_MAX_LENGTH, "%d.%d.%d.%d", ipv4[0],
-				ipv4[1], ipv4[2], ipv4[3]);
+		snprintf(iface_ip, IPV4_STRING_MAX_LENGTH, "%d.%d.%d.%d",
+				interface_info.ipv4_addr[0], interface_info.ipv4_addr[1],
+				interface_info.ipv4_addr[2], interface_info.ipv4_addr[3]);
 	}
 
 	return ret;

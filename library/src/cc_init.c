@@ -380,6 +380,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg)
 {
 	ccapi_tcp_info_t *tcp_info = malloc(sizeof *tcp_info);
+	iface_info_t active_interface;
 	if (tcp_info == NULL) {
 		log_error("%s", "create_ccapi_tcp_start_info_struct(): malloc failed for ccapi_tcp_info_t");
 		return tcp_info;
@@ -390,17 +391,23 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 		tcp_info->callback.close = tcp_reconnect_cb;
 
 	tcp_info->callback.keepalive = NULL;
-
 	tcp_info->connection.type = CCAPI_CONNECTION_LAN;
 	tcp_info->connection.max_transactions = 0;
 	tcp_info->connection.password = NULL;
 	tcp_info->connection.start_timeout = 10;
 	tcp_info->connection.ip.type = CCAPI_IPV4;
-	if (get_ipv4_and_name(tcp_info->connection.ip.address.ipv4, NULL) != 0
-			|| get_mac_addr(tcp_info->connection.info.lan.mac_address) == NULL) {
+
+	if (get_iface_info(cc_cfg->url, &active_interface) != 0) {
 		free_ccapi_tcp_start_info_struct(tcp_info);
 		tcp_info = NULL;
 		return tcp_info;
+	} else {
+		memcpy(tcp_info->connection.ip.address.ipv4,
+				active_interface.ipv4_addr,
+				sizeof(tcp_info->connection.ip.address.ipv4));
+		memcpy(tcp_info->connection.info.lan.mac_address,
+				active_interface.mac_addr,
+				sizeof(tcp_info->connection.info.lan.mac_address));
 	}
 
 	tcp_info->keepalives.rx = cc_cfg->keepalive_rx;

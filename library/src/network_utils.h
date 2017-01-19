@@ -24,7 +24,13 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-int get_ipv4_and_name(uint8_t *const ipv4_addr, char **name);
+typedef struct {
+	uint8_t ipv4_addr[4];
+	uint8_t mac_addr[6];
+	char name[IFNAMSIZ];
+} iface_info_t ;
+
+int get_iface_info(const char *url, iface_info_t *info);
 uint8_t *get_mac_addr(uint8_t * const mac_addr);
 uint8_t *get_interface_mac_addr(const struct ifreq * const iface,
 		uint8_t * const mac_addr, const char * const pattern);
