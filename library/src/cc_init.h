@@ -63,11 +63,18 @@ typedef enum {
 	CC_STOP_CCAPI_STOP_ERROR_NOT_STARTED
 } cc_stop_error_t;
 
+typedef enum {
+	CC_STATUS_DISCONNECTED,
+	CC_STATUS_CONNECTING,
+	CC_STATUS_CONNECTED
+} cc_status_t;
+
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 cc_init_error_t init_cloud_connection(const char *config_file);
 cc_start_error_t start_cloud_connection(void);
 cc_stop_error_t stop_cloud_connection(void);
+cc_status_t get_cloud_connection_status(void);
 
 #endif /* CC_INIT_H_ */

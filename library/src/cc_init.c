@@ -47,6 +47,7 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
+static void set_cloud_connection_status(cc_status_t status);
 static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg);
 static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg);
 static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg);
@@ -67,6 +68,7 @@ static uint32_t fw_string_to_int(const char *fw_string);
 extern ccapi_rci_data_t const ccapi_rci_data;
 extern connector_remote_config_data_t rci_internal_data;
 static ccapi_rci_service_t rci_service;
+static volatile cc_status_t connection_status = CC_STATUS_DISCONNECTED;
 static pthread_t reconnect_thread;
 cc_cfg_t *cc_cfg = NULL;
 
@@ -162,12 +164,34 @@ cc_stop_error_t stop_cloud_connection(void)
 		log_error("ccapi_stop error %d\n", stop_error);
 	}
 
+	set_cloud_connection_status(CC_STATUS_DISCONNECTED);
+
 	free_configuration(cc_cfg);
 	close_configuration();
 	cc_cfg = NULL;
 	closelog();
 
 	return stop_error;
+}
+
+/*
+ * get_cloud_connection_status() - Return the status of the connection
+ *
+ * Return:	The connection status.
+ */
+cc_status_t get_cloud_connection_status(void)
+{
+	return connection_status;
+}
+
+/*
+ * set_cloud_connection_status() - Configure the status of the connection
+ *
+ * @status:	The new connection status.
+ */
+static void set_cloud_connection_status(cc_status_t status)
+{
+	connection_status = status;
 }
 
 /*
@@ -215,6 +239,7 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 	if (tcp_info == NULL)
 		return CCAPI_TCP_START_ERROR_NULL_POINTER;
 
+	set_cloud_connection_status(CC_STATUS_CONNECTING);
 	error = ccapi_start_transport_tcp(tcp_info);
 	while (error == CCAPI_TCP_START_ERROR_TIMEOUT) {
 		log_info("Time out, retrying connection in %d seconds",
@@ -224,7 +249,11 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 	}
 
 	if (error) {
-		log_error("ccapi_start_transport_tcp failed with error %d\n", error);
+		log_error("ccapi_start_transport_tcp() failed with error %d", error);
+		if (error != CCAPI_TCP_START_ERROR_ALREADY_STARTED)
+			set_cloud_connection_status(CC_STATUS_DISCONNECTED);
+	} else {
+		set_cloud_connection_status(CC_STATUS_CONNECTED);
 	}
 
 	free_ccapi_tcp_start_info_struct(tcp_info);
@@ -500,6 +529,8 @@ static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
 			&& !pthread_kill(reconnect_thread, 0))
 		return CCAPI_FALSE;
 
+	set_cloud_connection_status(CC_STATUS_DISCONNECTED);
+
 	if (cc_cfg->enable_reconnect) {
 		pthread_attr_t attr;
 		int error;
@@ -549,6 +580,8 @@ static void *reconnect_threaded(void *unused)
 	ccapi_tcp_info_t *tcp_info = NULL;
 	ccapi_tcp_start_error_t error;
 
+	set_cloud_connection_status(CC_STATUS_CONNECTING);
+
 	UNUSED_PARAMETER(unused);
 
 	pthread_cleanup_push(reconnect_cleanup_handler, (void *)&tcp_info);
@@ -578,6 +611,10 @@ static void *reconnect_threaded(void *unused)
 		log_error(
 				"Unable to reconnect: ccapi_start_transport_tcp() failed with error %d",
 				error);
+		if (error != CCAPI_TCP_START_ERROR_ALREADY_STARTED)
+			set_cloud_connection_status(CC_STATUS_DISCONNECTED);
+	} else {
+		set_cloud_connection_status(CC_STATUS_CONNECTED);
 	}
 
 	pthread_cleanup_pop(1);
