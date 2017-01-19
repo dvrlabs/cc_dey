@@ -34,6 +34,7 @@ typedef enum {
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 cc_sys_mon_error_t start_system_monitor(const cc_cfg_t * const cc_cfg);
+ccapi_bool_t is_system_monitor_running(void);
 void stop_system_monitor(void);
 
 #endif /* CC_SYSTEM_MONITOR_H_ */

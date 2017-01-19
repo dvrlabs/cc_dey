@@ -134,6 +134,15 @@ cc_sys_mon_error_t start_system_monitor(const cc_cfg_t *const cc_cfg)
 }
 
 /*
+ * is_system_monitor_running() - Check system monitor status
+ *
+ * Return: True if system monitor is running, false if it is not.
+ */
+ccapi_bool_t is_system_monitor_running(void) {
+	return !stop;
+}
+
+/*
  * stop_system_monitor() - Stop the monitoring of system variables
  */
 void stop_system_monitor(void)
