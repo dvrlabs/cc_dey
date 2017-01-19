@@ -25,6 +25,7 @@
 
 #include "ccapi/ccapi.h"
 #include "cc_config.h"
+#include "cc_init.h"
 #include "cc_system_monitor.h"
 #include "cc_logging.h"
 
@@ -206,10 +207,12 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 			 * unsigned long timeout = 2; // seconds
 			 * dp_error = ccapi_dp_send_collection_with_reply(CCAPI_TRANSPORT_TCP, dp_collection, timeout, NULL);
 			 */
-			log_sm_debug("%s", "Sending Data Point collection");
-			dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
-			if (dp_error != CCAPI_DP_ERROR_NONE)
-				log_sm_error("system_monitor_loop(): ccapi_dp_send_collection error %d", dp_error);
+			if (get_cloud_connection_status() == CC_STATUS_CONNECTED) {
+				log_sm_debug("%s", "Sending Data Point collection");
+				dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
+				if (dp_error != CCAPI_DP_ERROR_NONE)
+					log_sm_error("system_monitor_loop(): ccapi_dp_send_collection() error %d", dp_error);
+			}
 		}
 
 		for (loop = 0; loop < n_loops; loop++) {
