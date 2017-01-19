@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
+#include <signal.h>
 
 #include "cc_init.h"
 #include "cc_logging.h"
@@ -32,6 +34,10 @@
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+#ifndef UNUSED_PARAMETER
+#define UNUSED_PARAMETER(a)			((void)(a))
+#endif
+
 #define DEVICE_ID_FORMAT	"%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX"
 
 #define CC_CONFIG_FILE		"/etc/cc.conf"
@@ -49,6 +55,8 @@ static void free_ccapi_start_struct(ccapi_start_t *ccapi_start);
 static void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info);
 static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs);
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause);
+static void *reconnect_threaded(void *unused);
+static void reconnect_cleanup_handler(void *p_tcp_info);
 static int get_device_id_from_mac(uint8_t *const device_id,
 		const uint8_t *const mac_addr);
 static uint32_t fw_string_to_int(const char *fw_string);
@@ -59,6 +67,7 @@ static uint32_t fw_string_to_int(const char *fw_string);
 extern ccapi_rci_data_t const ccapi_rci_data;
 extern connector_remote_config_data_t rci_internal_data;
 static ccapi_rci_service_t rci_service;
+static pthread_t reconnect_thread;
 cc_cfg_t *cc_cfg = NULL;
 
 /*------------------------------------------------------------------------------
@@ -141,6 +150,9 @@ cc_stop_error_t stop_cloud_connection(void)
 {
 	ccapi_stop_error_t stop_error;
 
+	if (!pthread_equal(reconnect_thread, 0))
+		pthread_cancel(reconnect_thread);
+
 	stop_system_monitor();
 	stop_error = ccapi_stop(CCAPI_STOP_GRACEFULLY);
 
@@ -205,9 +217,9 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 
 	error = ccapi_start_transport_tcp(tcp_info);
 	while (error == CCAPI_TCP_START_ERROR_TIMEOUT) {
-		log_info("%s",
-			"ccapi_start_transport_tcp() timed out, retrying in 30 seconds");
-		sleep(30);
+		log_info("Time out, retrying connection in %d seconds",
+				cc_cfg->reconnect_time);
+		sleep(cc_cfg->reconnect_time);
 		error = ccapi_start_transport_tcp(tcp_info);
 	}
 
@@ -387,8 +399,7 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 	}
 
 	tcp_info->callback.close = NULL;
-	if (cc_cfg->enable_reconnect)
-		tcp_info->callback.close = tcp_reconnect_cb;
+	tcp_info->callback.close = tcp_reconnect_cb;
 
 	tcp_info->callback.keepalive = NULL;
 	tcp_info->connection.type = CCAPI_CONNECTION_LAN;
@@ -483,8 +494,108 @@ static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
  */
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
 {
-	log_debug("ccapi_tcp_close_cb cause %d", cause);
-	return CCAPI_TRUE;
+	log_debug("Reconnection, cause %d", cause);
+
+	if (!pthread_equal(reconnect_thread, 0)
+			&& !pthread_kill(reconnect_thread, 0))
+		return CCAPI_FALSE;
+
+	if (cc_cfg->enable_reconnect) {
+		pthread_attr_t attr;
+		int error;
+
+		/* Always return CCAPI_FALSE, to "manually" start the connection again
+		 * in another thread after the configured timeout.
+		 * Do not return CCAPI_TRUE, it will immediately and automatically
+		 * connect again (without any kind of timeout).
+		 */
+
+		error = pthread_attr_init(&attr);
+		if (error != 0) {
+			/* On Linux this function always succeeds. */
+			log_error(
+					"Unable to reconnect, cannot create reconnect thread: pthread_attr_init() error %d",
+					error);
+			return CCAPI_FALSE;
+		}
+
+		error = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (error != 0) {
+			log_error(
+					"Unable to reconnect, cannot create reconnect thread: pthread_attr_setdetachstate() error %d",
+					error);
+			return CCAPI_FALSE;
+		}
+
+		error = pthread_create(&reconnect_thread, NULL, reconnect_threaded,
+				NULL);
+		if (error != 0) {
+			log_error(
+					"Unable to reconnect, cannot create reconnect thread: pthread_create() error %d",
+					error);
+			return CCAPI_FALSE;
+		}
+	}
+	return CCAPI_FALSE;
+}
+
+/*
+ * reconnect_threaded() - Perform a manual reconnection in a new thread
+ *
+ * @unused:	Unused parameter.
+ */
+static void *reconnect_threaded(void *unused)
+{
+	ccapi_tcp_info_t *tcp_info = NULL;
+	ccapi_tcp_start_error_t error;
+
+	UNUSED_PARAMETER(unused);
+
+	pthread_cleanup_push(reconnect_cleanup_handler, (void *)&tcp_info);
+
+	do {
+		int seconds;
+
+		log_info("Reconnecting in %d seconds", cc_cfg->reconnect_time);
+
+		for (seconds = 0; seconds < cc_cfg->reconnect_time; seconds++) {
+			pthread_testcancel();
+			sleep(1);
+		}
+
+		pthread_testcancel();
+		if (tcp_info == NULL) {
+			tcp_info = create_ccapi_tcp_start_info_struct(cc_cfg);
+			if (tcp_info == NULL)
+				continue;
+		}
+
+		pthread_testcancel();
+		error = ccapi_start_transport_tcp(tcp_info);
+	} while (error == CCAPI_TCP_START_ERROR_TIMEOUT);
+
+	if (error) {
+		log_error(
+				"Unable to reconnect: ccapi_start_transport_tcp() failed with error %d",
+				error);
+	}
+
+	pthread_cleanup_pop(1);
+
+	pthread_exit(NULL);
+	return NULL;
+}
+
+/*
+ * reconnect_cleanup_handler() - Clean up the reconnection thread
+ *
+ * @p_tcp_info:	Pointer to ccapi_tcp_info_t to free.
+ */
+static void reconnect_cleanup_handler(void *p_tcp_info)
+{
+	ccapi_tcp_info_t **tcp_info = (ccapi_tcp_info_t **)p_tcp_info;
+
+	free_ccapi_tcp_start_info_struct(*tcp_info);
 }
 
 /*
