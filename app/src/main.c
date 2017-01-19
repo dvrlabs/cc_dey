@@ -22,7 +22,6 @@
 #include <cloudconnector.h>
 
 #include "daemonize.h"
-#include "data_point.h"
 #include "device_request.h"
 
 /*------------------------------------------------------------------------------
@@ -39,7 +38,6 @@ static void sigint_handler(int signum);
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
 static volatile ccapi_bool_t stop = CCAPI_FALSE;
-static ccapi_dp_collection_handle_t dp_collection;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
@@ -59,7 +57,6 @@ int main(int argc, char *argv[])
  */
 static int start_connector(const char *config_file)
 {
-	int dp_initialized = 0;
 	cc_init_error_t init_error;
 	cc_start_error_t start_error;
 
@@ -73,29 +70,15 @@ static int start_connector(const char *config_file)
 
 	register_custom_device_requests();
 
-	dp_initialized = init_sample_data_stream(&dp_collection) == CCAPI_DP_ERROR_NONE;
-
 	start_error = start_cloud_connection();
 	if (start_error != CC_START_ERROR_NONE) {
 		log_error("Cannot start cloud connection, error %d", start_error);
 		return EXIT_FAILURE;
 	}
 
-	/* Send sample data points in a loop until application is stopped. */
-	{
-		int count = 0;
-		do {
-			if (dp_initialized && add_sample_data_point(dp_collection) == CCAPI_DP_ERROR_NONE) {
-				count++;
-				if (count >= DATA_POINTS_BATCH_SIZE) {
-					send_sample_data_stream(dp_collection);
-					count = 0;
-				}
-			}
-
-			sleep(2);
-		} while (check_stop() != CCAPI_TRUE);
-	}
+	do {
+		sleep(2);
+	} while (check_stop() != CCAPI_TRUE);
 
 	return EXIT_SUCCESS;
 }
@@ -133,10 +116,9 @@ static ccapi_receive_error_t register_custom_device_requests(void)
  */
 static ccapi_bool_t check_stop(void)
 {
-	if (stop == CCAPI_TRUE) {
-		destroy_sample_data_stream(dp_collection);
+	if (stop == CCAPI_TRUE)
 		stop_cloud_connection();
-	}
+
 	return stop;
 }
 
