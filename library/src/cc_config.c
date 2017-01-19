@@ -566,7 +566,7 @@ static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_device_type() - Validate device_type in the configuration file
  *
- * @cfg:	The section were the device_type is defined.
+ * @cfg:	The section where the device_type is defined.
  * @opt:	The device_type option.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -590,7 +590,7 @@ static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_fw_version() - Validate firmware_version in the configuration file
  *
- * @cfg:	The section were the firmware_version is defined.
+ * @cfg:	The section where the firmware_version is defined.
  * @opt:	The firmware_version option.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -630,7 +630,7 @@ done:
 /*
  * cfg_check_dc_url() - Validate url in the configuration file
  *
- * @cfg:	The section were the url is defined.
+ * @cfg:	The section where the url is defined.
  * @opt:	The url option.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -648,7 +648,7 @@ static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_keepalive_rx() - Check RX keep alive value is between 5 and 7200
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -661,7 +661,7 @@ static int cfg_check_keepalive_rx(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_keepalive_tx() - Check TX keep alive value is between 5 and 7200
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -674,7 +674,7 @@ static int cfg_check_keepalive_tx(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_wait_times() - Check wait time value is between 2 and 64
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -687,7 +687,7 @@ static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_latitude() - Check latitude value is between -90.0 and 90.0
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -700,7 +700,7 @@ static int cfg_check_latitude(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_longitude() - Check longitude value is between -180.0 and 180.0
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -713,7 +713,7 @@ static int cfg_check_longitude(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_range() - Check a parameter value is between given range
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  * @min:	Minimum value of the parameter.
  * @max:	Maximum value of the parameter.
@@ -734,7 +734,7 @@ static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t ma
 /*
  * cfg_check_float_range() - Check a parameter float value is between given range
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  * @min:	Minimum value of the parameter.
  * @max:	Maximum value of the parameter.
@@ -755,7 +755,7 @@ static int cfg_check_float_range(cfg_t *cfg, cfg_opt_t *opt, float min, float ma
 /*
  * cfg_check_int_positive() - Check a value is positive (value >= 0)
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -774,7 +774,7 @@ static int cfg_check_int_positive(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_description() - Check description value length is in range
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -787,7 +787,7 @@ static int cfg_check_description(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_contact() - Check contact value length is in range
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -800,7 +800,7 @@ static int cfg_check_contact(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_location() - Check location value length is in range
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  *
  * @Return: 0 on success, any other value otherwise.
@@ -813,7 +813,7 @@ static int cfg_check_location(cfg_t *cfg, cfg_opt_t *opt)
 /*
  * cfg_check_string_length() - Check the length of a string is in range
  *
- * @cfg:	The section were the option is defined.
+ * @cfg:	The section where the option is defined.
  * @opt:	The option to check.
  * @min: 	The string minimum length.
  * @max:	The string maximum length. 0 to unlimited.

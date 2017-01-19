@@ -66,9 +66,9 @@ typedef struct {
  * @location:					Location of the device (not GPS location)
  * @url:						Device Cloud URL
  * @enable_reconnect:			Enabled reconnection when connection is lost
- * @keepalive_rx:				Keep alive receiving frequency (seconds)
- * @keepalive_tx:				Keep alive transmitting frequency (seconds)
- * @wait_count:					Number of lost keep alives to consider the connection lost
+ * @keepalive_rx:				Keepalive receiving frequency (seconds)
+ * @keepalive_tx:				Keepalive transmitting frequency (seconds)
+ * @wait_count:					Number of lost keepalives to consider the connection lost
  * @services:					Enabled services
  * @vdirs:						List of virtual directories
  * @n_vdirs:					Number of virtual directories in the list
