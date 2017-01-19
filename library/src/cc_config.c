@@ -59,6 +59,9 @@
 
 #define SETTING_DC_URL				"url"
 #define SETTING_ENABLE_RECONNECT	"enable_reconnect"
+#define SETTING_RECONNECT_TIME		"reconnect_time"
+#define SETTING_RECONNECT_TIME_MIN	1
+#define SETTING_RECONNECT_TIME_MAX	32767
 #define SETTING_KEEPALIVE_TX		"keep_alive_time"
 #define SETTING_KEEPALIVE_RX		"server_keep_alive_time"
 #define SETTING_WAIT_TIMES			"wait_times"
@@ -99,6 +102,7 @@ static int check_vendor_id(unsigned long value);
 static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_fw_version(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_reconnect_time(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_rx(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_tx(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max);
@@ -183,6 +187,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			/* Connection settings. */
 			CFG_STR		(SETTING_DC_URL, "devicecloud.digi.com", CFGF_NONE),
 			CFG_BOOL	(SETTING_ENABLE_RECONNECT, cfg_true,	CFGF_NONE),
+			CFG_INT		(SETTING_RECONNECT_TIME,		30,		CFGF_NONE),
 			CFG_INT		(SETTING_KEEPALIVE_TX,			75,		CFGF_NONE),
 			CFG_INT		(SETTING_KEEPALIVE_RX,			75,		CFGF_NONE),
 			CFG_INT		(SETTING_WAIT_TIMES,			5,		CFGF_NONE),
@@ -237,6 +242,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 	cfg_set_validate_func(cfg, SETTING_CONTACT, cfg_check_contact);
 	cfg_set_validate_func(cfg, SETTING_LOCATION, cfg_check_location);
 	cfg_set_validate_func(cfg, SETTING_DC_URL, cfg_check_dc_url);
+	cfg_set_validate_func(cfg, SETTING_RECONNECT_TIME, cfg_check_reconnect_time);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_RX, cfg_check_keepalive_rx);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_TX, cfg_check_keepalive_tx);
 	cfg_set_validate_func(cfg, SETTING_WAIT_TIMES, cfg_check_wait_times);
@@ -408,6 +414,7 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	if (cc_cfg->url == NULL)
 		return -1;
 	cc_cfg->enable_reconnect = cfg_getbool(cfg, SETTING_ENABLE_RECONNECT);
+	cc_cfg->reconnect_time = cfg_getint(cfg, SETTING_RECONNECT_TIME);
 	cc_cfg->keepalive_rx = cfg_getint(cfg, SETTING_KEEPALIVE_RX);
 	cc_cfg->keepalive_tx = cfg_getint(cfg, SETTING_KEEPALIVE_TX);
 	cc_cfg->wait_count = cfg_getint(cfg, SETTING_WAIT_TIMES);
@@ -479,6 +486,7 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 	/* Fill connection settings. */
 	cfg_setstr(cfg, SETTING_DC_URL, cc_cfg->url);
 	cfg_setbool(cfg, SETTING_ENABLE_RECONNECT, cc_cfg->enable_reconnect);
+	cfg_setint(cfg, SETTING_RECONNECT_TIME, cc_cfg->reconnect_time);
 	cfg_setint(cfg, SETTING_KEEPALIVE_RX, cc_cfg->keepalive_rx);
 	cfg_setint(cfg, SETTING_KEEPALIVE_TX, cc_cfg->keepalive_tx);
 	cfg_setint(cfg, SETTING_WAIT_TIMES, cc_cfg->wait_count);
@@ -643,6 +651,19 @@ static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt)
 		return -1;
 	}
 	return 0;
+}
+
+/*
+ * cfg_check_reconnect_time() - Check reconnect time is between 1 and 32767
+ *
+ * @cfg:	The section where the reconnect_time is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_reconnect_time(cfg_t *cfg, cfg_opt_t *opt)
+{
+	return cfg_check_range(cfg, opt, SETTING_RECONNECT_TIME_MIN, SETTING_RECONNECT_TIME_MAX);
 }
 
 /*

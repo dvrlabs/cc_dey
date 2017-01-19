@@ -66,6 +66,7 @@ typedef struct {
  * @location:					Location of the device (not GPS location)
  * @url:						Device Cloud URL
  * @enable_reconnect:			Enabled reconnection when connection is lost
+ * @reconnect_time:				Number of seconds to reconnect
  * @keepalive_rx:				Keepalive receiving frequency (seconds)
  * @keepalive_tx:				Keepalive transmitting frequency (seconds)
  * @wait_count:					Number of lost keepalives to consider the connection lost
@@ -94,6 +95,7 @@ typedef struct {
 
 	char *url;
 	ccapi_bool_t enable_reconnect;
+	uint16_t reconnect_time;
 	uint16_t keepalive_rx;
 	uint16_t keepalive_tx;
 	uint16_t wait_count;
