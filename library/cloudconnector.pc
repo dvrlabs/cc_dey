@@ -7,7 +7,7 @@ Name: cloudconnector
 Description: Cloud Connector library
 Version:1.0
 
-Requires:
+Requires.private: libconfuse openssl zlib
 Libs: -L${libdir} -lcloudconnector
-Libs.private: -lconfuse -lpthread -lcrypto -lz -lssl
+Libs.private: -lpthread
 Cflags: -I${includedir}/cloudconnector -I${includedir}
