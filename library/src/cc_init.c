@@ -128,7 +128,7 @@ cc_start_error_t start_cloud_connection(void)
 	cc_sys_mon_error_t sys_mon_error;
 
 	if (cc_cfg == NULL) {
-		log_error("%s", "Initialize the connection before starting\n");
+		log_error("%s", "Initialize the connection before starting");
 		return CC_START_ERROR_NOT_INITIALIZE;
 	}
 
@@ -139,6 +139,8 @@ cc_start_error_t start_cloud_connection(void)
 	sys_mon_error = start_system_monitor(cc_cfg);
 	if (sys_mon_error != CC_SYS_MON_ERROR_NONE)
 		return CC_START_ERROR_SYSTEM_MONITOR;
+
+	log_info("%s", "Cloud connection started");
 
 	return CC_START_ERROR_NONE;
 }
@@ -159,9 +161,9 @@ cc_stop_error_t stop_cloud_connection(void)
 	stop_error = ccapi_stop(CCAPI_STOP_GRACEFULLY);
 
 	if (stop_error == CCAPI_STOP_ERROR_NONE) {
-		log_info("%s", "ccapi_stop success\n");
+		log_info("%s", "Cloud connection stopped");
 	} else {
-		log_error("ccapi_stop error %d\n", stop_error);
+		log_error("Error stopping Cloud connection: error %d", stop_error);
 	}
 
 	set_cloud_connection_status(CC_STATUS_DISCONNECTED);
@@ -214,7 +216,7 @@ static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg)
 
 	error = ccapi_start(start_st);
 	if (error != CCAPI_START_ERROR_NONE)
-		log_error("ccapi_start error %d\n", error);
+		log_debug("ccapi_start() error %d", error);
 
 	free_ccapi_start_struct(start_st);
 	return error;
@@ -249,7 +251,7 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 	}
 
 	if (error) {
-		log_error("ccapi_start_transport_tcp() failed with error %d", error);
+		log_debug("ccapi_start_transport_tcp() failed with error %d", error);
 		if (error != CCAPI_TCP_START_ERROR_ALREADY_STARTED)
 			set_cloud_connection_status(CC_STATUS_DISCONNECTED);
 	} else {
@@ -275,7 +277,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 
 	ccapi_start_t *start = malloc(sizeof *start);
 	if (start == NULL) {
-		log_error("%s","create_ccapi_start_struct(): malloc failed for ccapi_start_t");
+		log_error("%s", "Cannot allocate memory to start CCAPI");
 		return start;
 	}
 
@@ -283,7 +285,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	start->device_type = cc_cfg->device_type;
 	start->vendor_id = cc_cfg->vendor_id;
 	if (get_device_id_from_mac(start->device_id, get_mac_addr(mac_address)) != 0) {
-		log_error("%s", "create_ccapi_start_struct(): cannot calculate device id");
+		log_error("%s", "Cannot calculate Device ID");
 		free_ccapi_start_struct(start);
 		start = NULL;
 		return start;
@@ -305,7 +307,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	if (cc_cfg->services & DATA_SERVICE) {
 		ccapi_receive_service_t *dreq_service = malloc(sizeof *dreq_service);
 		if (dreq_service == NULL) {
-			log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_receive_service_t");
+			log_error("%s", "Cannot allocate memory to register Data service");
 			free_ccapi_start_struct(start);
 			start = NULL;
 			return start;
@@ -325,7 +327,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	if (cc_cfg->services & FS_SERVICE) {
 		ccapi_filesystem_service_t *fs_service = malloc(sizeof *fs_service);
 		if (fs_service == NULL) {
-			log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_filesystem_service_t");
+			log_error("%s", "Cannot allocate memory to register File system service");
 			free_ccapi_start_struct(start);
 			start = NULL;
 			return start;
@@ -361,7 +363,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 
 			fw_list = malloc(n_targets * sizeof *fw_list);
 			if (fw_list == NULL) {
-				log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_firmware_target_t");
+				log_error("%s", "Cannot allocate memory to register firmware targets");
 				free_ccapi_start_struct(start);
 				start = NULL;
 				return start;
@@ -369,7 +371,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 
 			fw_service = malloc(sizeof *fw_service);
 			if (fw_service == NULL) {
-				log_error("%s", "create_ccapi_start_struct(): malloc failed for ccapi_fw_service_t");
+				log_error("%s", "Cannot allocate memory to register Firmware service");
 				free(fw_list);
 				free_ccapi_start_struct(start);
 				start = NULL;
@@ -423,7 +425,7 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 	ccapi_tcp_info_t *tcp_info = malloc(sizeof *tcp_info);
 	iface_info_t active_interface;
 	if (tcp_info == NULL) {
-		log_error("%s", "create_ccapi_tcp_start_info_struct(): malloc failed for ccapi_tcp_info_t");
+		log_error("%s", "Cannot allocate memory to start TCP Cloud Connection");
 		return tcp_info;
 	}
 
@@ -506,7 +508,8 @@ static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
 		add_dir_error = ccapi_fs_add_virtual_dir(v_dir->name, v_dir->path);
 		if (add_dir_error != CCAPI_FS_ERROR_NONE) {
 			error = -1;
-			log_error("add_virtual_directories() failed with error %d", add_dir_error);
+			log_error("Error adding virtual directory %s (%s), error %d",
+					v_dir->name, v_dir->path, add_dir_error);
 		}
 	}
 
