@@ -21,11 +21,6 @@ CC ?= gcc
 
 # Generated Library name.
 NAME := cloudconnector
-# Generated Library version.
-MAJOR := 1
-MINOR := 0
-REVISION := 0
-VERSION := $(MAJOR).$(MINOR).$(REVISION)
 
 # Location of Source Code.
 SRC = src
@@ -73,7 +68,7 @@ CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
 # Include Platform Header Files.
 CFLAGS += -I $(PLATFORM_DIR)
 
-CFLAGS += -fPIC -g -O0
+CFLAGS += -g -O0
 
 # Target output to generate.
 CC_PRIVATE_SRCS := $(CCFSM_PRIVATE_DIR)/connector_api.c
@@ -83,45 +78,28 @@ CC_DEY_SRCS := $(wildcard $(SRC)/*.c)
 
 SRCS = $(CC_DEY_SRCS) $(PLATFORM_SRCS) $(CC_PRIVATE_SRCS) $(CCAPI_PRIVATE_SRCS)
 
-# Libraries to Link
-LDLIBS += -lconfuse -lpthread -lcrypto -lz -lssl
-
-# Linking Flags.
-LDFLAGS += $(DFLAGS) -shared -Wl,-soname,lib$(NAME).so.$(MAJOR),--sort-common
-
 OBJS = $(SRCS:.c=.o)
 
 .PHONY: all
-all:  lib$(NAME).so lib$(NAME).a
-
-lib$(NAME).so: lib$(NAME).so.$(VERSION)
-	ln -sf lib$(NAME).so.$(VERSION) lib$(NAME).so.$(MAJOR)
-	ln -sf lib$(NAME).so.$(VERSION) lib$(NAME).so
-
-lib$(NAME).so.$(VERSION): $(OBJS)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+all: lib$(NAME).a
 
 lib$(NAME).a: $(OBJS)
 	$(AR) -rcs $@ $^
 
 .PHONY: install
-install: lib$(NAME).so lib$(NAME).a
-	# Install libraries
-	install -d $(DESTDIR)/usr/lib
+install: lib$(NAME).a
+	# Install library and pkg-config file
+	install -d $(DESTDIR)/usr/lib/pkgconfig
 	install -m 0644 lib$(NAME).a $(DESTDIR)/usr/lib/
-	install -m 0755 lib$(NAME).so.$(VERSION) $(DESTDIR)/usr/lib/
-	ln -sf lib$(NAME).so.$(VERSION) $(DESTDIR)/usr/lib/lib$(NAME).so.$(MAJOR)
-	ln -sf lib$(NAME).so.$(VERSION) $(DESTDIR)/usr/lib/lib$(NAME).so
+	install -m 0644 cloudconnector.pc $(DESTDIR)/usr/lib/pkgconfig/
 	# Install header files
-	install -d $(DESTDIR)/usr/lib/pkgconfig/ \
-		  $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccapi/ \
+	install -d $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccapi/ \
 		  $(DESTDIR)$(INSTALL_HEADERS_DIR)/custom/ \
 		  $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccimp/
 	install -m 0644 src/cc_api/include/ccapi/*.h $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccapi/
 	install -m 0644 src/cc_api/include/custom/*.h $(DESTDIR)$(INSTALL_HEADERS_DIR)/custom/
 	install -m 0644 src/cc_api/include/ccimp/ccimp_types.h $(DESTDIR)/$(INSTALL_HEADERS_DIR)/ccimp/
 	install -m 0644 src/cloudconnector.h src/cc_init.h src/cc_logging.h $(DESTDIR)/$(INSTALL_HEADERS_DIR)/
-	install -m 0644 cloudconnector.pc $(DESTDIR)/usr/lib/pkgconfig/
 	# Install certificates
 	install -d $(DESTDIR)/etc/ssl/certs
 	install -m 0644 src/cc_api/source/cc_ansic/public/certificates/*.crt $(DESTDIR)/etc/ssl/certs/
