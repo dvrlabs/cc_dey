@@ -75,7 +75,7 @@ APP_SRCS = $(wildcard $(SRC)/*.c)
 SRCS = $(APP_SRCS)
 
 # Libraries to Link
-LIBS += -lconfuse -lpthread -lcrypto -lz -lcloudconnector -lssl
+LIBS += $(shell PKG_CONFIG_PATH=../library:$${PKG_CONFIG_PATH} pkg-config --libs --static cloudconnector)
 
 # Generated Executable Name.
 EXECUTABLE = cloud-connector
