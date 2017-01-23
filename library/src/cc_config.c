@@ -44,6 +44,7 @@
 #define ENABLE_SYS_MON_TEMP			"system_monitor_enable_cpu_temperature_sampling"
 
 #define SETTING_VENDOR_ID			"vendor_id"
+#define SETTING_VENDOR_ID_MAX		0xFFFFFFFFUL
 #define SETTING_DEVICE_TYPE			"device_type"
 #define SETTING_FW_VERSION			"firmware_version"
 #define SETTING_DESCRIPTION			"description"
@@ -94,7 +95,7 @@
 static int fill_connector_config(cc_cfg_t *cc_cfg);
 static int set_connector_config(cc_cfg_t *cc_cfg);
 static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt);
-static int check_vendor_id(long int value);
+static int check_vendor_id(unsigned long value);
 static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_fw_version(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt);
@@ -172,7 +173,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			/*|  TYPE   |   SETTING NAME    |  DEFAULT VALUE   |   FLAGS   |*/
 			/* ------------------------------------------------------------ */
 			/* General settings. */
-			CFG_INT		(SETTING_VENDOR_ID,		0x0,			CFGF_NODEFAULT),
+			CFG_STR		(SETTING_VENDOR_ID,		NULL,			CFGF_NODEFAULT),
 			CFG_STR		(SETTING_DEVICE_TYPE,	"DEY device",	CFGF_NONE),
 			CFG_STR		(SETTING_FW_VERSION,	NULL,			CFGF_NODEFAULT),
 			CFG_STR		(SETTING_DESCRIPTION,	"",				CFGF_NONE),
@@ -383,7 +384,7 @@ error:
 static int fill_connector_config(cc_cfg_t *cc_cfg)
 {
 	/* Fill general settings. */
-	cc_cfg->vendor_id = cfg_getint(cfg, SETTING_VENDOR_ID);
+	cc_cfg->vendor_id = strtoul(cfg_getstr(cfg, SETTING_VENDOR_ID), NULL, 16);
 	if (check_vendor_id(cc_cfg->vendor_id) != 0)
 		return -1;
 	cc_cfg->device_type = strdup(cfg_getstr(cfg, SETTING_DEVICE_TYPE));
@@ -461,10 +462,14 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
  */
 static int set_connector_config(cc_cfg_t *cc_cfg)
 {
+	char vid_str[11]; /* "0x" + 8 chars + '\0' */
+
 	/* Set general settings. */
 	if (check_vendor_id(cc_cfg->vendor_id) != 0)
 		return -1;
-	cfg_setint(cfg, SETTING_VENDOR_ID, cc_cfg->vendor_id);
+
+	snprintf(vid_str, sizeof vid_str, "0x%08"PRIX32, cc_cfg->vendor_id);
+	cfg_setstr(cfg, SETTING_VENDOR_ID, vid_str);
 	cfg_setstr(cfg, SETTING_DEVICE_TYPE, cc_cfg->device_type);
 	cfg_setstr(cfg, SETTING_FW_VERSION, cc_cfg->fw_version);
 	cfg_setstr(cfg, SETTING_DESCRIPTION, cc_cfg->description);
@@ -525,12 +530,36 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
  */
 static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt)
 {
-	long int val = cfg_opt_getnint(opt, 0);
+	unsigned long value;
+	char *endptr = NULL;
+	char *val = cfg_opt_getnstr(opt, 0);
 
-	if (val <= 0) {
-		cfg_error(cfg, "Invalid %s (0x%08lx)", opt->name, val);
+	if (val == NULL || strlen(val) == 0) {
+		cfg_error(cfg, "Invalid %s: cannot be empty", opt->name);
 		return -1;
 	}
+
+	value = strtoul(val, &endptr, 16);
+	switch (errno) {
+	case 0:
+		if (*endptr != 0) {
+			cfg_error(cfg, "Invalid %s (%s): value contains invalid characters",
+					opt->name, val);
+			return -1;
+		}
+		if (value == 0 || value > SETTING_VENDOR_ID_MAX) {
+			cfg_error(cfg, "Invalid %s (%s): value must be between 0 and 0x%08lX",
+					opt->name, val, SETTING_VENDOR_ID_MAX);
+			return -1;
+		}
+		break;
+	case ERANGE:
+		cfg_error(cfg, "Invalid %s (%s): value out of range", opt->name, val);
+		return -1;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
@@ -845,10 +874,12 @@ static int cfg_check_fw_download_path(cfg_t *cfg, cfg_opt_t *opt)
  *
  * @Return: 0 for a valid value, -1 otherwise.
  */
-static int check_vendor_id(long int value)
+static int check_vendor_id(unsigned long value)
 {
-	if (value <= 0) {
-		log_error("Invalid %s (0x%08lx)", SETTING_VENDOR_ID, value);
+	if (value == 0 || value > SETTING_VENDOR_ID_MAX) {
+		log_error(
+				"Invalid %s (0x%08lX): value must be between 0 and 0x%08lX",
+				SETTING_VENDOR_ID, value, SETTING_VENDOR_ID_MAX);
 		return -1;
 	}
 	return 0;

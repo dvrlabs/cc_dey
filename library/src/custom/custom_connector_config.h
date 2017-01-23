@@ -53,6 +53,8 @@
 
 #define CCIMP_IDLE_SLEEP_TIME_MS 100
 
+#define CONNECTOR_MAX_VENDOR_ID_NUMBER 0xFFFFFFFF
+
 /* SSL */
 #define APP_SSL
 #define APP_SSL_CA_CERT_PATH   "/etc/ssl/certs/Digi_Int-ca-cert-public.crt"
