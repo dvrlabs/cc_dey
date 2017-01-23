@@ -36,6 +36,7 @@
 #include "cc_logging.h"
 
 #define cast_for_alignment(cast, ptr)	((cast) ((void *) (ptr)))
+#define ARRAY_SIZE(array)  				(sizeof array/sizeof array[0])
 
 /*
  * get_iface_info() - Retrieve information about the network interface used to
@@ -132,6 +133,70 @@ done:
 }
 
 /**
+ * compare_iface() - Provide an ordering for network interfaces by their name.
+ *
+ * @n1:		Name of the first network interface.
+ * @n2: 	Name of the second network interface.
+ *
+ * The interfaces priority order is the following:
+ *   - Ethernet (eth0, eth1, ...)
+ *   - Wi-Fi (wlan0, wlan1, ...)
+ *   - No interface (empty string)
+ *   - Other interface (any other string)
+ *
+ * Return:
+ *      >0 when n1 > n2
+ *       0 when n1 = n2
+ *      <0 when n1 < n2
+ */
+static int compare_iface(const char *n1, const char *n2) {
+
+	const char *patterns[] = { "^eth([0-9]{1,3})$", "^wlan([0-9]{1,3})$", "^$"};
+	regmatch_t match_group[2];
+	regex_t regex;
+	size_t i;
+	int retvalue = 1;
+	char msgbuf[128];
+
+	for (i = 0; i < ARRAY_SIZE(patterns); i++) {
+		int error = regcomp(&regex, patterns[i], REG_EXTENDED);
+		if (error != 0) {
+			regerror(error, &regex, msgbuf, sizeof(msgbuf));
+			log_error("compare_iface(): Could not compile regex: %s (%d)", msgbuf, error);
+			regfree(&regex);
+			goto done;
+		}
+		if (regexec(&regex, n1, 0, NULL, 0) != REG_NOMATCH &&
+			regexec(&regex, n2, 0, NULL, 0) == REG_NOMATCH) {
+			/* Only the first matches: n1 > n2 */
+			retvalue = 1;
+			regfree(&regex);
+			break;
+		} else if (regexec(&regex, n1, 0, NULL, 0) == REG_NOMATCH &&
+				regexec(&regex, n2, 0, NULL, 0) != REG_NOMATCH) {
+			/* Only the second matches: n2 > n1 */
+			retvalue = -1;
+			regfree(&regex);
+			break;
+		} else if (regexec(&regex, n1, 2, match_group, 0) != REG_NOMATCH &&
+				regexec(&regex, n2, 0, NULL, 0) != REG_NOMATCH) {
+			/* If both matches, use the number to decide */
+			int j1 = atoi(n1 + match_group[1].rm_so);
+			int j2 = atoi(n2 + match_group[1].rm_so);
+			retvalue = j2 - j1;
+			regfree(&regex);
+			break;
+		} else {
+			/* If none matches, try the next pattern */
+			regfree(&regex);
+		}
+	}
+
+done:
+	return retvalue;
+}
+
+/**
  * get_mac_addr() - Get the primary MAC address of the device.
  *
  * This is not guaranteed to be the MAC of the active network interface, and
@@ -140,115 +205,64 @@ done:
  *
  * @mac_addr:	Pointer to store the MAC address.
  *
- * The interfaces priority order is the following:
- *   - Ethernet (eth0, eth1, ...)
- *   - Wi-Fi (wlan0, wlan1, ...)
+ * The interfaces priority order is as specified in the compare_iface function above.
  *
  * Return: The MAC address of primary interface.
  */
 uint8_t *get_mac_addr(uint8_t *const mac_addr)
 {
-	unsigned int const max_interfaces = 8;
-	size_t const buf_size = max_interfaces * sizeof(struct ifreq);
-	struct ifconf ifconf;
+	struct ifaddrs *ifaddr = NULL, *ifa = NULL;
+	struct ifreq ifr;
 	uint8_t *retval = NULL;
+	iface_info_t iface = {0};
 	int sock = -1;
-
-	char *const buf = malloc(sizeof(char) * buf_size);
-	if (buf == NULL) {
-		log_error("%s", "get_mac_addr(): malloc failed for char");
-		goto done;
-	}
 
 	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (sock == -1) {
-		log_error("%s", "get_mac_addr(): socket() failed");
+		log_error("%s: socket() failed", __func__);
 		goto done;
 	}
 
-	ifconf.ifc_len = buf_size;
-	ifconf.ifc_buf = buf;
-	if (ioctl(sock, SIOCGIFCONF, &ifconf) < 0) {
-		log_error("%s", "get_mac_addr(): Error using ioctl SIOCGIFCONF.");
+	if (getifaddrs(&ifaddr) == -1) {
+		log_error("%s: getifaddrs() failed", __func__);
 		goto done;
 	}
 
-	{
-		unsigned int entries = 0;
-		unsigned int i;
+	/* iterate over all the interfaces and keep the best one */
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr == NULL)
+			continue;
 
-		entries = (unsigned int) ifconf.ifc_len / sizeof(struct ifreq);
-		if (entries == 0)
-			goto done;
-
-		for (i = 0; i < entries; i++) {
-			struct ifreq ifr;
-			struct ifreq *ifreq = &ifconf.ifc_req[i];
-
-			strcpy(ifr.ifr_name, ifreq->ifr_name);
-			if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
-				log_error("%s", "get_mac_addr(): Error using ioctl SIOCGIFFLAGS.");
-				continue;
+		if (ifa->ifa_addr->sa_family == AF_PACKET &&
+				compare_iface(iface.name, ifa->ifa_name) < 0) {
+			strncpy(ifr.ifr_name, ifa->ifa_name, sizeof(ifr.ifr_name));
+			if (ioctl(sock, SIOCGIFHWADDR, &ifr) != 0) {
+				log_error("%s: ioctl SIOCGIFFLAGS failed", __func__);
+				goto done;
 			}
-
-			if (!(ifr.ifr_flags & IFF_LOOPBACK)) {
-				if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
-					if (get_interface_mac_addr(&ifr, mac_addr, "^eth([0-9]{1,3})$") != NULL
-							|| get_interface_mac_addr(&ifr, mac_addr, "^wlan([0-9]{1,3})$") != NULL) {
-						memcpy(mac_addr, ifr.ifr_hwaddr.sa_data, 6);
-						retval = mac_addr;
-						log_info("Primary interface %s - MAC %02x:%02x:%02x:%02x:%02x:%02x",
-								ifr.ifr_name, mac_addr[0], mac_addr[1],
-								mac_addr[2], mac_addr[3], mac_addr[4],
-								mac_addr[5]);
-						break;
-					}
-				} else {
-					log_error("%s", "get_mac_addr(): Error using ioctl SIOCGIFHWADDR.");
-				}
-			}
+			memcpy(iface.mac_addr, ifr.ifr_hwaddr.sa_data, 6);
+			strncpy(iface.name, ifa->ifa_name, sizeof(iface.name));
+			log_debug("%s: Found better interface %s - MAC %02x:%02x:%02x:%02x:%02x:%02x",
+					__func__, ifa->ifa_name, iface.mac_addr[0],
+					iface.mac_addr[1], iface.mac_addr[2],
+					iface.mac_addr[3], iface.mac_addr[4],
+					iface.mac_addr[5]);
 		}
 	}
 
-done:
-	if (sock != -1)
-		close(sock);
-	free(buf);
-	return retval;
-}
-
-/**
- * get_interface_mac_addr() - Get the MAC address of the interface if matches the pattern
- *
- * @iface:		The interface to check its MAC address.
- * @mac_addr:	Pointer to store the MAC address.
- * @pattern:	Pattern for the name of the interface.
- *
- * Return: The MAC address of the interface, or NULL if it does not matches.
- */
-uint8_t *get_interface_mac_addr(const struct ifreq *const iface,
-		uint8_t *const mac_addr, const char *const pattern)
-{
-	regex_t regex;
-	char msgbuf[100];
-	uint8_t *retval = NULL;
-
-	const char *name = iface->ifr_name;
-
-	int error = regcomp(&regex, pattern, REG_EXTENDED);
-	if (error != 0) {
-		regerror(error, &regex, msgbuf, sizeof(msgbuf));
-		log_error("get_interface_mac_addr(): Could not compile regex: %s (%d)", msgbuf, error);
-		goto done;
+	/* return the best interface found (if any) */
+	if (iface.name[0] == '\0') {
+		log_error("%s: no valid network interface", __func__);
+		retval = NULL;
+	} else {
+		memcpy(mac_addr, iface.mac_addr, sizeof(iface.mac_addr));
+		retval = mac_addr;
 	}
-	error = regexec(&regex, name, 0, NULL, 0);
-	if (error != 0)
-		goto done;
-
-	memcpy(mac_addr, iface->ifr_hwaddr.sa_data, 6);
-	retval = mac_addr;
 
 done:
-	regfree(&regex);
+	if (ifaddr != NULL)
+		freeifaddrs(ifaddr);
+	if (sock > 0)
+		close(sock);
 	return retval;
 }

@@ -32,7 +32,5 @@ typedef struct {
 
 int get_iface_info(const char *url, iface_info_t *info);
 uint8_t *get_mac_addr(uint8_t * const mac_addr);
-uint8_t *get_interface_mac_addr(const struct ifreq * const iface,
-		uint8_t * const mac_addr, const char * const pattern);
 
 #endif
