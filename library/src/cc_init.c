@@ -504,7 +504,7 @@ static int get_device_id_from_mac(uint8_t *const device_id, const uint8_t *const
 
 	memset(device_id, 0x00, device_id_length);
 
-	fp = fopen(deviceid_file, "rb+");
+	fp = fopen(deviceid_file, "rb");
 	if (fp != NULL) {
 		n_items = fscanf(fp, DEVICE_ID_FORMAT, &device_id[0], &device_id[1],
 				&device_id[2], &device_id[3], &device_id[4], &device_id[5],
