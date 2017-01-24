@@ -118,6 +118,9 @@ cc_sys_mon_error_t start_system_monitor(const cc_cfg_t *const cc_cfg)
 			|| !any_sys_mon_enabled || cc_cfg->sys_mon_sample_rate <= 0)
 		return CC_SYS_MON_ERROR_NONE;
 
+	if (is_system_monitor_running())
+		return CC_SYS_MON_ERROR_NONE;
+
 	error = pthread_attr_init(&attr);
 	if (error != 0) {
 		/* On Linux this function always succeeds. */
