@@ -555,7 +555,7 @@ static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt)
 					opt->name, val);
 			return -1;
 		}
-		if (value == 0 || value > SETTING_VENDOR_ID_MAX) {
+		if (value == 0 || value >= SETTING_VENDOR_ID_MAX) {
 			cfg_error(cfg, "Invalid %s (%s): value must be between 0 and 0x%08lX",
 					opt->name, val, SETTING_VENDOR_ID_MAX);
 			return -1;
@@ -897,7 +897,7 @@ static int cfg_check_fw_download_path(cfg_t *cfg, cfg_opt_t *opt)
  */
 static int check_vendor_id(unsigned long value)
 {
-	if (value == 0 || value > SETTING_VENDOR_ID_MAX) {
+	if (value == 0 || value >= SETTING_VENDOR_ID_MAX) {
 		log_error(
 				"Invalid %s (0x%08lX): value must be between 0 and 0x%08lX",
 				SETTING_VENDOR_ID, value, SETTING_VENDOR_ID_MAX);
