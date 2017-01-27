@@ -146,6 +146,10 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 		if (cc_cfg->services & SYS_MONITOR_SERVICE)
 			restart = 1;
 	} else {
+		if (!(cc_cfg->sys_mon_parameters & SYS_MON_LOAD)
+				&& !(cc_cfg->sys_mon_parameters & SYS_MON_TEMP)) {
+			stop_system_monitor();
+		}
 		cc_cfg->sys_mon_parameters &= ~SYS_MON_MEMORY;
 	}
 
@@ -174,6 +178,10 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 		if (cc_cfg->services & SYS_MONITOR_SERVICE)
 			restart = 1;
 	} else {
+		if (!(cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
+				&& !(cc_cfg->sys_mon_parameters & SYS_MON_TEMP)) {
+			stop_system_monitor();
+		}
 		cc_cfg->sys_mon_parameters &= ~SYS_MON_LOAD;
 	}
 
@@ -202,6 +210,10 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 		if (cc_cfg->services & SYS_MONITOR_SERVICE)
 			restart = 1;
 	} else {
+		if (!(cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
+				&& !(cc_cfg->sys_mon_parameters & SYS_MON_LOAD)) {
+			stop_system_monitor();
+		}
 		cc_cfg->sys_mon_parameters &= ~SYS_MON_TEMP;
 	}
 
