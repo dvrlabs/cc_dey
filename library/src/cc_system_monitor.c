@@ -157,6 +157,9 @@ ccapi_bool_t is_system_monitor_running(void) {
  */
 void stop_system_monitor(void)
 {
+	if (!is_system_monitor_running())
+		return;
+
 	stop = CCAPI_TRUE;
 	if (!pthread_equal(dp_thread, 0))
 		pthread_join(dp_thread, NULL);
