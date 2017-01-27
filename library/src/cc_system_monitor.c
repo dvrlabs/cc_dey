@@ -74,6 +74,15 @@ static long read_file(const char *path, char **buffer, long file_size);
 	log_debug("%s " format, SYSTEM_MONITOR_TAG, __VA_ARGS__)
 
 /**
+ * log_sm_info() - Log the given message as info
+ *
+ * @format:		Info message to log.
+ * @args:		Additional arguments.
+ */
+#define log_sm_info(format, ...)									\
+	log_info("%s " format, SYSTEM_MONITOR_TAG, __VA_ARGS__)
+
+/**
  * log_sm_error() - Log the given message as error
  *
  * @format:		Error message to log.
@@ -152,6 +161,8 @@ void stop_system_monitor(void)
 	if (!pthread_equal(dp_thread, 0))
 		pthread_join(dp_thread, NULL);
 	ccapi_dp_destroy_collection(dp_collection);
+
+	log_sm_info("%s", "Stop monitoring the system");
 }
 
 /*
@@ -196,6 +207,13 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 	long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
 	uint32_t count = 0;
 
+	log_sm_info("%s", "Start monitoring the system");
+
+	log_sm_debug("free_memory=%d, cpu_load=%d, cpu_temperature=%d",
+				(cc_cfg->sys_mon_parameters & SYS_MON_MEMORY) ? 1 : 0,
+				(cc_cfg->sys_mon_parameters & SYS_MON_LOAD) ? 1 : 0,
+				(cc_cfg->sys_mon_parameters & SYS_MON_TEMP) ? 1 : 0);
+
 	while (stop != CCAPI_TRUE) {
 		long loop;
 
@@ -219,7 +237,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 			 * dp_error = ccapi_dp_send_collection_with_reply(CCAPI_TRANSPORT_TCP, dp_collection, timeout, NULL);
 			 */
 			if (get_cloud_connection_status() == CC_STATUS_CONNECTED) {
-				log_sm_debug("%s", "Sending Data Point collection");
+				log_sm_debug("%s", "Sending system monitor samples");
 				dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
 				if (dp_error != CCAPI_DP_ERROR_NONE)
 					log_sm_error("system_monitor_loop(): ccapi_dp_send_collection() error %d", dp_error);
