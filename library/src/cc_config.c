@@ -72,7 +72,11 @@
 #define SETTING_FW_DOWNLOAD_PATH	"firmware_download_path"
 
 #define SETTING_SYS_MON_SAMPLE_RATE	"system_monitor_sample_rate"
+#define SETTING_SYS_MON_SAMPLE_RATE_MIN		1
+#define SETTING_SYS_MON_SAMPLE_RATE_MAX		365 * 24 * 60 * 60UL /* A year */
 #define SETTING_SYS_MON_UPLOAD_SIZE	"system_monitor_upload_samples_size"
+#define SETTING_SYS_MON_UPLOAD_SIZE_MIN		1
+#define SETTING_SYS_MON_UPLOAD_SIZE_MAX		250
 
 #define SETTING_USE_STATIC_LOCATION "static_location"
 #define SETTING_LATITUDE			"latitude"
@@ -105,12 +109,13 @@ static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_reconnect_time(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_rx(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_tx(cfg_t *cfg, cfg_opt_t *opt);
-static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max);
+static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint32_t min, uint32_t max);
 static int cfg_check_float_range(cfg_t *cfg, cfg_opt_t *opt, float min, float max);
 static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_sys_mon_sample_rate(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_sys_mon_upload_size(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_latitude(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_longitude(cfg_t *cfg, cfg_opt_t *opt);
-static int cfg_check_int_positive(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_description(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_contact(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_location(cfg_t *cfg, cfg_opt_t *opt);
@@ -248,9 +253,9 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 	cfg_set_validate_func(cfg, SETTING_WAIT_TIMES, cfg_check_wait_times);
 	cfg_set_validate_func(cfg, SETTING_FW_DOWNLOAD_PATH, cfg_check_fw_download_path);
 	cfg_set_validate_func(cfg, SETTING_SYS_MON_SAMPLE_RATE,
-			cfg_check_int_positive);
+			cfg_check_sys_mon_sample_rate);
 	cfg_set_validate_func(cfg, SETTING_SYS_MON_UPLOAD_SIZE,
-			cfg_check_int_positive);
+			cfg_check_sys_mon_upload_size);
 	cfg_set_validate_func(cfg, SETTING_LATITUDE, cfg_check_latitude);
 	cfg_set_validate_func(cfg, SETTING_LONGITUDE, cfg_check_longitude);
 
@@ -706,6 +711,32 @@ static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt)
 }
 
 /*
+ * cfg_check_sys_mon_sample_rate() - Check system monitor sample rate value is between 1s and a year
+ *
+ * @cfg:	The section where the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_sys_mon_sample_rate(cfg_t *cfg, cfg_opt_t *opt)
+{
+	return cfg_check_range(cfg, opt, SETTING_SYS_MON_SAMPLE_RATE_MIN, SETTING_SYS_MON_SAMPLE_RATE_MAX);
+}
+
+/*
+ * cfg_check_sys_mon_upload_size() - Check system monitor samples to store value is between 1 and 250
+ *
+ * @cfg:	The section where the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_sys_mon_upload_size(cfg_t *cfg, cfg_opt_t *opt)
+{
+	return cfg_check_range(cfg, opt, SETTING_SYS_MON_UPLOAD_SIZE_MIN, SETTING_SYS_MON_UPLOAD_SIZE_MAX);
+}
+
+/*
  * cfg_check_latitude() - Check latitude value is between -90.0 and 90.0
  *
  * @cfg:	The section where the option is defined.
@@ -741,9 +772,9 @@ static int cfg_check_longitude(cfg_t *cfg, cfg_opt_t *opt)
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uint16_t max)
+static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint32_t min, uint32_t max)
 {
-	long int val = cfg_opt_getnint(opt, 0);
+	unsigned long val = cfg_opt_getnint(opt, 0);
 
 	if (val > max || val < min) {
 		cfg_error(cfg, "Invalid %s (%d): value must be between %d and %d", opt->name, val, min, max);
@@ -768,25 +799,6 @@ static int cfg_check_float_range(cfg_t *cfg, cfg_opt_t *opt, float min, float ma
 
 	if (val > max || val < min) {
 		cfg_error(cfg, "Invalid %s (%f): value must be between %f and %f", opt->name, val, min, max);
-		return -1;
-	}
-	return 0;
-}
-
-/*
- * cfg_check_int_positive() - Check a value is positive (value >= 0)
- *
- * @cfg:	The section where the option is defined.
- * @opt:	The option to check.
- *
- * @Return: 0 on success, any other value otherwise.
- */
-static int cfg_check_int_positive(cfg_t *cfg, cfg_opt_t *opt)
-{
-	long int val = cfg_opt_getnint(opt, 0);
-
-	if (val <= 0) {
-		cfg_error(cfg, "Invalid %s (%ld): must be greater than 0", opt->name, val);
 		return -1;
 	}
 	return 0;

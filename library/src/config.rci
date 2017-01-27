@@ -29,8 +29,8 @@ group setting static_location "Static location"
 
 group setting system_monitor "System monitor"
     element enable_sysmon "Enable system monitor" type on_off
-    element sample_rate "System monitor sample rate" type uint32 min 1 units "seconds"
-    element n_dp_upload "Samples to store for each stream before uploading" type uint32 min 1
+    element sample_rate "System monitor sample rate" type uint32 min 1 max 31536000 units "seconds"
+    element n_dp_upload "Samples to store for each stream before uploading" type uint32 min 1 max 250
     element enable_sysmon_mem "Enable memory monitoring" type on_off
     element enable_sysmon_cpuload "Enable CPU load monitoring" type on_off
     element enable_sysmon_cputemp "Enable CPU temperature monitoring" type on_off
