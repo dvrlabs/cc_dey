@@ -203,10 +203,6 @@ static void *system_monitor_threaded(void *cc_cfg)
  */
 static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 {
-	uint32_t n_samples_to_send = calculate_number_samples(cc_cfg);
-	long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
-	uint32_t count = 0;
-
 	log_sm_info("%s", "Start monitoring the system");
 
 	log_sm_debug("free_memory=%d, cpu_load=%d, cpu_temperature=%d",
@@ -215,6 +211,9 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 				(cc_cfg->sys_mon_parameters & SYS_MON_TEMP) ? 1 : 0);
 
 	while (stop != CCAPI_TRUE) {
+		uint32_t n_samples_to_send = calculate_number_samples(cc_cfg);
+		long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
+		uint32_t count = 0;
 		long loop;
 
 		add_system_samples(get_free_memory(), get_cpu_load(), get_cpu_temp(), cc_cfg);
