@@ -21,6 +21,19 @@ group state device_information "Device information"
     element hardware "Hardware" type string access read_only
     element kinetis "Kinetis" type string access read_only
 
+group setting ethernet 2 "Ethernet"
+    element iface_name "Interface" type string access read_only
+    element enabled "Enabled" type on_off access read_only
+    element conn_type "Connection type" type enum  access read_only
+        value DHCP
+        value static
+    element ipaddr "IP Address" type string access read_only
+    element netmask "Netmask" type string access read_only
+    element dns1 "DNS1 address" type string access read_only
+    element dns2 "DNS2 address" type string access read_only
+    element gateway "Gateway address" type string access read_only
+    element mac_addr "MAC address" type string access read_only
+
 group setting static_location "Static location"
     element use_static_location "Use static location" type on_off
     element latitude "Static location latitude value" type float min -90 max 90

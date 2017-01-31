@@ -52,6 +52,87 @@ static char const * const connector_rci_errors[] = {
 	CONNECTOR_GLOBAL_ERROR_NOT_IMPLEMENTED /*not_implemented*/
 };
 
+static connector_element_enum_t CONST setting_ethernet_conn_type_enum[] = {
+	{"DHCP"},
+	{"static"}
+};
+
+static connector_group_element_t CONST setting_ethernet_elements[] = {
+	{  /*iface_name*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*enabled*/
+		connector_element_access_read_only,
+		connector_element_type_on_off,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*conn_type*/
+		connector_element_access_read_only,
+		connector_element_type_enum,
+		{
+			ARRAY_SIZE(setting_ethernet_conn_type_enum),
+			setting_ethernet_conn_type_enum
+		}
+	},
+	{  /*ipaddr*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*netmask*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*dns1*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*dns2*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*gateway*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*mac_addr*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	}
+};
+
+
 static connector_group_element_t CONST setting_static_location_elements[] =
 {
 	{  /*use_static_location*/
@@ -169,6 +250,17 @@ static connector_group_element_t CONST setting_system_elements[] = {
 
 static connector_group_t CONST connector_setting_groups[] =
 {
+	{  /*ethernet*/
+		2 , /* instances */
+		{
+			ARRAY_SIZE(setting_ethernet_elements),
+			setting_ethernet_elements
+		},
+		{
+			0,
+			NULL
+		}  /* errors*/
+	},
 	{  /*static_location*/
 		1 , /* instances */
 		{

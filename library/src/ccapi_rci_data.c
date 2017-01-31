@@ -20,6 +20,46 @@
 #include "ccapi/ccapi.h"
 #include "ccapi_rci_functions.h"
 
+static ccapi_rci_element_t const setting_ethernet_elements[] =
+{
+	{  /*iface_name*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_iface_name_get
+	},
+	{  /*enabled*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_enabled_get
+	},
+	{  /*conn_type*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_conn_type_get
+	},
+	{  /*ipaddr*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_ipaddr_get
+	},
+	{  /*netmask*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_netmask_get
+	},
+	{  /*dns1*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_dns1_get
+	},
+	{  /*dns2*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_dns2_get
+	},
+	{  /*gateway*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_gateway_get
+	},
+	{  /*mac_addr*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_ethernet_mac_addr_get
+	}
+};
+
 static ccapi_rci_element_t const setting_static_location_elements[] =
 {
 	{  /*use_static_location*/
@@ -85,6 +125,14 @@ static ccapi_rci_element_t const setting_system_elements[] = {
 
 static ccapi_rci_group_t const ccapi_setting_groups[] =
 {
+	{  /*ethernet*/
+		setting_ethernet_elements,
+		ARRAY_SIZE(setting_ethernet_elements),
+		{
+			(ccapi_rci_function_t)rci_setting_ethernet_start,
+			(ccapi_rci_function_t)rci_setting_ethernet_end
+		}
+	},
 	{  /*static_location*/
 		setting_static_location_elements,
 		ARRAY_SIZE(setting_static_location_elements),

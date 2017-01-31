@@ -23,13 +23,14 @@
 #include <ccapi/ccapi.h>
 
 #include "connector_api.h"
+#include "rci_setting_ethernet.h"
 #include "rci_setting_static_location.h"
 #include "rci_setting_system.h"
 #include "rci_setting_system_monitor.h"
+#include "rci_state_device_info.h"
 #include "rci_state_device_state.h"
 #include "rci_state_gps_stats.h"
 #include "rci_state_primary_interface.h"
-#include "rci_state_device_info.h"
 
 #define UNUSED_PARAMETER(a) (void)(a)
 

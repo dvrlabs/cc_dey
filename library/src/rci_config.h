@@ -30,6 +30,25 @@ typedef enum {
 } connector_global_error_id_t;
 
 typedef enum {
+	connector_setting_ethernet_conn_type_DHCP,
+	connector_setting_ethernet_conn_type_static,
+	connector_setting_ethernet_conn_type_COUNT
+} connector_setting_ethernet_conn_type_id_t;
+
+typedef enum {
+	connector_setting_ethernet_iface_name,
+	connector_setting_ethernet_enabled,
+	connector_setting_ethernet_conn_type,
+	connector_setting_ethernet_ipaddr,
+	connector_setting_ethernet_netmask,
+	connector_setting_ethernet_dns1,
+	connector_setting_ethernet_dns2,
+	connector_setting_ethernet_gateway,
+	connector_setting_ethernet_mac_addr,
+	connector_setting_ethernet_COUNT
+} connector_setting_ethernet_id_t;
+
+typedef enum {
 	connector_setting_static_location_use_static_location,
 	connector_setting_static_location_latitude,
 	connector_setting_static_location_longitude,
@@ -55,7 +74,9 @@ typedef enum {
 } connector_setting_system_id_t;
 
 typedef enum {
+	connector_setting_ethernet,
 	connector_setting_static_location,
+	connector_setting_system_monitor,
 	connector_setting_system,
 	connector_setting_COUNT
 } connector_setting_id_t;
