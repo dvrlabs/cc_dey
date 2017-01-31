@@ -197,19 +197,23 @@ done:
 }
 
 /**
- * get_mac_addr() - Get the primary MAC address of the device.
+ * get_primary_mac_address() - Get the primary MAC address of the device.
  *
  * This is not guaranteed to be the MAC of the active network interface, and
  * should be only used for device identification purposes, where the same MAC
  * is desired no matter which network interface is active.
  *
- * @mac_addr:	Pointer to store the MAC address.
+ * The interfaces priority order is the following:
+ *   - Ethernet (eth0, eth1, ...)
+ *   - Wi-Fi (wlan0, wlan1, ...)
+ *   - No interface (empty string)
+ *   - Other interface (any other string)
  *
- * The interfaces priority order is as specified in the compare_iface function above.
+ * @mac_addr:	Pointer to store the MAC address.
  *
  * Return: The MAC address of primary interface.
  */
-uint8_t *get_mac_addr(uint8_t *const mac_addr)
+uint8_t *get_primary_mac_address(uint8_t *const mac_addr)
 {
 	struct ifaddrs *ifaddr = NULL, *ifa = NULL;
 	struct ifreq ifr;

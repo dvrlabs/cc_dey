@@ -284,7 +284,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	start->device_cloud_url = cc_cfg->url;
 	start->device_type = cc_cfg->device_type;
 	start->vendor_id = cc_cfg->vendor_id;
-	if (get_device_id_from_mac(start->device_id, get_mac_addr(mac_address)) != 0) {
+	if (get_device_id_from_mac(start->device_id, get_primary_mac_address(mac_address)) != 0) {
 		log_error("%s", "Cannot calculate Device ID");
 		free_ccapi_start_struct(start);
 		start = NULL;

@@ -31,6 +31,6 @@ typedef struct {
 } iface_info_t ;
 
 int get_iface_info(const char *url, iface_info_t *info);
-uint8_t *get_mac_addr(uint8_t * const mac_addr);
+uint8_t *get_primary_mac_address(uint8_t * const mac_addr);
 
 #endif
