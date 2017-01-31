@@ -270,6 +270,7 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 	status = app_is_tcp_connect_complete(*pfd);
 	if (status == CCIMP_STATUS_OK) {
 #if (defined APP_SSL)
+		log_debug("%s: openning SSL socket", __func__);
 		if (app_ssl_connect(ssl_info)) {
 			log_error("%s", "ccimp_network_tcp_open(): ssl connect error");
 			status = CCIMP_STATUS_ERROR;
