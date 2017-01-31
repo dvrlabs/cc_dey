@@ -216,6 +216,26 @@ static connector_group_element_t CONST state_device_state_elements[] =
 	}
 };
 
+static connector_group_element_t CONST state_primary_interface_elements[] =
+{
+	{  /*connection_type*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*ip_addr*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	}
+};
+
 static connector_group_element_t CONST state_gps_stats_elements[] =
 {
 	{  /*latitude*/
@@ -256,26 +276,6 @@ static connector_group_element_t CONST state_device_information_elements[] = {
 	{  /*kinetis*/
 		connector_element_access_read_only,
 		connector_element_type_string
-	}
-};
-
-static connector_group_element_t CONST state_primary_interface_elements[] =
-{
-	{  /*connection_type*/
-		connector_element_access_read_only,
-		connector_element_type_string,
-		{
-			0,
-			NULL
-		}
-	},
-	{  /*ip_addr*/
-		connector_element_access_read_only,
-		connector_element_type_string,
-		{
-			0,
-			NULL
-		}
 	}
 };
 
