@@ -39,15 +39,15 @@
 #define ARRAY_SIZE(array)  				(sizeof array/sizeof array[0])
 
 /*
- * get_iface_info() - Retrieve information about the network interface used to
- * 					  connect to url.
+ * get_main_iface_info() - Retrieve information about the network
+ *                         interface used to connect to url.
  *
- * @url:		URL to connect to to determine network interface.
+ * @url:		URL to connect to to determine main network interface.
  * @iface_info:	Struct to fill with the network interface information
  *
  * Return: 0 on success, -1 otherwise.
  */
-int get_iface_info(const char *url, iface_info_t *iface_info)
+int get_main_iface_info(const char *url, iface_info_t *iface_info)
 {
 	unsigned int const ipv4_len = 4;
 	struct ifaddrs *ifaddr = NULL, *ifa = NULL;

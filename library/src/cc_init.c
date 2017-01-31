@@ -439,7 +439,7 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 	tcp_info->connection.start_timeout = 10;
 	tcp_info->connection.ip.type = CCAPI_IPV4;
 
-	if (get_iface_info(cc_cfg->url, &active_interface) != 0) {
+	if (get_main_iface_info(cc_cfg->url, &active_interface) != 0) {
 		free_ccapi_tcp_start_info_struct(tcp_info);
 		tcp_info = NULL;
 		return tcp_info;

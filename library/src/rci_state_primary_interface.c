@@ -37,7 +37,7 @@ ccapi_state_primary_interface_error_id_t rci_state_primary_interface_start(
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (get_iface_info(cc_cfg->url, &interface_info) != 0) {
+	if (get_main_iface_info(cc_cfg->url, &interface_info) != 0) {
 		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
 	} else {
 		iface_name = strdup(interface_info.name);
