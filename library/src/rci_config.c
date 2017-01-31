@@ -259,23 +259,43 @@ static connector_group_element_t CONST state_gps_stats_elements[] =
 static connector_group_element_t CONST state_device_information_elements[] = {
 	{  /*dey_version*/
 		connector_element_access_read_only,
-		connector_element_type_string
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
 	},
 	{  /*kernel_version*/
 		connector_element_access_read_only,
-		connector_element_type_string
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
 	},
 	{  /*uboot_version*/
 		connector_element_access_read_only,
-		connector_element_type_string
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
 	},
 	{  /*hardware*/
 		connector_element_access_read_only,
-		connector_element_type_string
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
 	},
 	{  /*kinetis*/
 		connector_element_access_read_only,
-		connector_element_type_string
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
 	}
 };
 
