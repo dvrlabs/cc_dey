@@ -24,13 +24,24 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
+#define MAX_DNS_ADDRESSES	2
+#define IPV4_GROUPS			4
+#define MAC_ADDRESS_GROUPS	6
+
 typedef struct {
-	uint8_t ipv4_addr[4];
-	uint8_t mac_addr[6];
+	uint8_t ipv4_addr[IPV4_GROUPS];
+	uint8_t mac_addr[MAC_ADDRESS_GROUPS];
 	char name[IFNAMSIZ];
+	uint8_t gateway[IPV4_GROUPS];
+	uint8_t submask[IPV4_GROUPS];
+	uint8_t dnsaddr1[IPV4_GROUPS];
+	uint8_t dnsaddr2[IPV4_GROUPS];
+	ccapi_bool_t dhcp;
+	ccapi_bool_t enabled;
 } iface_info_t ;
 
 int get_main_iface_info(const char *url, iface_info_t *info);
+int get_iface_info(const char *iface_name, iface_info_t *info);
 uint8_t *get_primary_mac_address(uint8_t * const mac_addr);
 
 #endif
