@@ -22,10 +22,6 @@
 #include "cc_logging.h"
 #include "network_utils.h"
 
-#define IP_STRING_LENTH  	(3 * 4 + 4)
-#define IP_FORMAT			"%d.%d.%d.%d"
-#define MAC_STRING_LENGTH	(2 * 6 + 6)
-#define MAC_FORMAT			"%02x:%02x:%02x:%02x:%02x:%02x"
 static const char * eth_iface_name[] = { "eth0", "eth1" };
 
 typedef struct {

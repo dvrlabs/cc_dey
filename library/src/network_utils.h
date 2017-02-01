@@ -28,6 +28,11 @@
 #define IPV4_GROUPS			4
 #define MAC_ADDRESS_GROUPS	6
 
+#define IP_STRING_LENTH  	(4 * IPV4_GROUPS)
+#define IP_FORMAT			"%d.%d.%d.%d"
+#define MAC_STRING_LENGTH	(3 * MAC_ADDRESS_GROUPS)
+#define MAC_FORMAT			"%02x:%02x:%02x:%02x:%02x:%02x"
+
 typedef struct {
 	uint8_t ipv4_addr[IPV4_GROUPS];
 	uint8_t mac_addr[MAC_ADDRESS_GROUPS];

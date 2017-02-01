@@ -132,6 +132,101 @@ static connector_group_element_t CONST setting_ethernet_elements[] = {
 	}
 };
 
+static connector_element_enum_t CONST setting_wifi_conn_type_enum[] = {
+	{"DHCP"},
+	{"static"}
+};
+
+static connector_group_element_t CONST setting_wifi_elements[] = {
+	{  /*iface_name*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*enabled*/
+		connector_element_access_read_only,
+		connector_element_type_on_off,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*ssid*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*wpa_status*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*conn_type*/
+		connector_element_access_read_only,
+		connector_element_type_enum,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*ipaddr*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*netmask*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*dns1*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*dns2*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*gateway*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	},
+	{  /*mac_addr*/
+		connector_element_access_read_only,
+		connector_element_type_string,
+		{
+			0,
+			NULL
+		}
+	}
+};
 
 static connector_group_element_t CONST setting_static_location_elements[] =
 {
@@ -255,6 +350,17 @@ static connector_group_t CONST connector_setting_groups[] =
 		{
 			ARRAY_SIZE(setting_ethernet_elements),
 			setting_ethernet_elements
+		},
+		{
+			0,
+			NULL
+		}  /* errors*/
+	},
+	{  /*wifi*/
+		1 , /* instances */
+		{
+			ARRAY_SIZE(setting_wifi_elements),
+			setting_wifi_elements
 		},
 		{
 			0,

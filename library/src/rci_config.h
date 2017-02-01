@@ -49,6 +49,27 @@ typedef enum {
 } connector_setting_ethernet_id_t;
 
 typedef enum {
+	connector_setting_wifi_conn_type_DHCP,
+	connector_setting_wifi_conn_type_static,
+	connector_setting_wifi_conn_type_COUNT
+} connector_setting_wifi_conn_type_id_t;
+
+typedef enum {
+	connector_setting_wifi_iface_name,
+	connector_setting_wifi_enabled,
+	connector_setting_wifi_ssid,
+	connector_setting_wifi_wpa_status,
+	connector_setting_wifi_conn_type,
+	connector_setting_wifi_ipaddr,
+	connector_setting_wifi_netmask,
+	connector_setting_wifi_dns1,
+	connector_setting_wifi_dns2,
+	connector_setting_wifi_gateway,
+	connector_setting_wifi_mac_addr,
+	connector_setting_wifi_COUNT
+} connector_setting_wifi_id_t;
+
+typedef enum {
 	connector_setting_static_location_use_static_location,
 	connector_setting_static_location_latitude,
 	connector_setting_static_location_longitude,
@@ -75,6 +96,7 @@ typedef enum {
 
 typedef enum {
 	connector_setting_ethernet,
+	connector_setting_wifi,
 	connector_setting_static_location,
 	connector_setting_system_monitor,
 	connector_setting_system,

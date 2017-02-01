@@ -60,6 +60,53 @@ static ccapi_rci_element_t const setting_ethernet_elements[] =
 	}
 };
 
+static ccapi_rci_element_t const setting_wifi_elements[] = {
+	{  /*iface_name*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_iface_name_get
+	},
+	{  /*enabled*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_enabled_get
+	},
+	{  /*ssid*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_ssid_get
+	},
+	{  /*wpa_status*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_wpa_status_get
+	},
+	{  /*conn_type*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_conn_type_get
+	},
+	{  /*ipaddr*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_ipaddr_get
+	},
+	{  /*netmask*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_netmask_get
+	},
+	{  /*dns1*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_dns1_get
+	},
+	{  /*dns2*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_dns2_get
+	},
+	{  /*gateway*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_gateway_get
+	},
+	{  /*mac_addr*/
+		NULL,
+		(ccapi_rci_function_t)rci_setting_wifi_mac_addr_get
+	}
+};
+
 static ccapi_rci_element_t const setting_static_location_elements[] =
 {
 	{  /*use_static_location*/
@@ -131,6 +178,14 @@ static ccapi_rci_group_t const ccapi_setting_groups[] =
 		{
 			(ccapi_rci_function_t)rci_setting_ethernet_start,
 			(ccapi_rci_function_t)rci_setting_ethernet_end
+		}
+	},
+	{  /*wifi*/
+		setting_wifi_elements,
+		ARRAY_SIZE(setting_wifi_elements),
+		{
+			(ccapi_rci_function_t)rci_setting_wifi_start,
+			(ccapi_rci_function_t)rci_setting_wifi_end
 		}
 	},
 	{  /*static_location*/

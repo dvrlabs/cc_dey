@@ -24,6 +24,7 @@
 
 #include "connector_api.h"
 #include "rci_setting_ethernet.h"
+#include "rci_setting_wifi.h"
 #include "rci_setting_static_location.h"
 #include "rci_setting_system.h"
 #include "rci_setting_system_monitor.h"
