@@ -57,11 +57,8 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_start(
 		goto done;
 	}
 
-	if (get_iface_info(eth_iface_name[iface_index], &(eth_iface_info->info)) != 0) {
+	if (get_iface_info(eth_iface_name[iface_index], &(eth_iface_info->info)) != 0)
 		log_error("%s: get_iface_info failed", __func__);
-		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
-		goto done;
-	}
 
 done:
 	return ret;

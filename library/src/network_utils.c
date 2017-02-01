@@ -143,13 +143,13 @@ int get_iface_info(const char *iface_name, iface_info_t *iface_info)
 	struct ifaddrs *ifaddr = NULL, *ifa = NULL;
 	struct sockaddr_in *sin;
 
+	/* Clear all values */
+	memset(iface_info, 0, sizeof (iface_info_t));
 	/* Check if interface exists */
 	if (!interface_exists(iface_name)) {
 		log_error("%s: Interface '%s' not found\n", __func__, iface_name);
 		return -1;
 	}
-	/* Clear all values */
-	memset(iface_info, 0, sizeof (iface_info_t));
 	/* Fill interface name */
 	strncpy(iface_info->name, iface_name, IFNAMSIZ);
 	/* Fill MAC address */
