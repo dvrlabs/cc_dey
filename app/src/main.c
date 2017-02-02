@@ -17,12 +17,32 @@
  * =======================================================================
  */
 
-#include <unistd.h>
-#include <signal.h>
 #include <cloudconnector.h>
+#include <getopt.h>
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "daemonize.h"
 #include "device_request.h"
+
+/*------------------------------------------------------------------------------
+                             D E F I N I T I O N S
+------------------------------------------------------------------------------*/
+#define VERSION		"0.1" GIT_REVISION
+
+#define USAGE \
+	"Cloud Connector client.\n" \
+	"Copyright(c) Digi International Inc.\n" \
+	"\n" \
+	"Version: %s\n" \
+	"\n" \
+	"Usage: %s [options]\n\n" \
+	"  -d  --daemon              Daemonize the process\n" \
+	"  -c  --config-file=<PATH>  Use a custom configuration file instead of\n" \
+	"                            the default one located in /etc/cc.conf\n" \
+	"  -h  --help                Print help and exit\n" \
+	"\n"
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
@@ -33,6 +53,7 @@ static ccapi_bool_t check_stop(void);
 static void add_sigkill_signal(void);
 static void graceful_shutdown(void);
 static void sigint_handler(int signum);
+static void usage(char const *const name);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -44,7 +65,61 @@ static volatile ccapi_bool_t stop = CCAPI_FALSE;
 ------------------------------------------------------------------------------*/
 int main(int argc, char *argv[])
 {
-	return start_daemon(argc, argv, start_connector);
+	int result = EXIT_SUCCESS;
+	char *name = basename(argv[0]);
+	static int opt, opt_index;
+	int create_daemon = 0;
+	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID | LOG_PERROR;
+	char *config_file = NULL;
+	static const char *short_options = "dc:h";
+	static const struct option long_options[] = {
+			{"daemon", no_argument, NULL, 'd'},
+			{"config-file", required_argument, NULL, 'c'},
+			{"help", no_argument, NULL, 'h'},
+			{NULL, 0, NULL, 0}
+	};
+
+	/* Initialize the logging interface. */
+	init_logger(LOG_DEBUG, log_options);
+
+	while (1) {
+		opt = getopt_long(argc, argv, short_options, long_options,
+				&opt_index);
+		if (opt == -1)
+			break;
+
+		switch (opt) {
+		case 'd':
+			create_daemon = 1;
+			break;
+		case 'c':
+			config_file = optarg;
+			break;
+		case 'h':
+			usage(name);
+			goto done;
+		default:
+			usage(name);
+			result = EXIT_FAILURE;
+			goto done;
+		}
+	}
+
+	/* Daemonize if requested. */
+	if (create_daemon) {
+		if (start_daemon(name) != 0) {
+			result = EXIT_FAILURE;
+			goto done;
+		}
+	}
+
+	/* Do the real work. */
+	start_connector(config_file);
+
+done:
+	closelog();
+
+	return result;
 }
 
 /*
@@ -159,4 +234,14 @@ static void sigint_handler(int signum)
 {
 	log_debug("sigint_handler(): received signal %d to close Cloud connection.", signum);
 	exit(0);
+}
+
+/**
+ * usage() - Print usage information
+ *
+ * @name:	Name of the daemon.
+ */
+static void usage(char const *const name)
+{
+	printf(USAGE, VERSION, name);
 }
