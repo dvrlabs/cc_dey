@@ -273,6 +273,7 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
  */
 static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 {
+	ccapi_receive_service_t *dreq_service = NULL;
 	uint8_t mac_address[6];
 
 	ccapi_start_t *start = malloc(sizeof *start);
@@ -303,22 +304,18 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	rci_internal_data.vendor_id = cc_cfg->vendor_id;
 	rci_internal_data.device_type = cc_cfg->device_type;
 
-	/* Initialize device request service . */
-	if (cc_cfg->services & DATA_SERVICE) {
-		ccapi_receive_service_t *dreq_service = malloc(sizeof *dreq_service);
-		if (dreq_service == NULL) {
-			log_error("%s", "Cannot allocate memory to register Data service");
-			free_ccapi_start_struct(start);
-			start = NULL;
-			return start;
-		}
-		dreq_service->accept = app_receive_default_accept_cb;
-		dreq_service->data = app_receive_default_data_cb;
-		dreq_service->status = app_receive_default_status_cb;
-		start->service.receive = dreq_service;
-	} else {
-		start->service.receive = NULL;
+	/* Initialize device request service. */
+	dreq_service = malloc(sizeof *dreq_service);
+	if (dreq_service == NULL) {
+		log_error("%s", "Cannot allocate memory to register Data service");
+		free_ccapi_start_struct(start);
+		start = NULL;
+		return start;
 	}
+	dreq_service->accept = app_receive_default_accept_cb;
+	dreq_service->data = app_receive_default_data_cb;
+	dreq_service->status = app_receive_default_status_cb;
+	start->service.receive = dreq_service;
 
 	/* Initialize short messaging. */
 	start->service.sm = NULL;

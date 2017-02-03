@@ -30,8 +30,7 @@
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 #define FS_SERVICE			(1 << 0)
-#define DATA_SERVICE		(1 << 1)
-#define SYS_MONITOR_SERVICE	(1 << 2)
+#define SYS_MONITOR_SERVICE	(1 << 1)
 
 #define SYS_MON_MEMORY		(1 << 0)
 #define SYS_MON_LOAD		(1 << 1)

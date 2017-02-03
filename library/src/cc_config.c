@@ -35,7 +35,6 @@
 #define GROUP_VIRTUAL_DIRS			"virtual-dirs"
 #define GROUP_VIRTUAL_DIR			"vdir"
 
-#define ENABLE_DATA_SERVICE			"enable_data_service"
 #define ENABLE_FS_SERVICE			"enable_file_system"
 
 #define ENABLE_SYSTEM_MONITOR		"enable_system_monitor"
@@ -199,7 +198,6 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 
 			/* Services settings. */
 			CFG_BOOL	(ENABLE_FS_SERVICE,		cfg_true,		CFGF_NONE),
-			CFG_BOOL	(ENABLE_DATA_SERVICE,	cfg_true,		CFGF_NONE),
 			CFG_STR		(SETTING_FW_DOWNLOAD_PATH, NULL,		CFGF_NODEFAULT),
 
 			/* File system settings. */
@@ -430,11 +428,10 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 		cc_cfg->services = cc_cfg->services | FS_SERVICE;
 		get_virtual_directories(cfg, cc_cfg);
 	}
-	if (cfg_getbool(cfg, ENABLE_DATA_SERVICE)) {
-		cc_cfg->services = cc_cfg->services | DATA_SERVICE;
-		if (cfg_getbool(cfg, ENABLE_SYSTEM_MONITOR))
-			cc_cfg->services = cc_cfg->services | SYS_MONITOR_SERVICE;
-	}
+
+	if (cfg_getbool(cfg, ENABLE_SYSTEM_MONITOR))
+		cc_cfg->services = cc_cfg->services | SYS_MONITOR_SERVICE;
+
 	cc_cfg->fw_download_path = strdup(cfg_getstr(cfg, SETTING_FW_DOWNLOAD_PATH));
 	if (cc_cfg->fw_download_path == NULL)
 		return -1;
@@ -498,7 +495,6 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 
 	/* Fill services settings. */
 	cfg_setbool(cfg, ENABLE_FS_SERVICE, cc_cfg->services & FS_SERVICE ? cfg_true : cfg_false);
-	cfg_setbool(cfg, ENABLE_DATA_SERVICE, cc_cfg->services & DATA_SERVICE ? cfg_true : cfg_false);
 	cfg_setbool(cfg, ENABLE_SYSTEM_MONITOR, cc_cfg->services & SYS_MONITOR_SERVICE ? cfg_true : cfg_false);
 	cfg_setstr(cfg, SETTING_FW_DOWNLOAD_PATH, cc_cfg->fw_download_path);
 	/* TODO: Set virtual directories */
