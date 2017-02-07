@@ -124,7 +124,7 @@ int get_main_iface_info(const char *url, iface_info_t *iface_info)
 
 done:
 	freeifaddrs(ifaddr);
-	if (sockfd > 0)
+	if (sockfd >= 0)
 		close(sockfd);
 
 	return retval;
@@ -315,7 +315,7 @@ static int get_mac_address(const char *iface_name, uint8_t *mac_address)
 	memcpy(mac_address, ifr.ifr_hwaddr.sa_data, MAC_ADDRESS_GROUPS);
 
 done:
-	if (sock > 0)
+	if (sock >= 0)
 		close(sock);
 	return ret;
 }
