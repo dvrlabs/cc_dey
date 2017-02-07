@@ -17,6 +17,7 @@
  * =======================================================================
  */
 
+#include <math.h>
 #include <stdio.h>
 #include "rci_setting_static_location.h"
 #include "cc_logging.h"
@@ -82,6 +83,9 @@ ccapi_setting_static_location_error_id_t rci_setting_static_location_latitude_se
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
+	if (isnan(*value))
+		return CCAPI_GLOBAL_ERROR_BAD_VALUE;
+
 	cc_cfg->latitude = *value;
 
 	return CCAPI_GLOBAL_ERROR_NONE;
@@ -104,6 +108,9 @@ ccapi_setting_static_location_error_id_t rci_setting_static_location_longitude_s
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
+	if (isnan(*value))
+		return CCAPI_GLOBAL_ERROR_BAD_VALUE;
+
 	cc_cfg->longitude = *value;
 
 	return CCAPI_GLOBAL_ERROR_NONE;
@@ -125,6 +132,9 @@ ccapi_setting_static_location_error_id_t rci_setting_static_location_altitude_se
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
+
+	if (isnan(*value))
+		return CCAPI_GLOBAL_ERROR_BAD_VALUE;
 
 	cc_cfg->altitude = *value;
 
