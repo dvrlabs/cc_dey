@@ -857,7 +857,7 @@ static int cfg_check_string_length(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uin
 {
 	char *val = cfg_opt_getnstr(opt, 0);
 
-	if ((val == NULL || strlen(val) == 0) && min > 0) {
+	if ((val == NULL) || ((strlen(val) == 0) && (min > 0))) {
 		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
 		return -1;
 	}
