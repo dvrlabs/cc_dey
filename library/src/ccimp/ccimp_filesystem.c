@@ -361,12 +361,11 @@ ccimp_status_t ccimp_fs_dir_read_entry(ccimp_fs_dir_read_entry_t \
 	ccimp_status_t status = CCIMP_STATUS_OK;
 	dir_data_t *dir_data = (dir_data_t *)dir_read_data->handle;
 	struct dirent *p_dirent = NULL;
-	int error;
 
-	/* This sample does not skip "." and ".." */
-	error = readdir_r(dir_data->dirp, &dir_data->dir_entry, &p_dirent);
-	if (error != 0) {
-		dir_read_data->errnum = error;
+	errno = 0;
+	p_dirent = readdir(dir_data->dirp);
+	if (errno != 0) {
+		dir_read_data->errnum = errno;
 		status = CCIMP_STATUS_ERROR;
 	} else if (p_dirent == NULL) {
 		/* Finished with the directory. */
