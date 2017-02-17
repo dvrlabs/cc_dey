@@ -578,7 +578,7 @@ static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
 static void *reconnect_threaded(void *unused)
 {
 	ccapi_tcp_info_t *tcp_info = NULL;
-	ccapi_tcp_start_error_t error;
+	ccapi_tcp_start_error_t error = CCAPI_TCP_START_ERROR_TIMEOUT;
 
 	set_cloud_connection_status(CC_STATUS_CONNECTING);
 
