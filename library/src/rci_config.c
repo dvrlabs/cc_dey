@@ -52,11 +52,6 @@ static char const * const connector_rci_errors[] = {
 	CONNECTOR_GLOBAL_ERROR_NOT_IMPLEMENTED /*not_implemented*/
 };
 
-static connector_element_enum_t CONST setting_ethernet_conn_type_enum[] = {
-	{"DHCP"},
-	{"static"}
-};
-
 static connector_group_element_t CONST setting_ethernet_elements[] = {
 	{  /*iface_name*/
 		connector_element_access_read_only,
@@ -78,8 +73,8 @@ static connector_group_element_t CONST setting_ethernet_elements[] = {
 		connector_element_access_read_only,
 		connector_element_type_enum,
 		{
-			ARRAY_SIZE(setting_ethernet_conn_type_enum),
-			setting_ethernet_conn_type_enum
+			0,
+			NULL
 		}
 	},
 	{  /*ipaddr*/
@@ -130,11 +125,6 @@ static connector_group_element_t CONST setting_ethernet_elements[] = {
 			NULL
 		}
 	}
-};
-
-static connector_element_enum_t CONST setting_wifi_conn_type_enum[] = {
-	{"DHCP"},
-	{"static"}
 };
 
 static connector_group_element_t CONST setting_wifi_elements[] = {

@@ -50,7 +50,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_iface_name_get(ccapi_rci_
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_enabled_get(ccapi_rci_info_t * const info, ccapi_on_off_t * const value);
 #define rci_setting_ethernet_enabled_set    NULL
 
-ccapi_setting_ethernet_error_id_t rci_setting_ethernet_conn_type_get(ccapi_rci_info_t * const info, char const * * const value);
+ccapi_setting_ethernet_error_id_t rci_setting_ethernet_conn_type_get(ccapi_rci_info_t * const info, ccapi_setting_ethernet_conn_type_id_t * const value);
 #define rci_setting_ethernet_conn_type_set    NULL
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_ipaddr_get(ccapi_rci_info_t * const info, char const * * const value);

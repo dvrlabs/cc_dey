@@ -99,12 +99,12 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_enabled_get(
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_conn_type_get(
-		ccapi_rci_info_t * const info, char const * * const value)
+		ccapi_rci_info_t * const info, ccapi_setting_ethernet_conn_type_id_t * const value)
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	*value = (eth_iface_info->info.dhcp == CCAPI_TRUE ? "DHCP" : "static");
+	*value = (eth_iface_info->info.dhcp == CCAPI_TRUE ? CCAPI_SETTING_ETHERNET_CONN_TYPE_DHCP : CCAPI_SETTING_ETHERNET_CONN_TYPE_STATIC);
 
 	return CCAPI_GLOBAL_ERROR_NONE;
 }
