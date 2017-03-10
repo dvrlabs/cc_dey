@@ -131,7 +131,7 @@ void app_receive_default_data_cb(char const *const target,
 	free(request_buffer);
 	free(request_data);
 
-	/* Provide response to Device Cloud */
+	/* Provide response to Remote Manager */
 	if (response_buffer_info != NULL) {
 		response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE);
 		if (response_buffer_info->buffer == NULL) {

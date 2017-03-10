@@ -57,13 +57,13 @@ typedef struct {
 /**
  * struct cc_cfg_t - Cloud Connector configuration type
  *
- * @vendor_id:					Identifier of the Device Cloud user account
+ * @vendor_id:					Identifier of the Remote Manager user account
  * @device_type:				Name of the device running Cloud Connector
  * @fw_version:					Version of the firmware running Cloud Connector
  * @description:				Description of the device
  * @contact:					Contact information of the device
  * @location:					Location of the device (not GPS location)
- * @url:						Device Cloud URL
+ * @url:						Remote Manager URL
  * @enable_reconnect:			Enabled reconnection when connection is lost
  * @reconnect_time:				Number of seconds to reconnect
  * @keepalive_rx:				Keepalive receiving frequency (seconds)

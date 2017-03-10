@@ -490,7 +490,7 @@ ccimp_status_t ccimp_fs_hash_alg(ccimp_fs_get_hash_alg_t \
  * @file_hash_data:		ccimp_fs_hash_file_t struct containing the hash
  * 						information of a file.
  *
- * When Device Cloud asks for a hash (md5sum or crc32) of a file, CCAPI calls
+ * When Remote Manager asks for a hash (md5sum or crc32) of a file, CCAPI calls
  * this method, which will execute the corresponding hash calculation process.
  * It may take more than 1 second to calculate the hash.
  *
@@ -526,7 +526,7 @@ ccimp_status_t ccimp_fs_hash_file(ccimp_fs_hash_file_t *const file_hash_data)
  * This function is called when any of the file, directory or hash operations
  * functions return CCIMP_STATUS_ERROR.
  *
- * The error_string is displayed in Device Cloud or in the XML data if a Web
+ * The error_string is displayed in Remote Manager or in the XML data if a Web
  * Service initiated the request.
  *
  * Returns: The status of the operation.

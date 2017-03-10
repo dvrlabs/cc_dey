@@ -56,7 +56,7 @@
 #define SETTING_LOCATION_MIN		0
 #define SETTING_LOCATION_MAX		63
 
-#define SETTING_DC_URL				"url"
+#define SETTING_RM_URL				"url"
 #define SETTING_ENABLE_RECONNECT	"enable_reconnect"
 #define SETTING_RECONNECT_TIME		"reconnect_time"
 #define SETTING_RECONNECT_TIME_MIN	1
@@ -104,7 +104,7 @@ static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt);
 static int check_vendor_id(unsigned long value);
 static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_fw_version(cfg_t *cfg, cfg_opt_t *opt);
-static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_rm_url(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_reconnect_time(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_rx(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_tx(cfg_t *cfg, cfg_opt_t *opt);
@@ -189,7 +189,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			CFG_STR		(SETTING_LOCATION,		"",				CFGF_NONE),
 
 			/* Connection settings. */
-			CFG_STR		(SETTING_DC_URL, "devicecloud.digi.com", CFGF_NONE),
+			CFG_STR		(SETTING_RM_URL, "remotemanager.digi.com", CFGF_NONE),
 			CFG_BOOL	(SETTING_ENABLE_RECONNECT, cfg_true,	CFGF_NONE),
 			CFG_INT		(SETTING_RECONNECT_TIME,		30,		CFGF_NONE),
 			CFG_INT		(SETTING_KEEPALIVE_TX,			75,		CFGF_NONE),
@@ -244,7 +244,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 	cfg_set_validate_func(cfg, SETTING_DESCRIPTION, cfg_check_description);
 	cfg_set_validate_func(cfg, SETTING_CONTACT, cfg_check_contact);
 	cfg_set_validate_func(cfg, SETTING_LOCATION, cfg_check_location);
-	cfg_set_validate_func(cfg, SETTING_DC_URL, cfg_check_dc_url);
+	cfg_set_validate_func(cfg, SETTING_RM_URL, cfg_check_rm_url);
 	cfg_set_validate_func(cfg, SETTING_RECONNECT_TIME, cfg_check_reconnect_time);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_RX, cfg_check_keepalive_rx);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_TX, cfg_check_keepalive_tx);
@@ -413,7 +413,7 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 		return -1;
 
 	/* Fill connection settings. */
-	cc_cfg->url = strdup(cfg_getstr(cfg, SETTING_DC_URL));
+	cc_cfg->url = strdup(cfg_getstr(cfg, SETTING_RM_URL));
 	if (cc_cfg->url == NULL)
 		return -1;
 	cc_cfg->enable_reconnect = cfg_getbool(cfg, SETTING_ENABLE_RECONNECT);
@@ -486,7 +486,7 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 	cfg_setstr(cfg, SETTING_LOCATION, cc_cfg->location);
 
 	/* Fill connection settings. */
-	cfg_setstr(cfg, SETTING_DC_URL, cc_cfg->url);
+	cfg_setstr(cfg, SETTING_RM_URL, cc_cfg->url);
 	cfg_setbool(cfg, SETTING_ENABLE_RECONNECT, cc_cfg->enable_reconnect);
 	cfg_setint(cfg, SETTING_RECONNECT_TIME, cc_cfg->reconnect_time);
 	cfg_setint(cfg, SETTING_KEEPALIVE_RX, cc_cfg->keepalive_rx);
@@ -637,14 +637,14 @@ done:
 }
 
 /*
- * cfg_check_dc_url() - Validate url in the configuration file
+ * cfg_check_rm_url() - Validate url in the configuration file
  *
  * @cfg:	The section where the url is defined.
  * @opt:	The url option.
  *
  * @Return: 0 on success, any other value otherwise.
  */
-static int cfg_check_dc_url(cfg_t *cfg, cfg_opt_t *opt)
+static int cfg_check_rm_url(cfg_t *cfg, cfg_opt_t *opt)
 {
 	char *val = cfg_opt_getnstr(opt, 0);
 	if (val == NULL || strlen(val) == 0) {

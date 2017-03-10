@@ -485,13 +485,13 @@ static int app_verify_device_cloud_certificate(SSL *const ssl)
 	X509 *const device_cloud_cert = SSL_get_peer_certificate(ssl);
 
 	if (device_cloud_cert == NULL) {
-		log_error("%s", "app_verify_device_cloud_certificate(): No Device Cloud certificate is provided");
+		log_error("%s", "app_verify_device_cloud_certificate(): No Remote Manager certificate is provided");
 		goto done;
 	}
 
 	ret = SSL_get_verify_result(ssl);
 	if (ret !=  X509_V_OK) {
-		log_error("app_verify_device_cloud_certificate(): Device Cloud certificate is invalid %d", ret);
+		log_error("app_verify_device_cloud_certificate(): Remote Manager certificate is invalid %d", ret);
 		goto done;
 	}
 

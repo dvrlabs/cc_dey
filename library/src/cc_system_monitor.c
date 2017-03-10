@@ -195,8 +195,8 @@ static void *system_monitor_threaded(void *cc_cfg)
  * 			settings parsed from the configuration file are stored.
  *
  * This loop reads the values of the parameters to monitor every
- * 'cc_cfg->sys_mon_sample_rate' seconds and send them to Device Cloud when the
- * number of samples per parameter is at least
+ * 'cc_cfg->sys_mon_sample_rate' seconds and send them to Remote Manager when
+ * the number of samples per parameter is at least
  * 'cc_cfg->sys_mon_num_samples_upload'.
  *
  * The monitored values are:
@@ -464,7 +464,7 @@ static double get_cpu_temp(void)
  * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
  * 			settings parsed from the configuration file are stored.
  *
- * Return: The number of samples in a collection to be uploaded to Device Cloud.
+ * Return: The number of samples in a collection to be uploaded to Remote Manager.
  */
 static uint32_t calculate_number_samples(const cc_cfg_t *const cc_cfg)
 {
