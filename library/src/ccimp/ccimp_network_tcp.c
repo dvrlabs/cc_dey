@@ -86,8 +86,6 @@ ccimp_status_t ccimp_network_tcp_close(ccimp_network_close_t *const data)
 
 	if (close(*fd) < 0)
 		log_error("ccimp_network_tcp_close(): close() failed, fd %d, errno %d", *fd, errno);
-	else
-		log_error("ccimp_network_tcp_close(): fd %d", *fd);
 
 #if (defined APP_SSL)
 	/* send close notify to peer */
