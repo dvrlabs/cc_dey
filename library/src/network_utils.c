@@ -273,8 +273,8 @@ static ccapi_bool_t interface_exists(const char *iface_name)
 		if (ifa->ifa_addr == NULL)
 			continue;
 
-		if (ifa->ifa_addr->sa_family == AF_PACKET
-				&& strncmp(iface_name, ifa->ifa_name, strlen(iface_name)) == 0) {
+		if ((ifa->ifa_addr->sa_family == AF_PACKET || ifa->ifa_addr->sa_family == AF_INET) &&
+		     strncmp(iface_name, ifa->ifa_name, strlen(iface_name)) == 0) {
 			exists = CCAPI_TRUE;
 			break;
 		}

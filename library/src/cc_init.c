@@ -431,7 +431,6 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 	tcp_info->callback.close = tcp_reconnect_cb;
 
 	tcp_info->callback.keepalive = NULL;
-	tcp_info->connection.type = CCAPI_CONNECTION_LAN;
 	tcp_info->connection.max_transactions = 0;
 	tcp_info->connection.password = NULL;
 	tcp_info->connection.start_timeout = 10;
@@ -442,12 +441,24 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 		tcp_info = NULL;
 		return tcp_info;
 	} else {
+		/*
+		 * Some interfaces return a null MAC address (like ppp used by some
+		 * cellular modems). In those cases asume a WAN connection 
+		 */
+		if (is_zero_array(active_interface.mac_addr, sizeof(active_interface.mac_addr))) {
+			tcp_info->connection.type = CCAPI_CONNECTION_WAN;
+			tcp_info->connection.info.wan.link_speed = 0;
+			tcp_info->connection.info.wan.phone_number = "*99#";
+			
+		} else {
+			tcp_info->connection.type = CCAPI_CONNECTION_LAN;
+			memcpy(tcp_info->connection.info.lan.mac_address,
+					active_interface.mac_addr,
+					sizeof(tcp_info->connection.info.lan.mac_address));
+		}
 		memcpy(tcp_info->connection.ip.address.ipv4,
 				active_interface.ipv4_addr,
 				sizeof(tcp_info->connection.ip.address.ipv4));
-		memcpy(tcp_info->connection.info.lan.mac_address,
-				active_interface.mac_addr,
-				sizeof(tcp_info->connection.info.lan.mac_address));
 	}
 
 	tcp_info->keepalives.rx = cc_cfg->keepalive_rx;
