@@ -61,6 +61,7 @@ static void reconnect_cleanup_handler(void *p_tcp_info);
 static int get_device_id_from_mac(uint8_t *const device_id,
 		const uint8_t *const mac_addr);
 static uint32_t fw_string_to_int(const char *fw_string);
+static int is_zero_array(const uint8_t *array, size_t size);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -715,4 +716,23 @@ static uint32_t fw_string_to_int(const char *fw_string)
 			  fw_version[3];
 
 	return fw_int;
+}
+
+/**
+ * is_zero_array() - Checks if an array is all zeros
+ *
+ * @array:		Array to be checked
+ * @size:		Size of the array in bytes
+ *
+ * Return: 1 if the array is all zeros, 0 otherwise.
+ */
+static int is_zero_array(const uint8_t *array, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++)
+		if (array[i] != 0)
+			return 0;
+
+	return 1;
 }
