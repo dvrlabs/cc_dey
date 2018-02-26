@@ -236,23 +236,31 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 		const cc_cfg_t *const cc_cfg)
 {
 	ccapi_tcp_info_t *tcp_info = NULL;
-	ccapi_tcp_start_error_t error;
-
-	tcp_info = create_ccapi_tcp_start_info_struct(cc_cfg);
-	if (tcp_info == NULL)
-		return CCAPI_TCP_START_ERROR_NULL_POINTER;
+	ccapi_tcp_start_error_t error = CCAPI_TCP_START_ERROR_TIMEOUT;
 
 	set_cloud_connection_status(CC_STATUS_CONNECTING);
-	error = ccapi_start_transport_tcp(tcp_info);
-	while (error == CCAPI_TCP_START_ERROR_TIMEOUT) {
-		log_info("Time out, retrying connection in %d seconds",
-				cc_cfg->reconnect_time);
-		sleep(cc_cfg->reconnect_time);
-		error = ccapi_start_transport_tcp(tcp_info);
-	}
+	do {
+		if (tcp_info == NULL)
+			tcp_info = create_ccapi_tcp_start_info_struct(cc_cfg);
 
-	if (error) {
-		log_debug("ccapi_start_transport_tcp() failed with error %d", error);
+		if (tcp_info != NULL)
+			error = ccapi_start_transport_tcp(tcp_info);
+
+		if (error == CCAPI_TCP_START_ERROR_TIMEOUT
+		    && cc_cfg->enable_reconnect) {
+			log_info("Time out, retrying connection in %d seconds",
+					cc_cfg->reconnect_time);
+			sleep(cc_cfg->reconnect_time);
+		}
+	} while (error == CCAPI_TCP_START_ERROR_TIMEOUT
+		 && cc_cfg->enable_reconnect);
+
+	if (tcp_info == NULL) {
+		error = CCAPI_TCP_START_ERROR_NULL_POINTER;
+		set_cloud_connection_status(CC_STATUS_DISCONNECTED);
+	} else if (error) {
+		log_debug("ccapi_start_transport_tcp() failed with error %d",
+			  error);
 		if (error != CCAPI_TCP_START_ERROR_ALREADY_STARTED)
 			set_cloud_connection_status(CC_STATUS_DISCONNECTED);
 	} else {
