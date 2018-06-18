@@ -732,8 +732,8 @@ static int generate_firmware_package(firmware_info_t *const fw_info)
 
 	stat(fw_info->file_path, &st);
 	if ((size_t) st.st_size != fw_info->manifest.fw_total_size) {
-		log_fw_error("Bad firmware package size: %llu, expected %zu",
-				st.st_size, fw_info->manifest.fw_total_size);
+		log_fw_error("Bad firmware package size: %zu, expected %zu",
+			     (size_t)st.st_size, fw_info->manifest.fw_total_size);
 		error = -1;
 		goto error;
 	}

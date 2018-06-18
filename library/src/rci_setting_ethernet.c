@@ -45,7 +45,8 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_start(
 
 	if (iface_index >= ARRAY_SIZE(eth_iface_name)) {
 		log_error("%s: Interface index %u beyond maximum index %u", __func__,
-				iface_index, ARRAY_SIZE(eth_iface_name));
+				iface_index,
+				(unsigned int)ARRAY_SIZE(eth_iface_name));
 		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
 		goto done;
 	}
@@ -192,4 +193,3 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_mac_addr_get(
 
 	return CCAPI_GLOBAL_ERROR_NONE;
 }
-
