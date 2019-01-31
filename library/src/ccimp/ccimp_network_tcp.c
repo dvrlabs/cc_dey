@@ -505,7 +505,11 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
 	SSL_load_error_strings();
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+	ssl_ptr->ctx = SSL_CTX_new(TLS_client_method());
+#else
 	ssl_ptr->ctx = SSL_CTX_new(TLSv1_client_method());
+#endif
 	if (ssl_ptr->ctx == NULL) {
 		log_error("%s", "app_ssl_connect(): ssl context is null");
 		ERR_print_errors_fp(stderr);
