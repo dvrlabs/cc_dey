@@ -22,7 +22,7 @@
 #include "cc_logging.h"
 #include "file_utils.h"
 
-#define STRING_MAX_LENGTH		150
+#define STRING_MAX_LENGTH		256
 #define PARAM_LENGTH			25
 #define STRING_NA				"N/A"
 #define KERNEL_VERSION_CMD		"uname -a"
