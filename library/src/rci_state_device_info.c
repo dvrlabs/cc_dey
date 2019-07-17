@@ -87,16 +87,15 @@ ccapi_state_device_information_error_id_t rci_state_device_information_dey_versi
 		ccapi_rci_info_t * const info, char const * * const value)
 {
 	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
-	char dey_version[PARAM_LENGTH] = {0};
-	char build_id[PARAM_LENGTH] = {0};
+	char dey_version[PARAM_LENGTH] = STRING_NA;
+	char build_id[PARAM_LENGTH] = STRING_NA;
 
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (read_dey_version(dey_version) != 0)
-		strncpy(dey_version, STRING_NA, strlen(STRING_NA));
-	if (read_file_line(BUILD_ID_FILE, build_id, PARAM_LENGTH) != 0)
-		strncpy(build_id, STRING_NA, strlen(STRING_NA));
+	read_dey_version(dey_version);
+	read_file_line(BUILD_ID_FILE, build_id, PARAM_LENGTH);
+
 	snprintf(device_info->dey_version_state, STRING_MAX_LENGTH, DEY_VERSION_TEMPLATE, dey_version, build_id);
 	*value = device_info->dey_version_state;
 
@@ -112,7 +111,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kernel_ve
 	log_debug("    Called '%s'", __func__);
 
 	if (get_cmd_output(KERNEL_VERSION_CMD, device_info->kernel_version_state, STRING_MAX_LENGTH) != 0)
-		strncpy(device_info->kernel_version_state, STRING_NA, strlen(STRING_NA));
+		snprintf(device_info->kernel_version_state, STRING_MAX_LENGTH, "%s", STRING_NA);
 	*value = device_info->kernel_version_state;
 
 	return ret;
@@ -127,7 +126,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_uboot_ver
 	log_debug("    Called '%s'", __func__);
 
 	if (read_file_line(UBOOT_VERSION_FILE, device_info->uboot_version_state, STRING_MAX_LENGTH) != 0)
-		strncpy(device_info->uboot_version_state, STRING_NA, strlen(STRING_NA));
+		snprintf(device_info->uboot_version_state, STRING_MAX_LENGTH, "%s", STRING_NA);
 	*value = device_info->uboot_version_state;
 
 	return ret;
@@ -137,25 +136,21 @@ ccapi_state_device_information_error_id_t rci_state_device_information_hardware_
 		ccapi_rci_info_t * const info, char const * * const value)
 {
 	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
-	char board_sn[PARAM_LENGTH] = {0};
-	char machine[PARAM_LENGTH] = {0};
-	char board_variant[PARAM_LENGTH] = {0};
-	char board_version[PARAM_LENGTH] = {0};
-	char board_id[PARAM_LENGTH] = {0};
+	char board_sn[PARAM_LENGTH] = STRING_NA;
+	char machine[PARAM_LENGTH] = STRING_NA;
+	char board_variant[PARAM_LENGTH] = STRING_NA;
+	char board_version[PARAM_LENGTH] = STRING_NA;
+	char board_id[PARAM_LENGTH] = STRING_NA;
 
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (read_file_line(BOARD_SN_FILE, board_sn, PARAM_LENGTH) != 0)
-		strncpy(board_sn, STRING_NA, strlen(STRING_NA));
-	if (read_file_line(MACHINE_FILE, machine, PARAM_LENGTH) != 0)
-		strncpy(machine, STRING_NA, strlen(STRING_NA));
-	if (read_file_line(BOARD_VARIANT_FILE, board_variant, PARAM_LENGTH) != 0)
-		strncpy(board_variant, STRING_NA, strlen(STRING_NA));
-	if (read_file_line(BOARD_VERSION_FILE, board_version, PARAM_LENGTH) != 0)
-		strncpy(board_version, STRING_NA, strlen(STRING_NA));
-	if (read_file_line(BOARD_ID_FILE, board_id, PARAM_LENGTH) != 0)
-		strncpy(board_id, STRING_NA, strlen(STRING_NA));
+	read_file_line(BOARD_SN_FILE, board_sn, PARAM_LENGTH);
+	read_file_line(MACHINE_FILE, machine, PARAM_LENGTH);
+	read_file_line(BOARD_VARIANT_FILE, board_variant, PARAM_LENGTH);
+	read_file_line(BOARD_VERSION_FILE, board_version, PARAM_LENGTH);
+	read_file_line(BOARD_ID_FILE, board_id, PARAM_LENGTH);
+
 	snprintf(device_info->hardware_state, STRING_MAX_LENGTH, HARDWARE_TEMPLATE, board_sn, machine, board_variant, board_version, board_id);
 	*value = device_info->hardware_state;
 
@@ -166,16 +161,15 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kinetis_g
 		ccapi_rci_info_t * const info, char const * * const value)
 {
 	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
-	char fw_version[PARAM_LENGTH] = {0};
-	char hw_version[PARAM_LENGTH] = {0};
+	char fw_version[PARAM_LENGTH] = STRING_NA;
+	char hw_version[PARAM_LENGTH] = STRING_NA;
 
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (read_file_line(MCA_FW_VERSION_FILE, fw_version, PARAM_LENGTH) != 0)
-		strncpy(fw_version, STRING_NA, strlen(STRING_NA));
-	if (read_file_line(MCA_HW_VERSION_FILE, hw_version, PARAM_LENGTH) != 0)
-		strncpy(hw_version, STRING_NA, strlen(STRING_NA));
+	read_file_line(MCA_FW_VERSION_FILE, fw_version, PARAM_LENGTH);
+	read_file_line(MCA_HW_VERSION_FILE, hw_version, PARAM_LENGTH);
+
 	snprintf(device_info->kinetis_state, STRING_MAX_LENGTH, MCA_TEMPLATE, hw_version, fw_version);
 	*value = device_info->kinetis_state;
 
