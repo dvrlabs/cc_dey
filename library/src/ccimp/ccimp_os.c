@@ -23,6 +23,7 @@
 #include <semaphore.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "ccimp/ccimp_os.h"
 #include "cc_logging.h"
