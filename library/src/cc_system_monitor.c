@@ -137,7 +137,7 @@ cc_sys_mon_error_t start_system_monitor(const cc_cfg_t *const cc_cfg)
 	if (error != 0) {
 		log_sm_error("pthread_create() error %d", error);
 		pthread_attr_destroy(&attr);
-		return CCIMP_STATUS_ERROR;
+		return CC_SYS_MON_ERROR_THREAD;
 	}
 	pthread_attr_destroy(&attr);
 	return CC_SYS_MON_ERROR_NONE;

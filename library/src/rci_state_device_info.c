@@ -59,13 +59,13 @@ static device_info_t *device_info;
 ccapi_state_device_information_error_id_t rci_state_device_information_start(
 		ccapi_rci_info_t * const info)
 {
-	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
 	device_info = calloc(1, sizeof (device_info_t));
 	if (device_info == NULL) {
-		ret = CCAPI_GLOBAL_ERROR_MEMORY_FAIL;
+		ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_MEMORY_FAIL;
 	}
 
 	return ret;
@@ -80,13 +80,13 @@ ccapi_state_device_information_error_id_t rci_state_device_information_end(
 	free(device_info);
 	device_info = NULL;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
 }
 
 ccapi_state_device_information_error_id_t rci_state_device_information_dey_version_get(
 		ccapi_rci_info_t * const info, char const * * const value)
 {
-	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
 	char dey_version[PARAM_LENGTH] = STRING_NA;
 	char build_id[PARAM_LENGTH] = STRING_NA;
 
@@ -105,7 +105,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_dey_versi
 ccapi_state_device_information_error_id_t rci_state_device_information_kernel_version_get(
 		ccapi_rci_info_t * const info, char const * * const value)
 {
-	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
 
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
@@ -120,7 +120,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kernel_ve
 ccapi_state_device_information_error_id_t rci_state_device_information_uboot_version_get(
 		ccapi_rci_info_t * const info, char const * * const value)
 {
-	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
 
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
@@ -135,7 +135,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_uboot_ver
 ccapi_state_device_information_error_id_t rci_state_device_information_hardware_get(
 		ccapi_rci_info_t * const info, char const * * const value)
 {
-	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
 	char board_sn[PARAM_LENGTH] = STRING_NA;
 	char machine[PARAM_LENGTH] = STRING_NA;
 	char board_variant[PARAM_LENGTH] = STRING_NA;
@@ -160,7 +160,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_hardware_
 ccapi_state_device_information_error_id_t rci_state_device_information_kinetis_get(
 		ccapi_rci_info_t * const info, char const * * const value)
 {
-	ccapi_state_device_information_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
 	char fw_version[PARAM_LENGTH] = STRING_NA;
 	char hw_version[PARAM_LENGTH] = STRING_NA;
 

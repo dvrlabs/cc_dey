@@ -38,14 +38,14 @@ static rci_iface_info_t *wifi_iface_info;
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_start(ccapi_rci_info_t * const info)
 {
-	ccapi_setting_wifi_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_setting_wifi_error_id_t ret = CCAPI_SETTING_WIFI_ERROR_NONE;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
 	wifi_iface_info = (rci_iface_info_t *) malloc(sizeof(rci_iface_info_t));
 	if (wifi_iface_info == NULL) {
 		log_error("%s: Cannot allocate memory", __func__);
-		ret = CCAPI_CLI_ERROR_INSUFFICIENT_MEMORY;
+		ret = CCAPI_SETTING_WIFI_ERROR_MEMORY_FAIL;
 		goto done;
 	}
 
@@ -64,7 +64,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_end(ccapi_rci_info_t * const info
 	free(wifi_iface_info);
 	wifi_iface_info = NULL;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_iface_name_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -74,7 +74,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_iface_name_get(ccapi_rci_info_t *
 
 	*value = INTERFACE_NAME;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_enabled_get(ccapi_rci_info_t * const info, ccapi_on_off_t * const value)
@@ -84,7 +84,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_enabled_get(ccapi_rci_info_t * co
 
 	*value = wifi_iface_info->info.iface_info.enabled ? CCAPI_ON : CCAPI_OFF;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_ssid_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -94,7 +94,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_ssid_get(ccapi_rci_info_t * const
 
 	*value = wifi_iface_info->info.ssid;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_wpa_status_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -135,7 +135,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_wpa_status_get(ccapi_rci_info_t *
 		break;
 	}
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_conn_type_get(ccapi_rci_info_t * const info, ccapi_setting_wifi_conn_type_id_t * const value)
@@ -145,7 +145,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_conn_type_get(ccapi_rci_info_t * 
 
 	*value = (wifi_iface_info->info.iface_info.dhcp == CCAPI_TRUE ? CCAPI_SETTING_WIFI_CONN_TYPE_DHCP : CCAPI_SETTING_WIFI_CONN_TYPE_STATIC);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_ipaddr_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -158,7 +158,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_ipaddr_get(ccapi_rci_info_t * con
 			ip[0], ip[1], ip[2], ip[3]);
 	*value = wifi_iface_info->ipaddr_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_netmask_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -171,7 +171,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_netmask_get(ccapi_rci_info_t * co
 			netmask[0], netmask[1], netmask[2], netmask[3]);
 	*value = wifi_iface_info->submask_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_dns1_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -184,7 +184,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_dns1_get(ccapi_rci_info_t * const
 			dns1[0], dns1[1], dns1[2], dns1[3]);
 	*value = wifi_iface_info->dns1_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_dns2_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -197,7 +197,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_dns2_get(ccapi_rci_info_t * const
 			dns2[0], dns2[1], dns2[2], dns2[3]);
 	*value = wifi_iface_info->dns2_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_gateway_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -210,7 +210,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_gateway_get(ccapi_rci_info_t * co
 			gateway[0], gateway[1], gateway[2], gateway[3]);
 	*value = wifi_iface_info->gw_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_mac_addr_get(ccapi_rci_info_t * const info, char const * * const value)
@@ -223,5 +223,5 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_mac_addr_get(ccapi_rci_info_t * c
 				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	*value = wifi_iface_info->mac_addr_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }

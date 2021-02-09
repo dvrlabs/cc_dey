@@ -416,7 +416,7 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	cc_cfg->url = strdup(cfg_getstr(cfg, SETTING_RM_URL));
 	if (cc_cfg->url == NULL)
 		return -1;
-	cc_cfg->enable_reconnect = cfg_getbool(cfg, SETTING_ENABLE_RECONNECT);
+	cc_cfg->enable_reconnect = (ccapi_bool_t) cfg_getbool(cfg, SETTING_ENABLE_RECONNECT);
 	cc_cfg->reconnect_time = cfg_getint(cfg, SETTING_RECONNECT_TIME);
 	cc_cfg->keepalive_rx = cfg_getint(cfg, SETTING_KEEPALIVE_RX);
 	cc_cfg->keepalive_tx = cfg_getint(cfg, SETTING_KEEPALIVE_TX);
@@ -449,14 +449,14 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	cc_cfg->sys_mon_num_samples_upload = cfg_getint(cfg, SETTING_SYS_MON_UPLOAD_SIZE);
 
 	/* Fill static location settings. */
-	cc_cfg->use_static_location = cfg_getbool(cfg, SETTING_USE_STATIC_LOCATION);
+	cc_cfg->use_static_location = (ccapi_bool_t) cfg_getbool(cfg, SETTING_USE_STATIC_LOCATION);
 	cc_cfg->latitude = (float) cfg_getfloat(cfg, SETTING_LATITUDE);
 	cc_cfg->longitude = (float) cfg_getfloat(cfg, SETTING_LONGITUDE);
 	cc_cfg->altitude = (float) cfg_getfloat(cfg, SETTING_ALTITUDE);
 
 	/* Fill logging settings. */
 	cc_cfg->log_level = get_log_level();
-	cc_cfg->log_console = cfg_getbool(cfg, SETTING_LOG_CONSOLE);
+	cc_cfg->log_console = (ccapi_bool_t) cfg_getbool(cfg, SETTING_LOG_CONSOLE);
 
 	return 0;
 }
@@ -487,7 +487,7 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 
 	/* Fill connection settings. */
 	cfg_setstr(cfg, SETTING_RM_URL, cc_cfg->url);
-	cfg_setbool(cfg, SETTING_ENABLE_RECONNECT, cc_cfg->enable_reconnect);
+	cfg_setbool(cfg, SETTING_ENABLE_RECONNECT, (cfg_bool_t) cc_cfg->enable_reconnect);
 	cfg_setint(cfg, SETTING_RECONNECT_TIME, cc_cfg->reconnect_time);
 	cfg_setint(cfg, SETTING_KEEPALIVE_RX, cc_cfg->keepalive_rx);
 	cfg_setint(cfg, SETTING_KEEPALIVE_TX, cc_cfg->keepalive_tx);
@@ -507,7 +507,7 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 	cfg_setint(cfg, SETTING_SYS_MON_UPLOAD_SIZE, cc_cfg->sys_mon_num_samples_upload);
 
 	/* Fill static location settings. */
-	cfg_setbool(cfg, SETTING_USE_STATIC_LOCATION, cc_cfg->use_static_location);
+	cfg_setbool(cfg, SETTING_USE_STATIC_LOCATION, (cfg_bool_t) cc_cfg->use_static_location);
 	cfg_setfloat(cfg, SETTING_LATITUDE, cc_cfg->latitude);
 	cfg_setfloat(cfg, SETTING_LONGITUDE, cc_cfg->longitude);
 	cfg_setfloat(cfg, SETTING_ALTITUDE, cc_cfg->altitude);
@@ -524,7 +524,7 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 		cfg_setstr(cfg, SETTING_LOG_LEVEL, LOG_LEVEL_ERROR_STR);
 		break;
 	}
-	cfg_setbool(cfg, SETTING_LOG_CONSOLE, cc_cfg->log_console);
+	cfg_setbool(cfg, SETTING_LOG_CONSOLE, (cfg_bool_t) cc_cfg->log_console);
 
 	return 0;
 }

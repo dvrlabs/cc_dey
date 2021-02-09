@@ -89,6 +89,7 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 {
 	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID;
 	ccapi_start_error_t ccapi_error;
+	cc_init_error_t init_error;
 	int error;
 
 	cc_cfg = calloc(1, sizeof(cc_cfg_t));
@@ -108,8 +109,52 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	init_logger(cc_cfg->log_level, log_options);
 
 	ccapi_error = initialize_ccapi(cc_cfg);
-	if (ccapi_error != CCAPI_START_ERROR_NONE)
-		return ccapi_error;
+	if (ccapi_error != CCAPI_START_ERROR_NONE) {
+		switch(ccapi_error)
+		{
+			case CCAPI_START_ERROR_NONE:
+				init_error = CC_INIT_ERROR_NONE;
+				break;
+			case CCAPI_START_ERROR_NULL_PARAMETER:
+				init_error = CC_INIT_CCAPI_START_ERROR_NULL_PARAMETER;
+				break;
+			case CCAPI_START_ERROR_INVALID_VENDORID:
+				init_error = CC_INIT_CCAPI_START_ERROR_INVALID_VENDORID;
+				break;
+			case CCAPI_START_ERROR_INVALID_DEVICEID:
+				init_error = CC_INIT_CCAPI_START_ERROR_INVALID_DEVICEID;
+				break;
+			case CCAPI_START_ERROR_INVALID_URL:
+				init_error = CC_INIT_CCAPI_START_ERROR_INVALID_URL;
+				break;
+			case CCAPI_START_ERROR_INVALID_DEVICETYPE:
+				init_error = CC_INIT_CCAPI_START_ERROR_INVALID_DEVICETYPE;
+				break;
+			case CCAPI_START_ERROR_INVALID_CLI_REQUEST_CALLBACK:
+				init_error = CC_INIT_CCAPI_START_ERROR_INVALID_CLI_REQUEST_CALLBACK;
+				break;
+			case CCAPI_START_ERROR_INVALID_FIRMWARE_INFO:
+				init_error = CC_INIT_CCAPI_START_ERROR_INVALID_FIRMWARE_INFO;
+				break;
+			case CCAPI_START_ERROR_INVALID_FIRMWARE_DATA_CALLBACK:
+				init_error = CC_INIT_CCAPI_START_ERROR_INVALID_FIRMWARE_DATA_CALLBACK;
+				break;
+			case CCAPI_START_ERROR_INSUFFICIENT_MEMORY:
+				init_error = CC_INIT_CCAPI_START_ERROR_INSUFFICIENT_MEMORY;
+				break;
+			case CCAPI_START_ERROR_THREAD_FAILED:
+				init_error = CC_INIT_CCAPI_START_ERROR_THREAD_FAILED;
+				break;
+			case CCAPI_START_ERROR_LOCK_FAILED:
+				init_error = CC_INIT_CCAPI_START_ERROR_LOCK_FAILED;
+				break;
+			case CCAPI_START_ERROR_ALREADY_STARTED:
+				init_error = CC_INIT_CCAPI_START_ERROR_ALREADY_STARTED;
+				break;
+		}
+
+		return init_error;
+	}
 
 	error = add_virtual_directories(cc_cfg->vdirs, cc_cfg->n_vdirs);
 	if (error != 0)
@@ -125,6 +170,7 @@ cc_init_error_t init_cloud_connection(const char *config_file)
  */
 cc_start_error_t start_cloud_connection(void)
 {
+	cc_start_error_t start_error;
 	ccapi_tcp_start_error_t tcp_start_error;
 	cc_sys_mon_error_t sys_mon_error;
 
@@ -134,8 +180,47 @@ cc_start_error_t start_cloud_connection(void)
 	}
 
 	tcp_start_error = initialize_tcp_transport(cc_cfg);
-	if (tcp_start_error != CCAPI_TCP_START_ERROR_NONE)
-		return tcp_start_error;
+	if (tcp_start_error != CCAPI_TCP_START_ERROR_NONE) {
+		log_error("Error initializing TCP transport: error %d", tcp_start_error);
+		switch(tcp_start_error)
+		{
+			case CCAPI_TCP_START_ERROR_NONE:
+				start_error = CC_START_ERROR_NONE;
+				break;
+			case CCAPI_TCP_START_ERROR_ALREADY_STARTED:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_ALREADY_STARTED;
+				break;
+			case CCAPI_TCP_START_ERROR_CCAPI_STOPPED:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_CCAPI_STOPPED;
+				break;
+			case CCAPI_TCP_START_ERROR_NULL_POINTER:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_NULL_POINTER;
+				break;
+			case CCAPI_TCP_START_ERROR_INSUFFICIENT_MEMORY:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_INSUFFICIENT_MEMORY;
+				break;
+			case CCAPI_TCP_START_ERROR_KEEPALIVES:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_KEEPALIVES;
+				break;
+			case CCAPI_TCP_START_ERROR_IP:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_IP;
+				break;
+			case CCAPI_TCP_START_ERROR_INVALID_MAC:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_INVALID_MAC;
+				break;
+			case CCAPI_TCP_START_ERROR_PHONE:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_PHONE;
+				break;
+			case CCAPI_TCP_START_ERROR_INIT:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_INIT;
+				break;
+			case CCAPI_TCP_START_ERROR_TIMEOUT:
+				start_error = CC_START_CCAPI_TCP_START_ERROR_TIMEOUT;
+				break;
+		}
+
+		return start_error;
+	}
 
 	sys_mon_error = start_system_monitor(cc_cfg);
 	if (sys_mon_error != CC_SYS_MON_ERROR_NONE)
@@ -153,18 +238,20 @@ cc_start_error_t start_cloud_connection(void)
  */
 cc_stop_error_t stop_cloud_connection(void)
 {
-	ccapi_stop_error_t stop_error;
+	cc_stop_error_t stop_error = CC_STOP_ERROR_NONE;
+	ccapi_stop_error_t ccapi_error;
 
 	if (!pthread_equal(reconnect_thread, 0))
 		pthread_cancel(reconnect_thread);
 
 	stop_system_monitor();
-	stop_error = ccapi_stop(CCAPI_STOP_GRACEFULLY);
+	ccapi_error = ccapi_stop(CCAPI_STOP_GRACEFULLY);
 
-	if (stop_error == CCAPI_STOP_ERROR_NONE) {
+	if (ccapi_error == CCAPI_STOP_ERROR_NONE) {
 		log_info("%s", "Cloud connection stopped");
 	} else {
-		log_error("Error stopping Cloud connection: error %d", stop_error);
+		log_error("Error stopping Cloud connection: error %d", ccapi_error);
+		stop_error = CC_STOP_CCAPI_STOP_ERROR_NOT_STARTED;
 	}
 
 	set_cloud_connection_status(CC_STATUS_DISCONNECTED);

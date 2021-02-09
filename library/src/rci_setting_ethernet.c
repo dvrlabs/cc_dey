@@ -39,7 +39,7 @@ static rci_iface_info_t *eth_iface_info;
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_start(
 		ccapi_rci_info_t * const info)
 {
-	ccapi_setting_ethernet_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_setting_ethernet_error_id_t ret = CCAPI_SETTING_ETHERNET_ERROR_NONE;
 	unsigned int iface_index = info->group.instance - 1;
 	log_debug("    Called '%s'\n", __func__);
 
@@ -47,14 +47,14 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_start(
 		log_error("%s: Interface index %u beyond maximum index %u", __func__,
 				iface_index,
 				(unsigned int)ARRAY_SIZE(eth_iface_name));
-		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
+		ret = CCAPI_SETTING_ETHERNET_ERROR_LOAD_FAIL;
 		goto done;
 	}
 
 	eth_iface_info = (rci_iface_info_t *) malloc(sizeof(rci_iface_info_t));
 	if (eth_iface_info == NULL) {
 		log_error("%s: Cannot allocate memory", __func__);
-		ret = CCAPI_CLI_ERROR_INSUFFICIENT_MEMORY;
+		ret = CCAPI_SETTING_ETHERNET_ERROR_MEMORY_FAIL;
 		goto done;
 	}
 
@@ -74,7 +74,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_end(
 	free(eth_iface_info);
 	eth_iface_info = NULL;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_iface_name_get(
@@ -85,7 +85,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_iface_name_get(
 
 	*value = eth_iface_info->info.name;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_enabled_get(
@@ -96,7 +96,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_enabled_get(
 
 	*value = eth_iface_info->info.enabled ? CCAPI_ON : CCAPI_OFF;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_conn_type_get(
@@ -107,7 +107,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_conn_type_get(
 
 	*value = (eth_iface_info->info.dhcp == CCAPI_TRUE ? CCAPI_SETTING_ETHERNET_CONN_TYPE_DHCP : CCAPI_SETTING_ETHERNET_CONN_TYPE_STATIC);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_ipaddr_get(
@@ -121,7 +121,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_ipaddr_get(
 			ip[0], ip[1], ip[2], ip[3]);
 	*value = eth_iface_info->ipaddr_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_netmask_get(
@@ -135,7 +135,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_netmask_get(
 			netmask[0], netmask[1], netmask[2], netmask[3]);
 	*value = eth_iface_info->submask_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_dns1_get(
@@ -149,7 +149,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_dns1_get(
 			dns1[0], dns1[1], dns1[2], dns1[3]);
 	*value = eth_iface_info->dns1_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_dns2_get(
@@ -163,7 +163,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_dns2_get(
 			dns2[0], dns2[1], dns2[2], dns2[3]);
 	*value = eth_iface_info->dns2_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_gateway_get(
@@ -177,7 +177,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_gateway_get(
 			gateway[0], gateway[1], gateway[2], gateway[3]);
 	*value = eth_iface_info->gw_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
 
 ccapi_setting_ethernet_error_id_t rci_setting_ethernet_mac_addr_get(
@@ -191,5 +191,5 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_mac_addr_get(
 				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	*value = eth_iface_info->mac_addr_buff;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }

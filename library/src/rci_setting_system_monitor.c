@@ -32,7 +32,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_start(
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'\n", __func__);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_end(
@@ -47,7 +47,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_end(
 		restart = 0;
 	}
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_get(
@@ -58,20 +58,20 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 
 	*value = (cc_cfg->services & SYS_MONITOR_SERVICE) ? CCAPI_ON : CCAPI_OFF;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_set(
 		ccapi_rci_info_t * const info, ccapi_on_off_t const * const value)
 {
-	ccapi_setting_system_monitor_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_setting_system_monitor_error_id_t ret = CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'\n", __func__);
 
 	if (*value == CCAPI_ON) {
 		cc_cfg->services |= SYS_MONITOR_SERVICE;
 		if (start_system_monitor(cc_cfg) != CC_SYS_MON_ERROR_NONE)
-			ret = CCAPI_GLOBAL_ERROR_MEMORY_FAIL;
+			ret = CCAPI_SETTING_SYSTEM_MONITOR_ERROR_MEMORY_FAIL;
 	} else {
 		stop_system_monitor();
 		cc_cfg->services &= ~SYS_MONITOR_SERVICE;
@@ -88,7 +88,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_sample_rate_g
 
 	*value = cc_cfg->sys_mon_sample_rate;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_sample_rate_set(
@@ -99,7 +99,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_sample_rate_s
 
 	cc_cfg->sys_mon_sample_rate = *value;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_n_dp_upload_get(
@@ -110,7 +110,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_n_dp_upload_g
 
 	*value = cc_cfg->sys_mon_num_samples_upload;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_n_dp_upload_set(
@@ -121,7 +121,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_n_dp_upload_s
 
 	cc_cfg->sys_mon_num_samples_upload = *value;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_mem_get(
@@ -132,7 +132,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 
 	*value = (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY) ? CCAPI_ON : CCAPI_OFF;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_mem_set(
@@ -153,7 +153,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 		cc_cfg->sys_mon_parameters &= ~SYS_MON_MEMORY;
 	}
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_cpuload_get(
@@ -164,7 +164,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 
 	*value = (cc_cfg->sys_mon_parameters & SYS_MON_LOAD) ? CCAPI_ON : CCAPI_OFF;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_cpuload_set(
@@ -185,7 +185,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 		cc_cfg->sys_mon_parameters &= ~SYS_MON_LOAD;
 	}
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_cputemp_get(
@@ -196,7 +196,7 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 
 	*value = (cc_cfg->sys_mon_parameters & SYS_MON_TEMP) ? CCAPI_ON : CCAPI_OFF;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }
 
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_cputemp_set(
@@ -217,5 +217,5 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon
 		cc_cfg->sys_mon_parameters &= ~SYS_MON_TEMP;
 	}
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_MONITOR_ERROR_NONE;
 }

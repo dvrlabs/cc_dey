@@ -32,13 +32,13 @@ extern cc_cfg_t *cc_cfg;
 ccapi_state_primary_interface_error_id_t rci_state_primary_interface_start(
 		ccapi_rci_info_t * const info)
 {
-	ccapi_state_primary_interface_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_primary_interface_error_id_t ret = CCAPI_STATE_PRIMARY_INTERFACE_ERROR_NONE;
 	iface_info_t interface_info;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
 	if (get_main_iface_info(cc_cfg->url, &interface_info) != 0) {
-		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
+		ret = CCAPI_STATE_PRIMARY_INTERFACE_ERROR_LOAD_FAIL;
 	} else {
 		iface_name = strdup(interface_info.name);
 		iface_ip = malloc(IPV4_STRING_MAX_LENGTH * sizeof(char));
@@ -61,7 +61,7 @@ ccapi_state_primary_interface_error_id_t rci_state_primary_interface_end(
 	free(iface_name);
 	iface_name = NULL;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_STATE_PRIMARY_INTERFACE_ERROR_NONE;
 }
 
 ccapi_state_primary_interface_error_id_t rci_state_primary_interface_connection_type_get(
@@ -72,7 +72,7 @@ ccapi_state_primary_interface_error_id_t rci_state_primary_interface_connection_
 
 	*value = iface_name;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_STATE_PRIMARY_INTERFACE_ERROR_NONE;
 }
 
 ccapi_state_primary_interface_error_id_t rci_state_primary_interface_ip_addr_get(
@@ -83,5 +83,5 @@ ccapi_state_primary_interface_error_id_t rci_state_primary_interface_ip_addr_get
 
 	*value = iface_ip;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_STATE_PRIMARY_INTERFACE_ERROR_NONE;
 }

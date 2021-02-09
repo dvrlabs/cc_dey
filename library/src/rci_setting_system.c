@@ -31,7 +31,7 @@ ccapi_setting_system_error_id_t rci_setting_system_start(
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_ERROR_NONE;
 }
 
 ccapi_setting_system_error_id_t rci_setting_system_end(
@@ -40,7 +40,7 @@ ccapi_setting_system_error_id_t rci_setting_system_end(
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_ERROR_NONE;
 }
 
 ccapi_setting_system_error_id_t rci_setting_system_description_get(
@@ -51,7 +51,7 @@ ccapi_setting_system_error_id_t rci_setting_system_description_get(
 
 	*value = cc_cfg->description ? cc_cfg->description : "";
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_ERROR_NONE;
 }
 
 ccapi_setting_system_error_id_t rci_setting_system_description_set(
@@ -63,7 +63,7 @@ ccapi_setting_system_error_id_t rci_setting_system_description_set(
 	free(cc_cfg->description);
 	cc_cfg->description = strdup(value);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_ERROR_NONE;
 }
 
 ccapi_setting_system_error_id_t rci_setting_system_contact_get(
@@ -74,7 +74,7 @@ ccapi_setting_system_error_id_t rci_setting_system_contact_get(
 
 	*value = cc_cfg->contact ? cc_cfg->contact : "";
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_ERROR_NONE;
 }
 
 ccapi_setting_system_error_id_t rci_setting_system_contact_set(
@@ -86,7 +86,7 @@ ccapi_setting_system_error_id_t rci_setting_system_contact_set(
 	free(cc_cfg->contact);
 	cc_cfg->contact = strdup(value);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_ERROR_NONE;
 }
 
 ccapi_setting_system_error_id_t rci_setting_system_location_get(
@@ -97,7 +97,7 @@ ccapi_setting_system_error_id_t rci_setting_system_location_get(
 
 	*value = cc_cfg->location ? cc_cfg->location : "";
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_ERROR_NONE;
 }
 
 ccapi_setting_system_error_id_t rci_setting_system_location_set(
@@ -109,5 +109,5 @@ ccapi_setting_system_error_id_t rci_setting_system_location_set(
 	free(cc_cfg->location);
 	cc_cfg->location = strdup(value);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_SETTING_SYSTEM_ERROR_NONE;
 }

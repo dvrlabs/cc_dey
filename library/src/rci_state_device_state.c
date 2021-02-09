@@ -29,7 +29,7 @@ ccapi_state_device_state_error_id_t rci_state_device_state_start(
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_STATE_DEVICE_STATE_ERROR_NONE;
 }
 
 ccapi_state_device_state_error_id_t rci_state_device_state_end(
@@ -38,13 +38,13 @@ ccapi_state_device_state_error_id_t rci_state_device_state_end(
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_STATE_DEVICE_STATE_ERROR_NONE;
 }
 
 ccapi_state_device_state_error_id_t rci_state_device_state_system_up_time_get(
 		ccapi_rci_info_t * const info, uint32_t * const value)
 {
-	ccapi_state_device_state_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_device_state_error_id_t ret = CCAPI_STATE_DEVICE_STATE_ERROR_NONE;
 	struct sysinfo s_info;
 	int error;
 	UNUSED_PARAMETER(info);
@@ -53,7 +53,7 @@ ccapi_state_device_state_error_id_t rci_state_device_state_system_up_time_get(
 	error = sysinfo(&s_info);
 	if (error) {
 		log_error("sysinfo failed: %s", strerror(error));
-		ret = CCAPI_GLOBAL_ERROR_LOAD_FAIL;
+		ret = CCAPI_STATE_DEVICE_STATE_ERROR_LOAD_FAIL;
 	} else {
 		*value = s_info.uptime;
 	}

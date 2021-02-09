@@ -31,19 +31,19 @@ static char *longitude_state;
 ccapi_state_gps_stats_error_id_t rci_state_gps_stats_start(
 		ccapi_rci_info_t * const info)
 {
-	ccapi_state_gps_stats_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_gps_stats_error_id_t ret = CCAPI_STATE_GPS_STATS_ERROR_NONE;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
 	latitude_state = malloc(FLOAT_MAX_LENGTH * sizeof(char));
 	if (latitude_state == NULL) {
-		ret = CCAPI_GLOBAL_ERROR_MEMORY_FAIL;
+		ret = CCAPI_STATE_GPS_STATS_ERROR_MEMORY_FAIL;
 		goto out;
 	}
 
 	longitude_state = malloc(FLOAT_MAX_LENGTH * sizeof(char));
 	if (latitude_state == NULL) {
-		ret = CCAPI_GLOBAL_ERROR_MEMORY_FAIL;
+		ret = CCAPI_STATE_GPS_STATS_ERROR_MEMORY_FAIL;
 		goto out;
 	}
 
@@ -61,13 +61,13 @@ ccapi_state_gps_stats_error_id_t rci_state_gps_stats_end(
 	free(longitude_state);
 	longitude_state = NULL;
 
-	return CCAPI_GLOBAL_ERROR_NONE;
+	return CCAPI_STATE_GPS_STATS_ERROR_NONE;
 }
 
 ccapi_state_gps_stats_error_id_t rci_state_gps_stats_latitude_get(
 		ccapi_rci_info_t * const info, char const * * const value)
 {
-	ccapi_state_gps_stats_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_gps_stats_error_id_t ret = CCAPI_STATE_GPS_STATS_ERROR_NONE;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
@@ -84,7 +84,7 @@ ccapi_state_gps_stats_error_id_t rci_state_gps_stats_latitude_get(
 ccapi_state_gps_stats_error_id_t rci_state_gps_stats_longitude_get(
 		ccapi_rci_info_t * const info, char const * * const value)
 {
-	ccapi_state_gps_stats_error_id_t ret = CCAPI_GLOBAL_ERROR_NONE;
+	ccapi_state_gps_stats_error_id_t ret = CCAPI_STATE_GPS_STATS_ERROR_NONE;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
