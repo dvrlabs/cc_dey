@@ -54,6 +54,10 @@
 
 #define WRITE_BUFFER_SIZE			128 * 1024 /* 128KB */
 
+#define LINE_BUFSIZE				255
+#define CMD_BUFSIZE				255
+#define FW_UPDATE_CMD				"firmware-update-dual.sh"
+
 /*------------------------------------------------------------------------------
                  D A T A    T Y P E S    D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
@@ -239,7 +243,7 @@ done:
  *
  * Data to program is received including the offset where it should be
  * programmed. The size of the data will be the one configured by the user in
- * the chuck_size field of the target information.
+ * the chunk_size field of the target information.
  *
  * Returns: 0 on success, error code otherwise.
  */
@@ -271,11 +275,13 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 		switch(target) {
 		/* Target for *.swu files. */
 		case 0: {
-			if (update_firmware(fw_downloaded_path)) {
-				log_fw_error(
-						"Error updating firmware using package '%s' for target '%d'",
-						fw_downloaded_path, target);
-				error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+			if (cc_cfg->dualboot == CCAPI_FALSE) {
+				if (update_firmware(fw_downloaded_path)) {
+					log_fw_error(
+							"Error updating firmware using package '%s' for target '%d'",
+							fw_downloaded_path, target);
+					error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+				}
 			}
 			break;
 		}
@@ -293,7 +299,8 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 			error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 		}
 
-		free(fw_downloaded_path);
+		if (cc_cfg->dualboot == CCAPI_FALSE)
+			free(fw_downloaded_path);
 	}
 
 	return error;
@@ -345,6 +352,30 @@ void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_reset, ccap
 	UNUSED_PARAMETER(version);
 
 	*system_reset = CCAPI_FALSE;
+
+	if (cc_cfg->dualboot) {
+		char cmd[CMD_BUFSIZE] = {0};
+		char line[LINE_BUFSIZE] = {0};
+		FILE *fp;
+
+		log_fw_debug("We will start the %s script at path %s", FW_UPDATE_CMD, fw_downloaded_path);
+		sprintf(cmd, "%s %s", FW_UPDATE_CMD, fw_downloaded_path);
+		/* Free buffer */
+		free(fw_downloaded_path);
+		/* Open process to execute update command */
+		fp = popen(cmd, "r");
+		if (fp == NULL){
+			log_fw_error("Couldn't execute dualboot installation cmd %s", cmd);
+		} else {
+			/* Read script output till finished */
+			while (fgets(line, LINE_BUFSIZE, fp) != NULL) {
+				log_fw_debug("swupdate: %s", line);
+			}
+			/* close the process */
+			pclose(fp);
+		}
+		return;
+	}
 
 	reboot_timeout = malloc(sizeof (unsigned int));
 	if (reboot_timeout == NULL) {
@@ -442,12 +473,17 @@ static int update_manifest_firmware(const char *manifest_path, int target)
 	}
 
 	/* Update firmware process. */
-
-	if (update_firmware(fw_info.file_path)) {
-		log_fw_error(
-				"Error updating firmware using package '%s' for target '%d'",
-				fw_info.file_path, target);
-		error = -1;
+	if (cc_cfg->dualboot) {
+		log_fw_debug("Update firmware process will start now at %s", fw_info.file_path);
+		/* store the full installation path */
+		strcpy(fw_downloaded_path, fw_info.file_path);
+	} else {
+		if (update_firmware(fw_info.file_path)) {
+			log_fw_error(
+					"Error updating firmware using package '%s' for target '%d'",
+					fw_info.file_path, target);
+			error = -1;
+		}
 	}
 
 done:

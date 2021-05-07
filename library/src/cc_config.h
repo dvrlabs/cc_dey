@@ -82,6 +82,7 @@ typedef struct {
  * @altitude					Altitude value for static location
  * @log_level:					Level of messaging to log
  * @log_console:				Enable messages logging to the console
+ * @dualboot:					Enable dualboot firmware download support
  *
  */
 typedef struct {
@@ -118,6 +119,7 @@ typedef struct {
 
 	int log_level;
 	ccapi_bool_t log_console;
+	ccapi_bool_t dualboot;
 } cc_cfg_t;
 
 /*------------------------------------------------------------------------------

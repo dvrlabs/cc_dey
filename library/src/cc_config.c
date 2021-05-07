@@ -85,6 +85,7 @@
 #define SETTING_LONGITUDE_MIN		(-180.0)
 #define SETTING_LONGITUDE_MAX		(180.0)
 #define SETTING_ALTITUDE			"altitude"
+#define SETTING_DUALBOOT			"dualboot"
 
 #define SETTING_LOG_LEVEL			"log_level"
 #define SETTING_LOG_CONSOLE			"log_console"
@@ -199,6 +200,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			/* Services settings. */
 			CFG_BOOL	(ENABLE_FS_SERVICE,		cfg_true,		CFGF_NONE),
 			CFG_STR		(SETTING_FW_DOWNLOAD_PATH, NULL,		CFGF_NODEFAULT),
+			CFG_BOOL	(SETTING_DUALBOOT,		cfg_false,		CFGF_NONE),
 
 			/* File system settings. */
 			CFG_SEC		(GROUP_VIRTUAL_DIRS, virtual_dirs_opts, CFGF_NONE),
@@ -216,7 +218,6 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			CFG_FLOAT	(SETTING_LATITUDE,		0.0,		CFGF_NONE),
 			CFG_FLOAT	(SETTING_LONGITUDE,		0.0,		CFGF_NONE),
 			CFG_FLOAT	(SETTING_ALTITUDE,		0.0,		CFGF_NONE),
-
 			/* Logging settings. */
 			CFG_STR		(SETTING_LOG_LEVEL,	LOG_LEVEL_ERROR_STR,CFGF_NONE),
 			CFG_BOOL	(SETTING_LOG_CONSOLE,	cfg_false,		CFGF_NONE),
@@ -435,6 +436,9 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	cc_cfg->fw_download_path = strdup(cfg_getstr(cfg, SETTING_FW_DOWNLOAD_PATH));
 	if (cc_cfg->fw_download_path == NULL)
 		return -1;
+
+	/* Fill dualboot setting */
+	cc_cfg->dualboot = (ccapi_bool_t) cfg_getbool(cfg, SETTING_DUALBOOT);
 
 	/* Fill system monitor settings. */
 	cc_cfg->sys_mon_parameters = 0;
