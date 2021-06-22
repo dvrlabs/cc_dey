@@ -86,6 +86,7 @@
 #define SETTING_LONGITUDE_MAX		(180.0)
 #define SETTING_ALTITUDE			"altitude"
 #define SETTING_DUALBOOT			"dualboot"
+#define SETTING_ON_THE_FLY			"on_the_fly"
 
 #define SETTING_LOG_LEVEL			"log_level"
 #define SETTING_LOG_CONSOLE			"log_console"
@@ -201,6 +202,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			CFG_BOOL	(ENABLE_FS_SERVICE,		cfg_true,		CFGF_NONE),
 			CFG_STR		(SETTING_FW_DOWNLOAD_PATH, NULL,		CFGF_NODEFAULT),
 			CFG_BOOL	(SETTING_DUALBOOT,		cfg_false,		CFGF_NONE),
+			CFG_BOOL	(SETTING_ON_THE_FLY,	cfg_false,		CFGF_NONE),
 
 			/* File system settings. */
 			CFG_SEC		(GROUP_VIRTUAL_DIRS, virtual_dirs_opts, CFGF_NONE),
@@ -439,6 +441,8 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 
 	/* Fill dualboot setting */
 	cc_cfg->dualboot = (ccapi_bool_t) cfg_getbool(cfg, SETTING_DUALBOOT);
+	/* Fill On the fly setting */
+	cc_cfg->on_the_fly = (ccapi_bool_t) cfg_getbool(cfg, SETTING_ON_THE_FLY);
 
 	/* Fill system monitor settings. */
 	cc_cfg->sys_mon_parameters = 0;
