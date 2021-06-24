@@ -35,8 +35,10 @@
 #define BOARD_VARIANT_FILE		"/proc/device-tree/digi,hwid,variant"
 #define BOARD_VERSION_FILE		"/proc/device-tree/digi,carrierboard,version"
 #define BOARD_ID_FILE			"/proc/device-tree/digi,carrierboard,id"
-#define MCA_FW_VERSION_FILE		"/sys/bus/i2c/devices/0-007e/fw_version"
-#define MCA_HW_VERSION_FILE		"/sys/bus/i2c/devices/0-007e/hw_version"
+#define GET_MCA_ADDR_CMD		"basename $(dirname $(find /sys/devices -name fw_version))"
+#define MCA_SYS_BASEPATH		"/sys/bus/i2c/devices"
+#define MCA_FW_VERSION_FILE		"fw_version"
+#define MCA_HW_VERSION_FILE		"hw_version"
 #define DEY_VERSION_TEMPLATE	"DEY-%s-%s"
 #define HARDWARE_TEMPLATE		"SN=%s MACHINE=%s VARIANT=%s SBC_VARIANT=%s BOARD_ID=%s"
 #define MCA_TEMPLATE			"HW_VERSION=%s FW_VERSION=%s"
@@ -161,18 +163,26 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kinetis_g
 		ccapi_rci_info_t * const info, char const * * const value)
 {
 	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
+	char mca_addr[PARAM_LENGTH];
+	char str[STRING_MAX_LENGTH + PARAM_LENGTH];
 	char fw_version[PARAM_LENGTH] = STRING_NA;
 	char hw_version[PARAM_LENGTH] = STRING_NA;
 
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-
-	read_file_line(MCA_FW_VERSION_FILE, fw_version, PARAM_LENGTH);
-	read_file_line(MCA_HW_VERSION_FILE, hw_version, PARAM_LENGTH);
+	if (get_cmd_output(GET_MCA_ADDR_CMD, mca_addr)) {
+		log_error("%s: can't get MCA sys path", __func__);
+		goto done;
+	}
+	sprintf(str, "%s/%s/%s", MCA_SYS_BASEPATH, mca_addr, MCA_FW_VERSION_FILE);
+	read_file_line(str, fw_version, PARAM_LENGTH);
+	sprintf(str, "%s/%s/%s", MCA_SYS_BASEPATH, mca_addr, MCA_HW_VERSION_FILE);
+	read_file_line(str, hw_version, PARAM_LENGTH);
 
 	snprintf(device_info->kinetis_state, STRING_MAX_LENGTH, MCA_TEMPLATE, hw_version, fw_version);
 	*value = device_info->kinetis_state;
 
+done:
 	return ret;
 }
 
