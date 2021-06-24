@@ -43,7 +43,7 @@
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
-static int get_cmd_output(const char *cmd, char *out, int read_size);
+static int get_cmd_output(const char *cmd, char *out);
 static int read_dey_version(char *version);
 
 typedef struct {
@@ -110,7 +110,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kernel_ve
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (get_cmd_output(KERNEL_VERSION_CMD, device_info->kernel_version_state, STRING_MAX_LENGTH) != 0)
+	if (get_cmd_output(KERNEL_VERSION_CMD, device_info->kernel_version_state) != 0)
 		snprintf(device_info->kernel_version_state, STRING_MAX_LENGTH, "%s", STRING_NA);
 	*value = device_info->kernel_version_state;
 
@@ -181,16 +181,14 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kinetis_g
  *
  * @cmd:		Command to be executed.
  * @out:		Output of the command execution.
- * @read_size:	Maximum number of bytes to read.
  *
  * Return: 0 if success, error code otherwise.
  */
-static int get_cmd_output(const char *cmd, char *out, int read_size)
+static int get_cmd_output(const char *cmd, char *out)
 {
 	FILE *in;
-	char line[128] = {0};
-	int read_bytes, error = 0;
-	int available_bytes = read_size - 1;
+	char line[STRING_MAX_LENGTH] = {0};
+	int error = 0;
 
 	in = popen(cmd, "r");
 	if (!in) {
@@ -198,10 +196,12 @@ static int get_cmd_output(const char *cmd, char *out, int read_size)
 		log_error("%s: popen", __func__);
 		goto done;
 	}
-	while (available_bytes > 0 && fgets(line, sizeof(line), in) != NULL) {
-		read_bytes = strlen(line);
-		strncat(out, line, min(available_bytes, read_bytes));
-		available_bytes = available_bytes - read_bytes;
+
+	if (fgets(line, sizeof(line), in) != NULL) {
+		strcpy(out, line);
+		/* remove new line char */
+		if (out[strlen(out)-1] == '\n')
+			out[strlen(out)-1] = 0;
 	}
 	error = pclose(in);
 	if (error < 0) {
