@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Digi International Inc.
+ * Copyright (c) 2017-2022 Digi International Inc.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -516,6 +516,21 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 		goto error;
 	}
 
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+	char *key_filename = TARGET_CERT_FILE;
+
+	/* Check if the certificate file exists */
+	if (access(key_filename, F_OK) == 0 ) {
+		log_debug("using cert file (%s) for stablishing the SSL connection", key_filename);
+		SSL_CTX_set_verify(ssl_ptr->ctx, SSL_VERIFY_PEER, NULL);
+		SSL_CTX_use_certificate_file(ssl_ptr->ctx, key_filename, SSL_FILETYPE_PEM);
+		SSL_CTX_use_PrivateKey_file(ssl_ptr->ctx, key_filename, SSL_FILETYPE_PEM);
+		SSL_CTX_set_post_handshake_auth(ssl_ptr->ctx, 1);
+	} else {
+		log_error("app_ssl_connect(): Certificate file %s does not exist."
+			  " Maybe first connection?", key_filename);
+	}
+#endif
 	ssl_ptr->ssl = SSL_new(ssl_ptr->ctx);
 	if (ssl_ptr->ssl == NULL) {
 		log_error("%s", "app_ssl_connect(): error creating new SSL");

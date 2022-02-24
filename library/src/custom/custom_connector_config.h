@@ -60,6 +60,10 @@
 #define CONNECTOR_COMPRESSION_WINDOW_BITS 15
 #define CONNECTOR_COMPRESSION_MEM_LEVEL 8
 
+/* Client Secure Connection */
+#define TARGET_EDP_CERT_UPDATE	"builtin/edp_certificate_update"
+#define TARGET_CERT_FILE	"/etc/ssl/certs/drm_cert.pem"
+
 /* SSL */
 #define APP_SSL
 #define APP_SSL_CA_CERT_PATH   "/etc/ssl/certs/Digi_Int-ca-cert-public.crt"

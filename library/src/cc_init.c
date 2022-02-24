@@ -46,6 +46,17 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
+static ccapi_receive_error_t register_builtin_requests(void);
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+static ccapi_receive_error_t edp_cert_update_cb(const char *target,
+		ccapi_transport_t transport,
+		const ccapi_buffer_info_t *request_buffer_info,
+		ccapi_buffer_info_t *response_buffer_info);
+static void edp_cert_update_status_cb(const char *target,
+		ccapi_transport_t transport,
+		ccapi_buffer_info_t *response_buffer_info,
+		ccapi_receive_error_t receive_error);
+#endif
 static void set_cloud_connection_status(cc_status_t status);
 static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg);
 static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg);
@@ -90,6 +101,7 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID;
 	ccapi_start_error_t ccapi_error;
 	cc_init_error_t init_error;
+	ccapi_receive_error_t reg_builtin_error;
 	int error;
 
 	cc_cfg = calloc(1, sizeof(cc_cfg_t));
@@ -166,8 +178,96 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	if (error != 0)
 		return CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY;
 
+	reg_builtin_error = register_builtin_requests();
+	if (reg_builtin_error != CCAPI_RECEIVE_ERROR_NONE)
+		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
+
 	return CC_INIT_ERROR_NONE;
 }
+
+/*
+ * register_builtin_requests() - Register built-in device requests
+ *
+ * Return: Error code after registering the built-in device requests.
+ */
+static ccapi_receive_error_t register_builtin_requests(void)
+{
+	ccapi_receive_error_t receive_error = CCAPI_RECEIVE_ERROR_NONE;
+
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+	receive_error = ccapi_receive_add_target(TARGET_EDP_CERT_UPDATE,
+						 edp_cert_update_cb,
+						 edp_cert_update_status_cb,
+						 CCAPI_RECEIVE_NO_LIMIT);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("Cannot register target '%s', error %d", TARGET_EDP_CERT_UPDATE,
+				receive_error);
+		return receive_error;
+	}
+#endif
+
+	return receive_error;
+}
+
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+static ccapi_receive_error_t edp_cert_update_cb(const char *target, ccapi_transport_t transport,
+			const ccapi_buffer_info_t *request_buffer_info,
+			ccapi_buffer_info_t *response_buffer_info)
+{
+	char *builtin_data = NULL;
+	FILE *fp;
+	ccapi_receive_error_t ret;
+
+	UNUSED_PARAMETER(response_buffer_info);
+
+	log_debug("edp_cert_update_status_cb(): target='%s' - transport='%d'",
+		   target, transport);
+	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
+		builtin_data = malloc(request_buffer_info->length + sizeof(char));
+		if (builtin_data) {
+			memcpy(builtin_data, request_buffer_info->buffer, request_buffer_info->length);
+			*(builtin_data + request_buffer_info->length) = 0;
+		} else {
+			log_error("%s", "edp_cert_update_cb(): insufficient memory");
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+	} else {
+		log_error("%s", "edp_cert_update_cb(): received invalid data");
+		return CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+	}
+	fp = fopen(TARGET_CERT_FILE, "w");
+	if (!fp) {
+		log_error("edp_cert_update_cb(): cannot open certificate %s: %s", TARGET_CERT_FILE, strerror(errno));
+		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+	}
+
+	if (fprintf(fp, "%s", builtin_data) <= 0) {
+		log_error("edp_cert_update_cb(): cannot write certificate %s", TARGET_CERT_FILE);
+		ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+	} else {
+		log_debug("edp_cert_update_cb(): certificate saved at %s", TARGET_CERT_FILE);
+		ret = CCAPI_RECEIVE_ERROR_NONE;
+	}
+	fclose(fp);
+	return ret;
+}
+
+static void edp_cert_update_status_cb(const char *target,
+				      ccapi_transport_t transport,
+				      ccapi_buffer_info_t *response_buffer_info,
+				      ccapi_receive_error_t receive_error)
+{
+	log_debug("edp_cert_update_status_cb(): target='%s' - transport='%d'",
+		   target, transport);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("error on edp_cert_update_status_cb(): target='%s' - transport='%d' - error='%d'",
+			     target, transport, receive_error);
+	}
+	/* Free the response buffer */
+	if (response_buffer_info != NULL)
+		free(response_buffer_info->buffer);
+}
+#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
 
 /*
  * start_cloud_connection() - Start Cloud connection

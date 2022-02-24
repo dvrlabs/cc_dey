@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Digi International Inc.
+ * Copyright (c) 2017-2022 Digi International Inc.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -39,6 +39,7 @@ typedef enum {
 	CC_INIT_CCAPI_START_ERROR_THREAD_FAILED,
 	CC_INIT_CCAPI_START_ERROR_LOCK_FAILED,
 	CC_INIT_CCAPI_START_ERROR_ALREADY_STARTED,
+	CC_INIT_ERROR_REG_BUILTIN_REQUESTS,
 	CC_INIT_ERROR_INSUFFICIENT_MEMORY,
 	CC_INIT_ERROR_PARSE_CONFIGURATION,
 	CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY
