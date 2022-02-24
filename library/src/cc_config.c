@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Digi International Inc.
+ * Copyright (c) 2017-2022 Digi International Inc.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -191,7 +191,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			CFG_STR		(SETTING_LOCATION,		"",				CFGF_NONE),
 
 			/* Connection settings. */
-			CFG_STR		(SETTING_RM_URL, "remotemanager.digi.com", CFGF_NONE),
+			CFG_STR		(SETTING_RM_URL, "edp12.devicecloud.com", CFGF_NONE),
 			CFG_BOOL	(SETTING_ENABLE_RECONNECT, cfg_true,	CFGF_NONE),
 			CFG_INT		(SETTING_RECONNECT_TIME,		30,		CFGF_NONE),
 			CFG_INT		(SETTING_KEEPALIVE_TX,			75,		CFGF_NONE),
