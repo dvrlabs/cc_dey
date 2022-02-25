@@ -43,6 +43,7 @@
 
 #include "dns_helper.h"
 #include "cc_logging.h"
+#include "cc_config.h"
 
 /*------------------------------------------------------------------------------
                  D A T A    T Y P E S    D E F I N I T I O N S
@@ -517,7 +518,7 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 	}
 
 #ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
-	char *key_filename = TARGET_CERT_FILE;
+	char *key_filename = get_client_cert_path();
 
 	/* Check if the certificate file exists */
 	if (access(key_filename, F_OK) == 0 ) {

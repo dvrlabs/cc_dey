@@ -23,6 +23,7 @@
 #include <pthread.h>
 #include <signal.h>
 
+#include "cc_config.h"
 #include "cc_init.h"
 #include "cc_logging.h"
 #include "cc_device_request.h"
@@ -186,6 +187,18 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 }
 
 /*
+ * get_client_cert_path() - Return the client certificate path in the config file.
+ *
+ * Return: Path file or NULL if error.
+ */
+char *get_client_cert_path(void)
+{
+	if (!cc_cfg)
+		return NULL;
+	return cc_cfg->client_cert_path;
+}
+
+/*
  * register_builtin_requests() - Register built-in device requests
  *
  * Return: Error code after registering the built-in device requests.
@@ -214,7 +227,6 @@ static ccapi_receive_error_t edp_cert_update_cb(const char *target, ccapi_transp
 			const ccapi_buffer_info_t *request_buffer_info,
 			ccapi_buffer_info_t *response_buffer_info)
 {
-	char *builtin_data = NULL;
 	FILE *fp;
 	ccapi_receive_error_t ret;
 
@@ -223,32 +235,24 @@ static ccapi_receive_error_t edp_cert_update_cb(const char *target, ccapi_transp
 	log_debug("edp_cert_update_status_cb(): target='%s' - transport='%d'",
 		   target, transport);
 	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
-		builtin_data = malloc(request_buffer_info->length + sizeof(char));
-		if (builtin_data) {
-			memcpy(builtin_data, request_buffer_info->buffer, request_buffer_info->length);
-			*(builtin_data + request_buffer_info->length) = 0;
-		} else {
-			log_error("%s", "edp_cert_update_cb(): insufficient memory");
+		fp = fopen(cc_cfg->client_cert_path, "w");
+		if (!fp) {
+			log_error("edp_cert_update_cb(): cannot open certificate %s: %s", cc_cfg->client_cert_path, strerror(errno));
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
+		if (fwrite(request_buffer_info->buffer, sizeof(char), request_buffer_info->length, fp) < request_buffer_info->length) {
+			log_error("edp_cert_update_cb(): cannot write certificate %s", cc_cfg->client_cert_path);
+			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		} else {
+			log_debug("edp_cert_update_cb(): certificate saved at %s", cc_cfg->client_cert_path);
+			ret = CCAPI_RECEIVE_ERROR_NONE;
+		}
+		fclose(fp);
 	} else {
 		log_error("%s", "edp_cert_update_cb(): received invalid data");
-		return CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
-	}
-	fp = fopen(TARGET_CERT_FILE, "w");
-	if (!fp) {
-		log_error("edp_cert_update_cb(): cannot open certificate %s: %s", TARGET_CERT_FILE, strerror(errno));
-		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
 	}
 
-	if (fprintf(fp, "%s", builtin_data) <= 0) {
-		log_error("edp_cert_update_cb(): cannot write certificate %s", TARGET_CERT_FILE);
-		ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-	} else {
-		log_debug("edp_cert_update_cb(): certificate saved at %s", TARGET_CERT_FILE);
-		ret = CCAPI_RECEIVE_ERROR_NONE;
-	}
-	fclose(fp);
 	return ret;
 }
 

@@ -18,6 +18,7 @@
  */
 
 #include <stdlib.h>
+#include <libgen.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -57,6 +58,7 @@
 #define SETTING_LOCATION_MAX		63
 
 #define SETTING_RM_URL				"url"
+#define SETTING_CLIENT_CERT_PATH	"client_cert_path"
 #define SETTING_ENABLE_RECONNECT	"enable_reconnect"
 #define SETTING_RECONNECT_TIME		"reconnect_time"
 #define SETTING_RECONNECT_TIME_MIN	1
@@ -107,6 +109,7 @@ static int check_vendor_id(unsigned long value);
 static int cfg_check_device_type(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_fw_version(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_rm_url(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_cert_path(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_reconnect_time(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_rx(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_keepalive_tx(cfg_t *cfg, cfg_opt_t *opt);
@@ -192,6 +195,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 
 			/* Connection settings. */
 			CFG_STR		(SETTING_RM_URL, "edp12.devicecloud.com", CFGF_NONE),
+			CFG_STR		(SETTING_CLIENT_CERT_PATH, "/etc/ssl/certs/drm_cert.pem", CFGF_NONE),
 			CFG_BOOL	(SETTING_ENABLE_RECONNECT, cfg_true,	CFGF_NONE),
 			CFG_INT		(SETTING_RECONNECT_TIME,		30,		CFGF_NONE),
 			CFG_INT		(SETTING_KEEPALIVE_TX,			75,		CFGF_NONE),
@@ -248,6 +252,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 	cfg_set_validate_func(cfg, SETTING_CONTACT, cfg_check_contact);
 	cfg_set_validate_func(cfg, SETTING_LOCATION, cfg_check_location);
 	cfg_set_validate_func(cfg, SETTING_RM_URL, cfg_check_rm_url);
+	cfg_set_validate_func(cfg, SETTING_CLIENT_CERT_PATH, cfg_check_cert_path);
 	cfg_set_validate_func(cfg, SETTING_RECONNECT_TIME, cfg_check_reconnect_time);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_RX, cfg_check_keepalive_rx);
 	cfg_set_validate_func(cfg, SETTING_KEEPALIVE_TX, cfg_check_keepalive_tx);
@@ -311,6 +316,8 @@ void free_configuration(cc_cfg_t *cc_cfg)
 		cc_cfg->location = NULL;
 		free(cc_cfg->url);
 		cc_cfg->url = NULL;
+		free(cc_cfg->client_cert_path);
+		cc_cfg->client_cert_path = NULL;
 
 		for (i = 0; i < cc_cfg->n_vdirs; i++) {
 			cc_cfg->vdirs[i].name = NULL;
@@ -419,6 +426,7 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	cc_cfg->url = strdup(cfg_getstr(cfg, SETTING_RM_URL));
 	if (cc_cfg->url == NULL)
 		return -1;
+	cc_cfg->client_cert_path = strdup(cfg_getstr(cfg, SETTING_CLIENT_CERT_PATH));
 	cc_cfg->enable_reconnect = (ccapi_bool_t) cfg_getbool(cfg, SETTING_ENABLE_RECONNECT);
 	cc_cfg->reconnect_time = cfg_getint(cfg, SETTING_RECONNECT_TIME);
 	cc_cfg->keepalive_rx = cfg_getint(cfg, SETTING_KEEPALIVE_RX);
@@ -495,6 +503,7 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 
 	/* Fill connection settings. */
 	cfg_setstr(cfg, SETTING_RM_URL, cc_cfg->url);
+	cfg_setstr(cfg, SETTING_CLIENT_CERT_PATH, cc_cfg->client_cert_path);
 	cfg_setbool(cfg, SETTING_ENABLE_RECONNECT, (cfg_bool_t) cc_cfg->enable_reconnect);
 	cfg_setint(cfg, SETTING_RECONNECT_TIME, cc_cfg->reconnect_time);
 	cfg_setint(cfg, SETTING_KEEPALIVE_RX, cc_cfg->keepalive_rx);
@@ -660,6 +669,40 @@ static int cfg_check_rm_url(cfg_t *cfg, cfg_opt_t *opt)
 		return -1;
 	}
 	return 0;
+}
+
+/*
+ * cfg_check_cert_path() - Validate certification path in the configuration file
+ *
+ * @cfg:	The section where the url is defined.
+ * @opt:	The certification path option.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_cert_path(cfg_t *cfg, cfg_opt_t *opt)
+{
+	char *val = cfg_opt_getnstr(opt, 0);
+	char *directory = NULL, *cert_path = NULL;
+	int ret = 0;
+
+	if (val == NULL || strlen(val) == 0) {
+		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
+		return -1;
+	}
+
+	cert_path = strdup(val);
+	directory = dirname(cert_path);
+
+	if (access(directory, R_OK | W_OK) < 0) {
+		cfg_error(cfg,
+				"Invalid %s (%s): directory does not exist or do not have R/W access",
+				opt->name, directory);
+		ret = -1;
+	}
+
+	free(cert_path);
+
+	return ret;
 }
 
 /*

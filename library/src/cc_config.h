@@ -64,6 +64,7 @@ typedef struct {
  * @contact:					Contact information of the device
  * @location:					Location of the device (not GPS location)
  * @url:						Remote Manager URL
+ * @client_cert_path:			Client certificate path
  * @enable_reconnect:			Enabled reconnection when connection is lost
  * @reconnect_time:				Number of seconds to reconnect
  * @keepalive_rx:				Keepalive receiving frequency (seconds)
@@ -95,6 +96,7 @@ typedef struct {
 	char *location;
 
 	char *url;
+	char *client_cert_path;
 	ccapi_bool_t enable_reconnect;
 	uint16_t reconnect_time;
 	uint16_t keepalive_rx;
@@ -132,5 +134,6 @@ void free_configuration(cc_cfg_t *const config);
 int get_configuration(cc_cfg_t *cc_cfg);
 int save_configuration(cc_cfg_t *cc_cfg);
 void close_configuration(void);
+char *get_client_cert_path(void);
 
 #endif /* CC_CONFIG_H_ */
