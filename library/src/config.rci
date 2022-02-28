@@ -13,7 +13,7 @@ group state primary_interface "Primary interface"
 group state gps_stats "GPS"
     element latitude "Latitude" type string access read_only
     element longitude "Longitude" type string access read_only
-    
+
 group state device_information "Device information"
     element dey_version "DEY version" type string access read_only
     element kernel_version "Kernel version" type string access read_only

@@ -29,7 +29,6 @@
 #include "cc_firmware_update.h"
 #include "cc_system_monitor.h"
 #include "network_utils.h"
-#include "rci_config.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
