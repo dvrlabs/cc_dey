@@ -111,7 +111,7 @@ ccapi_bool_t app_receive_default_accept_cb(char const *const target,
  * Logs information about the received request and sends an answer to Device
  * Cloud indicating that the device request with that target is not registered.
  */
-void app_receive_default_data_cb(char const *const target,
+ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
@@ -127,7 +127,7 @@ void app_receive_default_data_cb(char const *const target,
 	if (request_buffer == NULL) {
 		log_dr_error("%s", "app_receive_default_data_cb():"                   \
 				" request_buffer malloc error");
-		return;
+		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 	for (i = 0 ; i < request_buffer_info->length ; i++)
 		request_buffer[i] = ((char*)request_buffer_info->buffer)[i];
@@ -137,7 +137,7 @@ void app_receive_default_data_cb(char const *const target,
 		log_dr_error("%s", "app_receive_default_data_cb():"                   \
 				" request_data malloc error");
 		free(request_buffer);
-		return;
+		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 	log_dr_debug("app_receive_default_data_cb(): not registered target -"     \
 			" request='%s'", request_data);
@@ -150,11 +150,12 @@ void app_receive_default_data_cb(char const *const target,
 		if (response_buffer_info->buffer == NULL) {
 			log_dr_error("%s", "app_receive_default_data_cb():" \
 					" response_buffer_info malloc error");
-			return;
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 		response_buffer_info->length = sprintf(response_buffer_info->buffer,
 				"Target '%s' not registered", target);
 	}
+	return CCAPI_RECEIVE_ERROR_NONE;
 }
 
 /**

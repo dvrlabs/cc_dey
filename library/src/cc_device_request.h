@@ -25,7 +25,7 @@
 #define UNUSED_PARAMETER(a) (void)(a)
 
 ccapi_bool_t app_receive_default_accept_cb(char const *const target, ccapi_transport_t const transport);
-void app_receive_default_data_cb(char const *const target, ccapi_transport_t const transport, ccapi_buffer_info_t const *const request_buffer_info, ccapi_buffer_info_t *const response_buffer_info);
+ccapi_receive_error_t  app_receive_default_data_cb(char const *const target, ccapi_transport_t const transport, ccapi_buffer_info_t const *const request_buffer_info, ccapi_buffer_info_t *const response_buffer_info);
 void app_receive_default_status_cb(char const *const target, ccapi_transport_t const transport, ccapi_buffer_info_t *const response_buffer_info, ccapi_receive_error_t receive_error);
 
 #endif /* CC_DEVICE_REQUEST_H_ */

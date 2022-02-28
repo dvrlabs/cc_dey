@@ -70,7 +70,7 @@
  * Logs information about the received request and executes the corresponding
  * command.
  */
-void stop_cb(char const *const target, ccapi_transport_t const transport,
+ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
 {
@@ -83,11 +83,12 @@ void stop_cb(char const *const target, ccapi_transport_t const transport,
 	response_buffer_info->buffer = malloc(sizeof(char) * strlen(stop_response) + 1);
 	if (response_buffer_info->buffer == NULL) {
 		log_dr_error("%s", "stop_cb(): response_buffer_info malloc error");
-		return;
+		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 
 	response_buffer_info->length = snprintf(response_buffer_info->buffer,
 			MAX_RESPONSE_SIZE, "%s", stop_response);
+	return CCAPI_RECEIVE_ERROR_NONE;
 }
 
 /*
@@ -131,7 +132,7 @@ void stop_status_cb(char const *const target,
  * Logs information about the received request and executes the corresponding
  * command.
  */
-void get_time_cb(char const *const target,
+ccapi_receive_error_t get_time_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
@@ -143,12 +144,13 @@ void get_time_cb(char const *const target,
 	response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE + 1);
 	if (response_buffer_info->buffer == NULL) {
 		log_dr_error("%s", "get_time_cb(): response_buffer_info malloc error");
-		return;
+		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 
 	time_t t = time(NULL);
 	response_buffer_info->length = snprintf(response_buffer_info->buffer,
 			MAX_RESPONSE_SIZE, "Time: %s", ctime(&t));
+	return CCAPI_RECEIVE_ERROR_NONE;
 }
 
 /*
