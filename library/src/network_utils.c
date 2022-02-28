@@ -411,8 +411,8 @@ static ccapi_bool_t is_dhcp(const char *iface_name)
 	char line[255] = {0};
 	FILE *fp;
 
-	/* Check if DHCP daemon is running for the given interface */
-	sprintf(cmd, "ps | grep \"[d]hc\" | grep %s", iface_name);
+	/* Use NetworkManager to obtain the given interface method */
+	sprintf(cmd, "nmcli conn show %s | grep \"ipv[4|6].method\" | grep auto", iface_name);
 	fp = popen(cmd, "r");
 	if (fp == NULL) {
 		log_error("%s: couldn't execute command '%s'\n", __func__, cmd);
