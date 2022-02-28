@@ -56,7 +56,11 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_ssid_get(ccapi_rci_info_t * const
 ccapi_setting_wifi_error_id_t rci_setting_wifi_wpa_status_get(ccapi_rci_info_t * const info, char const * * const value);
 #define rci_setting_wifi_wpa_status_set    NULL
 
+#if (defined RCI_ENUMS_AS_STRINGS)
+ccapi_setting_wifi_error_id_t rci_setting_wifi_conn_type_get(ccapi_rci_info_t * const info, char const * * const value);
+#else
 ccapi_setting_wifi_error_id_t rci_setting_wifi_conn_type_get(ccapi_rci_info_t * const info, ccapi_setting_wifi_conn_type_id_t * const value);
+#endif /* RCI_ENUMS_AS_STRINGS */
 #define rci_setting_wifi_conn_type_set    NULL
 
 ccapi_setting_wifi_error_id_t rci_setting_wifi_ipaddr_get(ccapi_rci_info_t * const info, char const * * const value);

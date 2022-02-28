@@ -138,12 +138,20 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_wpa_status_get(ccapi_rci_info_t *
 	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
 
+#if (defined RCI_ENUMS_AS_STRINGS)
+ccapi_setting_wifi_error_id_t rci_setting_wifi_conn_type_get(ccapi_rci_info_t * const info, char const * * const value)
+#else
 ccapi_setting_wifi_error_id_t rci_setting_wifi_conn_type_get(ccapi_rci_info_t * const info, ccapi_setting_wifi_conn_type_id_t * const value)
+#endif /* RCI_ENUMS_AS_STRINGS */
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
+#if (defined RCI_ENUMS_AS_STRINGS)
+	*value = (wifi_iface_info->info.iface_info.dhcp == CCAPI_TRUE ? "DHCP" : "static");
+#else
 	*value = (wifi_iface_info->info.iface_info.dhcp == CCAPI_TRUE ? CCAPI_SETTING_WIFI_CONN_TYPE_DHCP : CCAPI_SETTING_WIFI_CONN_TYPE_STATIC);
+#endif /* RCI_ENUMS_AS_STRINGS */
 
 	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
