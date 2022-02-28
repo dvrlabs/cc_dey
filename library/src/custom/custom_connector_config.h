@@ -61,6 +61,7 @@
 #define CONNECTOR_COMPRESSION_MEM_LEVEL 8
 
 /* Client Secure Connection */
+#define CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
 #define TARGET_EDP_CERT_UPDATE	"builtin/edp_certificate_update"
 #define TARGET_CERT_FILE	"/etc/ssl/certs/drm_cert.pem"
 
