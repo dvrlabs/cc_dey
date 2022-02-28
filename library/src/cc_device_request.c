@@ -76,12 +76,25 @@ ccapi_bool_t app_receive_default_accept_cb(char const *const target,
 {
 	ccapi_bool_t accept_target = CCAPI_TRUE;
 
-	if (transport == CCAPI_TRANSPORT_SMS || transport == CCAPI_TRANSPORT_UDP) {
-		/* Don't accept requests from SMS and UDP transports */
-		log_dr_debug("app_receive_default_accept_cb(): not accepted request -"\
-				" target='%s' - transport='%d'", target, transport);
-		accept_target = CCAPI_FALSE;
+#if (defined CCIMP_UDP_TRANSPORT_ENABLED || defined CCIMP_SMS_TRANSPORT_ENABLED)
+	switch (transport)
+	{
+	#if (defined CCIMP_UDP_TRANSPORT_ENABLED)
+		case CCAPI_TRANSPORT_UDP:
+	#endif
+	#if (defined CCIMP_SMS_TRANSPORT_ENABLED)
+		case CCAPI_TRANSPORT_SMS:
+	#endif
+			/* Don't accept requests from SMS and UDP transports */
+			log_dr_debug("app_receive_default_accept_cb(): not accepted request -"\
+					" target='%s' - transport='%d'", target, transport);
+			accept_target = CCAPI_FALSE;
+			break;
 	}
+#else
+	UNUSED_PARAMETER(transport);
+	UNUSED_PARAMETER(target);
+#endif
 
 	return accept_target;
 }
