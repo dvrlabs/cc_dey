@@ -40,7 +40,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_start(
 		ccapi_rci_info_t * const info)
 {
 	ccapi_setting_ethernet_error_id_t ret = CCAPI_SETTING_ETHERNET_ERROR_NONE;
-	unsigned int iface_index = info->group.instance - 1;
+	unsigned int iface_index = info->group.item.index - 1;
 	log_debug("    Called '%s'\n", __func__);
 
 	if (iface_index >= ARRAY_SIZE(eth_iface_name)) {
