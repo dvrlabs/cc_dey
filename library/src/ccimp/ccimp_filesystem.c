@@ -471,6 +471,12 @@ ccimp_status_t ccimp_fs_hash_alg(ccimp_fs_get_hash_alg_t \
 {
 	switch (hash_status_data->hash_alg.requested) {
 	case CCIMP_FS_HASH_NONE:
+	case CCIMP_FS_HASH_SHA3_512:
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+		hash_status_data->hash_alg.actual = CCIMP_FS_HASH_NONE;
+		break;
+#endif
+	case CCIMP_FS_HASH_SHA512:
 	case CCIMP_FS_HASH_MD5:
 	case CCIMP_FS_HASH_CRC32:
 		hash_status_data->hash_alg.actual = \
@@ -510,6 +516,8 @@ ccimp_status_t ccimp_fs_hash_file(ccimp_fs_hash_file_t *const file_hash_data)
 				file_hash_data->hash_value, file_hash_data->bytes_requested);
 		break;
 	case CCIMP_FS_HASH_NONE:
+	case CCIMP_FS_HASH_SHA3_512:
+	case CCIMP_FS_HASH_SHA512:
 	case CCIMP_FS_HASH_BEST:
 		break;
 	}
