@@ -59,6 +59,16 @@
 	syslog(LOG_ERR, format, __VA_ARGS__)
 
 /**
+ * log_warning() - Log the given message as warning
+ *
+ * @format:	Info message to log.
+ * @args:	Additional arguments.
+ */
+#define log_warning(format, ...)									\
+	syslog(LOG_WARNING, format, __VA_ARGS__)
+
+
+/**
  * log_info() - Log the given message as info
  *
  * @format:	Info message to log.

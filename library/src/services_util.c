@@ -358,7 +358,7 @@ static int recv_blob(int fd, char type, void **data, size_t *data_length, struct
 				&& (char)buffer[length] == TERMINATOR) {		/* Verify terminator where expected */
 				buffer[length] = 0;								/* Replace terminator... for type 's:'tring */
 				if (data_length)
-					data_length = length;			/* & report the length to the caller if needed */
+					*data_length = length;			/* & report the length to the caller if needed */
 				*data = buffer;
 
 				return 0;

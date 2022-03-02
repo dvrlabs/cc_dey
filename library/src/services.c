@@ -62,7 +62,7 @@ static void handle_requests(int fd)
 
 	while (!received_sigterm && (request_sock = accept4(fd, NULL, NULL, SOCK_CLOEXEC)) != -1) {
 		char *request_tag = NULL;
-		int i;
+		unsigned long i;
 		bool handled = false;
 		struct timeval timeout = {
 			.tv_sec = 20,
@@ -101,7 +101,7 @@ static void handle_requests(int fd)
 	}
 }
 
-void listen_for_requests()
+void listen_for_requests(void)
 {
 	struct sockaddr_in addr;
 	int fd;

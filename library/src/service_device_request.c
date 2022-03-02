@@ -171,6 +171,8 @@ static ccapi_receive_error_t device_request(const char *target,
 		.tv_usec = 0
 	};
 
+	UNUSED_ARGUMENT(transport);
+
 	if (sock_fd < 0) {
 		goto out;
 	}
@@ -475,7 +477,7 @@ int import_devicerequests(const char *file_path)
 			goto out;
 
 		flen = ftell(file);
-		if (fpos < 0 || flen < 0 || flen < fpos || string_len <= 0 || string_len > (flen - fpos))
+		if (fpos < 0 || flen < 0 || flen < fpos || string_len <= 0 || (long)string_len > (flen - fpos))
 			goto out;
 
 		if (fseek(file, fpos, SEEK_SET) != 0)
