@@ -67,7 +67,7 @@ CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
 CFLAGS += -I $(CC_LIB_SRC)
 CFLAGS += -DGIT_REVISION=\"$(if $(GIT_REVISION),-g$(GIT_REVISION))\"
 
-CFLAGS += -g -O0 -DDEBUG
+CFLAGS += -g -O -DDEBUG
 
 # Target output to generate.
 APP_SRCS = $(wildcard $(SRC)/*.c)

@@ -70,7 +70,7 @@ CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
 CFLAGS += -I $(MINIUNZ_DIR) -I $(PLATFORM_DIR)
 CFLAGS += $(shell pkg-config --cflags recovery)
 
-CFLAGS += -g -O0
+CFLAGS += -g -O
 
 # Target output to generate.
 CC_PRIVATE_SRCS := $(CCFSM_PRIVATE_DIR)/connector_api.c

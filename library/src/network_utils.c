@@ -151,7 +151,7 @@ int get_iface_info(const char *iface_name, iface_info_t *iface_info)
 		return -1;
 	}
 	/* Fill interface name */
-	strncpy(iface_info->name, iface_name, IFNAMSIZ);
+	strncpy(iface_info->name, iface_name, IFNAMSIZ - 1);
 	/* Fill MAC address */
 	get_mac_address(iface_name, iface_info->mac_addr);
 	if (getifaddrs(&ifaddr) == -1) {
@@ -227,7 +227,7 @@ uint8_t *get_primary_mac_address(uint8_t *const mac_addr)
 				compare_iface(iface.name, ifa->ifa_name) < 0) {
 			if (get_mac_address(ifa->ifa_name, iface.mac_addr) != 0)
 				goto done;
-			strncpy(iface.name, ifa->ifa_name, sizeof(iface.name));
+			strncpy(iface.name, ifa->ifa_name, IFNAMSIZ - 1);
 			log_debug("%s: Found better interface %s - MAC %02x:%02x:%02x:%02x:%02x:%02x",
 					__func__, ifa->ifa_name, iface.mac_addr[0],
 					iface.mac_addr[1], iface.mac_addr[2],
@@ -306,7 +306,7 @@ static int get_mac_address(const char *iface_name, uint8_t *mac_address)
 		ret = -1;
 		goto done;
 	}
-	strncpy(ifr.ifr_name, iface_name, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, iface_name, IFNAMSIZ - 1);
 	if (ioctl(sock, SIOCGIFHWADDR, &ifr) != 0) {
 		log_error("%s: ioctl SIOCGIFFLAGS failed", __func__);
 		ret = -1;

@@ -87,7 +87,7 @@ ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const 
 	}
 
 	response_buffer_info->length = snprintf(response_buffer_info->buffer,
-			MAX_RESPONSE_SIZE, "%s", stop_response);
+			strlen(stop_response) + 1, "%s", stop_response);
 	return CCAPI_RECEIVE_ERROR_NONE;
 }
 

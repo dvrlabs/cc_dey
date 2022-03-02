@@ -85,7 +85,7 @@ static int get_ssid(const char *iface_name, char *ssid)
 	/* Get SSID using wpa_cli get_network */
 	if (read_param_from_cli(iface_name, SSID_FIELD, ssid) != 0) {
 		/* Get SSID using wpa_cli status */
-		char line[255] = {0};
+		char line[SSID_SIZE + 1] = {0};
 		char cmd[255] = {0};
 		FILE *fd;
 
@@ -127,6 +127,7 @@ static int read_param_from_cli(const char *iface_name, const char *param, char *
 	char line[255] = {0};
 	char cmd[255] = {0};
 	int network;
+	char *ret = NULL;
 
 	/* Sanity checks */
 	if (iface_name == NULL || param == NULL || value == NULL)
@@ -155,8 +156,11 @@ static int read_param_from_cli(const char *iface_name, const char *param, char *
 		log_error("%s: Error opening pipe for cmd '%s'", __func__, cmd);
 		return -1;
 	}
-	fgets(line, sizeof (line) - 1, fd);
+	ret = fgets(line, sizeof (line) - 1, fd);
 	pclose(fd);
+	if (!ret)
+		return -1;
+
 	delete_newline_character(line);
 	delete_quotes(line);
 	strcpy(value, line);
@@ -268,6 +272,7 @@ int get_current_wifi_network(const char *iface_name)
 	char line[255];
 	FILE *fd;
 	int network;
+	char *ret = NULL;
 
 	/* Sanity checks */
 	if (iface_name == NULL)
@@ -286,8 +291,11 @@ int get_current_wifi_network(const char *iface_name)
 		log_error("%s: Error opening pipe for cmd '%s'", __func__, cmd);
 		return -1;
 	}
-	fgets(line, sizeof (line) - 1, fd);
+	ret = fgets(line, sizeof (line) - 1, fd);
 	pclose(fd);
+	if (!ret)
+		return -1;
+
 	if (sscanf(line, "%d", &network))
 		return network;
 
@@ -306,6 +314,7 @@ wpa_state_t get_wpa_status(const char *iface_name)
 	FILE *fd;
 	char cmd[255];
 	char line[255];
+	char *ret = NULL;
 
 	/* Sanity checks */
 	if (iface_name == NULL)
@@ -324,9 +333,13 @@ wpa_state_t get_wpa_status(const char *iface_name)
 		log_error("%s: Error opening pipe for cmd '%s'", __func__, cmd);
 		return WPA_UNKNOWN;
 	}
-	fgets(line, sizeof (line) - 1, fd);
-	delete_newline_character(line);
+	ret = fgets(line, sizeof (line) - 1, fd);
 	pclose(fd);
+	if (!ret)
+		return WPA_UNKNOWN;
+
+	delete_newline_character(line);
+
 	if (strncmp(line, WPA_DISCONNECTED_STRING, strlen(WPA_DISCONNECTED_STRING)) == 0)
 		return WPA_DISCONNECTED;
 	if (strncmp(line, WPA_INACTIVE_STRING, strlen(WPA_INACTIVE_STRING)) == 0)
