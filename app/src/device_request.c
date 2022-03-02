@@ -78,11 +78,11 @@ ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const 
 
 	UNUSED_ARGUMENT(request_buffer_info);
 
-	log_dr_debug("stop_cb(): target='%s' - transport='%d'", target, transport);
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 
 	response_buffer_info->buffer = malloc(sizeof(char) * strlen(stop_response) + 1);
 	if (response_buffer_info->buffer == NULL) {
-		log_dr_error("%s", "stop_cb(): response_buffer_info malloc error");
+		log_dr_error("%s: response_buffer_info malloc error", __func__);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 
@@ -110,8 +110,8 @@ void stop_status_cb(char const *const target,
 		ccapi_receive_error_t receive_error)
 {
 	log_dr_debug(
-			"stop_status_cb(): target='%s' - transport='%d' - error='%d'",
-			target, transport, receive_error);
+			"%s: target='%s' - transport='%d' - error='%d'", __func__, target,
+			transport, receive_error);
 
 	/* Free the response buffer */
 	if (response_buffer_info != NULL)
@@ -139,11 +139,11 @@ ccapi_receive_error_t get_time_cb(char const *const target,
 {
 	UNUSED_ARGUMENT(request_buffer_info);
 
-	log_dr_debug("get_time_cb(): target='%s' - transport='%d'", target, transport);
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 
 	response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE + 1);
 	if (response_buffer_info->buffer == NULL) {
-		log_dr_error("%s", "get_time_cb(): response_buffer_info malloc error");
+		log_dr_error("%s: response_buffer_info malloc error", __func__);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 
@@ -172,8 +172,8 @@ void get_time_status_cb(char const *const target,
 		ccapi_receive_error_t receive_error)
 {
 	log_dr_debug(
-			"get_time_status_cb(): target='%s' - transport='%d' - error='%d'",
-			target, transport, receive_error);
+			"%s: target='%s' - transport='%d' - error='%d'", __func__, target,
+			transport, receive_error);
 
 	/* Free the response buffer */
 	if (response_buffer_info != NULL)

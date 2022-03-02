@@ -242,7 +242,8 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 				log_sm_debug("%s", "Sending system monitor samples");
 				dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
 				if (dp_error != CCAPI_DP_ERROR_NONE)
-					log_sm_error("system_monitor_loop(): ccapi_dp_send_collection() error %d", dp_error);
+					log_sm_error("%s: ccapi_dp_send_collection() error %d",
+						     __func__, dp_error);
 			}
 		}
 
@@ -274,7 +275,8 @@ static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg)
 {
 	ccapi_dp_error_t dp_error = ccapi_dp_create_collection(&dp_collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
-		log_sm_error("init_system_monitor(): ccapi_dp_create_collection error %d", dp_error);
+		log_sm_error("%s: ccapi_dp_create_collection error %d",
+			     __func__, dp_error);
 		return dp_error;
 	}
 
@@ -371,7 +373,7 @@ static long get_free_memory(void)
 	struct sysinfo info;
 
 	if (sysinfo(&info) != 0) {
-		log_sm_error("%s", "get_free_memory(): sysinfo error");
+		log_sm_error("%s: sysinfo error", __func__);
 		return -1;
 	}
 
@@ -393,7 +395,7 @@ static double get_cpu_load(void) {
 
 	file_size = read_file(FILE_CPU_LOAD, &file_data, 4096);
 	if (file_size <= 0) {
-		log_sm_error("%s", "get_cpu_load(): error reading cpu load file");
+		log_sm_error("%s: error reading cpu load file", __func__);
 		goto done;
 	}
 
@@ -402,7 +404,7 @@ static double get_cpu_load(void) {
 			&fields[5], &fields[6], &fields[7], &fields[8], &fields[9]);
 
 	if (result < 4) {
-		log_sm_error("%s", "get_cpu_load(): cpu load not enough fields error");
+		log_sm_error("%s: cpu load not enough fields error", __func__);
 		goto done;
 	}
 
@@ -445,14 +447,14 @@ static double get_cpu_temp(void)
 
 	file_size = read_file(FILE_CPU_TEMP, &file_data, 1024);
 	if (file_size <= 0) {
-		log_sm_error("%s", "get_cpu_temp(): Error reading cpu temperature file");
+		log_sm_error("%s: Error reading cpu temperature file", __func__);
 		return -1;
 	}
 
 	result = sscanf(file_data, "%lf", &temperature);
 	free(file_data);
 	if (result < 1) {
-		log_sm_error("%s", "get_cpu_temp(): cpu temp not enough fields error");
+		log_sm_error("%s: cpu temp not enough fields error", __func__);
 		return -1;
 	}
 	return temperature / 1000;
@@ -494,20 +496,20 @@ static long read_file(const char *path, char **buffer, long file_size)
 	long read_size;
 
 	if ((fd = fopen(path, "rb")) == NULL) {
-		log_sm_error("read_file(): fopen error: %s", path);
+		log_sm_error("%s: fopen error: %s", __func__, path);
 		return -1;
 	}
 
 	*buffer = (char*) malloc(sizeof(char) * file_size);
 	if (*buffer == NULL) {
-		log_sm_error("read_file(): malloc error: %s", path);
+		log_sm_error("%s: malloc error: %s", __func__, path);
 		fclose(fd);
 		return -1;
 	}
 
 	read_size = fread(*buffer, sizeof(char), file_size, fd);
 	if (ferror(fd)) {
-		log_sm_error("read_file(): fread error: %s", path);
+		log_sm_error("%s: fread error: %s", __func__, path);
 		read_size = -1;
 	} else {
 		(*buffer)[read_size - 1] = '\0';

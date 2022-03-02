@@ -86,7 +86,7 @@ ccimp_status_t ccimp_network_tcp_close(ccimp_network_close_t *const data)
 #endif
 
 	if (close(*fd) < 0)
-		log_error("ccimp_network_tcp_close(): close() failed, fd %d, errno %d", *fd, errno);
+		log_error("%s: close() failed, fd %d, errno %d", __func__, *fd, errno);
 
 #if (defined APP_SSL)
 	/* send close notify to peer */
@@ -124,7 +124,7 @@ ccimp_status_t ccimp_network_tcp_receive(ccimp_network_receive_t *const data)
 			status = CCIMP_STATUS_BUSY;
 			goto done;
 		} else if (ready < 0) {
-			log_error("%s", "ccimp_network_tcp_receive(): select failed");
+			log_error("%s: select failed", __func__);
 			goto done;
 		}
 	}
@@ -140,7 +140,7 @@ ccimp_status_t ccimp_network_tcp_receive(ccimp_network_receive_t *const data)
 		goto done;
 	} else if (read_bytes == 0) {
 		/* EOF on input: the connection was closed. */
-		log_debug("%s", "ccimp_network_tcp_receive(): network_receive: EOF on socket");
+		log_debug("%s: network_receive: EOF on socket", __func__);
 		errno = ECONNRESET;
 		status = CCIMP_STATUS_ERROR;
 	} else {
@@ -157,7 +157,7 @@ ccimp_status_t ccimp_network_tcp_receive(ccimp_network_receive_t *const data)
 		if (err == EAGAIN) {
 			status = CCIMP_STATUS_BUSY;
 		} else {
-			log_error("ccimp_network_tcp_receive(): network_receive: recv() failed, errno %d", err);
+			log_error("%s: network_receive: recv() failed, errno %d", __func__, err);
 			/* if not timeout (no data) return an error */
 			dns_cache_invalidate();
 			status = CCIMP_STATUS_ERROR;
@@ -189,7 +189,7 @@ ccimp_status_t ccimp_network_tcp_send(ccimp_network_send_t *const data)
 			status = CCIMP_STATUS_BUSY;
 		} else {
 			status = CCIMP_STATUS_ERROR;
-			log_error("ccimp_network_tcp_send(): send() failed, errno %d", err);
+			log_error("%s: send() failed, errno %d", __func__, err);
 #if (defined APP_SSL)
 			SSL_set_shutdown(ssl_ptr->ssl, SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN);
 #endif
@@ -234,7 +234,7 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 		in_addr_t ip_addr;
 		int const dns_resolve_error = dns_resolve(data->device_cloud.url, &ip_addr);
 		if (dns_resolve_error != 0) {
-			log_error("ccimp_network_tcp_open(): Can't resolve DNS for %s", data->device_cloud.url);
+			log_error("%s: Can't resolve DNS for %s", __func__, data->device_cloud.url);
 			status = CCIMP_STATUS_ERROR;
 			goto done;
 		}
@@ -262,7 +262,7 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 	/* Get socket info of connected interface */
 	interface_addr_len = sizeof interface_addr;
 	if (getsockname(*pfd, (struct sockaddr *) &interface_addr, &interface_addr_len)) {
-		log_error("ccimp_network_tcp_open(): getsockname error, errno %d", errno);
+		log_error("%s: getsockname error, errno %d", __func__, errno);
 		goto done;
 	}
 
@@ -271,7 +271,7 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 #if (defined APP_SSL)
 		log_debug("%s: openning SSL socket", __func__);
 		if (app_ssl_connect(ssl_info)) {
-			log_error("%s", "ccimp_network_tcp_open(): ssl connect error");
+			log_error("%s: ssl connect error", __func__);
 			status = CCIMP_STATUS_ERROR;
 			goto error;
 		}
@@ -283,13 +283,13 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 
 			if (ioctl(*pfd, FIONBIO, &enabled) < 0)
 			{
-				log_error("ccimp_network_tcp_open(): ioctl: FIONBIO failed, errno %d\n", errno);
+				log_error("%s: ioctl: FIONBIO failed, errno %d\n", __func__, errno);
 				status = CCIMP_STATUS_ERROR;
 				goto error;
 			}
 		}
 
-		log_info("ccimp_network_tcp_open(): connected to %s", data->device_cloud.url);
+		log_info("%s: connected to %s", __func__, data->device_cloud.url);
 		goto done;
 	}
 
@@ -301,14 +301,14 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 		elapsed_time = uptime.sys_uptime - connect_time;
 
 		if (elapsed_time >= APP_CONNECT_TIMEOUT) {
-			log_error("%s", "ccimp_network_tcp_open(): failed to connect within 30 seconds");
+			log_error("%s: failed to connect within 30 seconds", __func__);
 			status = CCIMP_STATUS_ERROR;
 		}
 	}
 
 error:
 	if (status == CCIMP_STATUS_ERROR) {
-		log_error("ccimp_network_tcp_open(): failed to connect to %s", data->device_cloud.url);
+		log_error("%s: failed to connect to %s", __func__, data->device_cloud.url);
 		dns_set_redirected(0);
 
 		if (pfd != NULL) {
@@ -335,10 +335,10 @@ static int app_tcp_create_socket(void)
 		int enabled = 1;
 
 		if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &enabled, sizeof enabled) < 0)
-			log_error("app_tcp_create_socket(): setsockopt SO_KEEPALIVE failed, errno %d", errno);
+			log_error("%s: setsockopt SO_KEEPALIVE failed, errno %d", __func__, errno);
 
 		if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &enabled, sizeof enabled) < 0)
-			log_error("app_tcp_create_socket(): setsockopt TCP_NODELAY failed, errno %d", errno);
+			log_error("%s: setsockopt TCP_NODELAY failed, errno %d", __func__, errno);
 	} else {
 		log_error("Could not open TCP socket, errno %d", errno);
 	}
@@ -359,7 +359,7 @@ static ccimp_status_t app_tcp_connect(int const fd, in_addr_t const ip_addr)
 #endif
 	sin.sin_family = AF_INET;
 
-	log_debug("app_tcp_connect(): fd %d", fd);
+	log_debug("%s: fd %d", __func__, fd);
 
 	if (connect(fd, (struct sockaddr *) &sin, sizeof sin) < 0) {
 		int const err = errno;
@@ -370,7 +370,7 @@ static ccimp_status_t app_tcp_connect(int const fd, in_addr_t const ip_addr)
 			status = CCIMP_STATUS_BUSY;
 			break;
 		default:
-			log_error("app_tcp_connect(): connect() failed, fd %d, errno %d", fd, err);
+			log_error("%s: connect() failed, fd %d, errno %d", __func__, fd, err);
 			status = CCIMP_STATUS_ERROR;
 		}
 	}
@@ -396,7 +396,7 @@ static ccimp_status_t app_is_tcp_connect_complete(int const fd)
 	rc = select(fd + 1, &read_set, &write_set, NULL, &timeout);
 	if (rc < 0) {
 		if (errno != EINTR) {
-			log_error("app_is_tcp_connect_complete(): select on fd %d returned %d, errno %d", fd, rc, errno);
+			log_error("%s: select on fd %d returned %d, errno %d", __func__, fd, rc, errno);
 			status = CCIMP_STATUS_ERROR;
 		}
 	} else {
@@ -405,7 +405,7 @@ static ccimp_status_t app_is_tcp_connect_complete(int const fd)
 			/* We expect "socket writable" when the connection succeeds. */
 			/* If we also got a "socket readable" we have an error. */
 			if (FD_ISSET(fd, &read_set)) {
-				log_error("app_is_tcp_connect_complete(): FD_ISSET for read, fd %d", fd);
+				log_error("%s: FD_ISSET for read, fd %d", __func__, fd);
 				status = CCIMP_STATUS_ERROR;
 			} else {
 				status = CCIMP_STATUS_OK;
@@ -441,7 +441,7 @@ static int app_load_certificate_and_key(SSL_CTX *const ctx)
 
 	ret = SSL_CTX_load_verify_locations(ctx, APP_SSL_CA_CERT_PATH, NULL);
 	if (ret != 1) {
-		log_error("app_load_certificate_and_key(): Failed to load CA cert %d", ret);
+		log_error("%s: Failed to load CA cert %d", __func__, ret);
 		ERR_print_errors_fp(stderr);
 		goto error;
 	}
@@ -450,13 +450,13 @@ static int app_load_certificate_and_key(SSL_CTX *const ctx)
 	SSL_CTX_set_default_passwd_cb(ctx, get_user_passwd);
 	ret = SSL_CTX_use_certificate_file(ctx, APP_SSL_CLNT_KEY, SSL_FILETYPE_PEM);
 	if (ret != 1) {
-		log_error("app_load_certificate_and_key(): SSL_use_certificate_file() Error [%d]", ret);
+		log_error("%s: SSL_use_certificate_file() Error [%d]", __func__, ret);
 		goto error;
 	}
 
 	ret = SSL_CTX_use_RSAPrivateKey_file(ctx, APP_SSL_CLNT_CERT, SSL_FILETYPE_PEM);
 	if (ret != 1) {
-		log_error("app_load_certificate_and_key():SSL_use_RSAPrivateKey_file() Error [%d]", ret);
+		log_error("%s: SSL_use_RSAPrivateKey_file() Error [%d]", __func__, ret);
 		goto error;
 	}
 #endif
@@ -484,13 +484,13 @@ static int app_verify_device_cloud_certificate(SSL *const ssl)
 	X509 *const device_cloud_cert = SSL_get_peer_certificate(ssl);
 
 	if (device_cloud_cert == NULL) {
-		log_error("%s", "app_verify_device_cloud_certificate(): No Remote Manager certificate is provided");
+		log_error("%s: No Remote Manager certificate is provided", __func__);
 		goto done;
 	}
 
 	ret = SSL_get_verify_result(ssl);
 	if (ret !=  X509_V_OK) {
-		log_error("app_verify_device_cloud_certificate(): Remote Manager certificate is invalid %d", ret);
+		log_error("%s: Remote Manager certificate is invalid %d", __func__, ret);
 		goto done;
 	}
 
@@ -512,7 +512,7 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 	ssl_ptr->ctx = SSL_CTX_new(TLSv1_client_method());
 #endif
 	if (ssl_ptr->ctx == NULL) {
-		log_error("%s", "app_ssl_connect(): ssl context is null");
+		log_error("%s: ssl context is null", __func__);
 		ERR_print_errors_fp(stderr);
 		goto error;
 	}
@@ -528,32 +528,32 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 		SSL_CTX_use_PrivateKey_file(ssl_ptr->ctx, key_filename, SSL_FILETYPE_PEM);
 		SSL_CTX_set_post_handshake_auth(ssl_ptr->ctx, 1);
 	} else {
-		log_error("app_ssl_connect(): Certificate file %s does not exist."
-			  " Maybe first connection?", key_filename);
+		log_error("%s: Certificate file %s does not exist. Maybe first connection?",
+			  __func__, key_filename);
 	}
 #endif
 	ssl_ptr->ssl = SSL_new(ssl_ptr->ctx);
 	if (ssl_ptr->ssl == NULL) {
-		log_error("%s", "app_ssl_connect(): error creating new SSL");
+		log_error("%s: error creating new SSL", __func__);
 		ERR_print_errors_fp(stderr);
 		goto error;
 	}
 
 	SSL_set_fd(ssl_ptr->ssl, *ssl_ptr->sfd);
 	if (app_load_certificate_and_key(ssl_ptr->ctx) != 1) {
-		log_error("%s", "app_ssl_connect(): error loading certificate and key");
+		log_error("%s: error loading certificate and key", __func__);
 		goto error;
 	}
 
 	SSL_set_options(ssl_ptr->ssl, SSL_OP_ALL);
 	if (SSL_connect(ssl_ptr->ssl) <= 0) {
-		log_error("app_ssl_connect(): error connecting using SSL %s", strerror(errno));
+		log_error("%s: error connecting using SSL %s", __func__, strerror(errno));
 		ERR_print_errors_fp(stderr);
 		goto error;
 	}
 
 	if (app_verify_device_cloud_certificate(ssl_ptr->ssl) != X509_V_OK) {
-		log_error("%s", "app_ssl_connect(): error verifying Cloud Connector certificate");
+		log_error("%s: error verifying Cloud Connector certificate", __func__);
 		goto error;
 	}
 

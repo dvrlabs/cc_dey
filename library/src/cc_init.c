@@ -232,24 +232,23 @@ static ccapi_receive_error_t edp_cert_update_cb(const char *target, ccapi_transp
 
 	UNUSED_PARAMETER(response_buffer_info);
 
-	log_debug("edp_cert_update_status_cb(): target='%s' - transport='%d'",
-		   target, transport);
+	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
 		fp = fopen(cc_cfg->client_cert_path, "w");
 		if (!fp) {
-			log_error("edp_cert_update_cb(): cannot open certificate %s: %s", cc_cfg->client_cert_path, strerror(errno));
+			log_error("%s: cannot open certificate %s: %s", __func__, cc_cfg->client_cert_path, strerror(errno));
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 		if (fwrite(request_buffer_info->buffer, sizeof(char), request_buffer_info->length, fp) < request_buffer_info->length) {
-			log_error("edp_cert_update_cb(): cannot write certificate %s", cc_cfg->client_cert_path);
+			log_error("%s: cannot write certificate %s", __func__, cc_cfg->client_cert_path);
 			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		} else {
-			log_debug("edp_cert_update_cb(): certificate saved at %s", cc_cfg->client_cert_path);
+			log_debug("%s: certificate saved at %s", __func__, cc_cfg->client_cert_path);
 			ret = CCAPI_RECEIVE_ERROR_NONE;
 		}
 		fclose(fp);
 	} else {
-		log_error("%s", "edp_cert_update_cb(): received invalid data");
+		log_error("%s: received invalid data", __func__);
 		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
 	}
 
@@ -261,11 +260,10 @@ static void edp_cert_update_status_cb(const char *target,
 				      ccapi_buffer_info_t *response_buffer_info,
 				      ccapi_receive_error_t receive_error)
 {
-	log_debug("edp_cert_update_status_cb(): target='%s' - transport='%d'",
-		   target, transport);
+	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("error on edp_cert_update_status_cb(): target='%s' - transport='%d' - error='%d'",
-			     target, transport, receive_error);
+		log_error("error on %s: target='%s' - transport='%d' - error='%d'",
+			     __func__, target, transport, receive_error);
 	}
 	/* Free the response buffer */
 	if (response_buffer_info != NULL)
@@ -456,8 +454,7 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 		error = CCAPI_TCP_START_ERROR_NULL_POINTER;
 		set_cloud_connection_status(CC_STATUS_DISCONNECTED);
 	} else if (error) {
-		log_debug("ccapi_start_transport_tcp() failed with error %d",
-			  error);
+		log_debug("%s failed with error %d", __func__, error);
 		if (error != CCAPI_TCP_START_ERROR_ALREADY_STARTED)
 			set_cloud_connection_status(CC_STATUS_DISCONNECTED);
 	} else {

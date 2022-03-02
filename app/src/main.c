@@ -232,7 +232,7 @@ void graceful_shutdown(void)
  */
 static void sigint_handler(int signum)
 {
-	log_debug("sigint_handler(): received signal %d to close Cloud connection.", signum);
+	log_debug("%s: received signal %d to close Cloud connection.", __func__, signum);
 	exit(0);
 }
 

@@ -109,7 +109,7 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t *const creat
 
 	ccode = pthread_attr_init(&attr);
 	if (ccode != 0) {
-		log_error("ccimp_os_create_thread(): pthread_attr_init() error %d", ccode);
+		log_error("%s: pthread_attr_init() error %d", __func__, ccode);
 		return (CCIMP_STATUS_ERROR);
 	}
 
@@ -137,7 +137,7 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t *const creat
 
 		s = posix_memalign(&sp, sysconf(_SC_PAGESIZE), stack_size);
 		if (s != 0) {
-			printf("ccimp_os_create_thread(): error in posix_memalign\n");
+			printf("%s: error in posix_memalign\n", __func__);
 			return (CCIMP_STATUS_ERROR);
 		}
 
@@ -145,14 +145,14 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t *const creat
 
 		s = pthread_attr_setstack(&attr, sp, stack_size);
 		if (s != 0) {
-			printf("ccimp_os_create_thread(): error in pthread_attr_setstack\n");
+			printf("%s: error in pthread_attr_setstack\n", __func__);
 			return (CCIMP_STATUS_ERROR);
 		}
 	}
 #endif
 	ccode = pthread_create(&pthread, &attr, thread_wrapper, create_thread_info);
 	if (ccode != 0) {
-		log_error("ccimp_os_create_thread(): pthread_create() error %d", ccode);
+		log_error("%s: pthread_create() error %d", __func__, ccode);
 		return (CCIMP_STATUS_ERROR);
 	}
 	add_thread_info(pthread);
@@ -182,7 +182,7 @@ ccimp_status_t ccimp_os_yield(void)
 	error = sched_yield();
 	if (error) {
 		/* In the Linux implementation this function always succeeds */
-		log_error("ccimp_os_yield(): sched_yield failed with %d", error);
+		log_error("%s: sched_yield failed with %d", __func__, error);
 	}
 	return CCIMP_STATUS_OK;
 }
@@ -193,13 +193,13 @@ ccimp_status_t ccimp_os_lock_create(ccimp_os_lock_create_t *const data)
 	sem_t * const sem = (sem_t *) malloc(sizeof *sem);
 
 	if (sem == NULL) {
-		log_error("%s", "ccimp_os_lock_create() insufficient memory");
+		log_error("%s: insufficient memory", __func__);
 		status = CCIMP_STATUS_ERROR;
 		goto done;
 	}
 
 	if (sem_init(sem, 0, 0) == -1) {
-		log_error("%s", "ccimp_os_lock_create() error");
+		log_error("%s: error", __func__);
 		free(sem);
 		status = CCIMP_STATUS_ERROR;
 		goto done;
@@ -273,7 +273,7 @@ ccimp_status_t ccimp_os_lock_release(ccimp_os_lock_release_t *const data)
 	assert(sem);
 
 	if (sem_post(sem) == -1) {
-		log_error("%s", "ccimp_os_lock_release() error");
+		log_error("%s: error", __func__);
 		return CCIMP_STATUS_ERROR;
 	}
 
@@ -287,7 +287,7 @@ ccimp_status_t ccimp_os_lock_destroy(ccimp_os_lock_destroy_t *const data)
 	assert(sem);
 
 	if (sem_destroy(sem) == -1) {
-		log_error("%s", "ccimp_os_lock_destroy() error");
+		log_error("%s: error", __func__);
 		return CCIMP_STATUS_ERROR;
 	}
 

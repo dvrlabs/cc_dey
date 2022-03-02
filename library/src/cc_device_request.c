@@ -86,8 +86,8 @@ ccapi_bool_t app_receive_default_accept_cb(char const *const target,
 		case CCAPI_TRANSPORT_SMS:
 	#endif
 			/* Don't accept requests from SMS and UDP transports */
-			log_dr_debug("app_receive_default_accept_cb(): not accepted request -"\
-					" target='%s' - transport='%d'", target, transport);
+			log_dr_debug("%s: not accepted request - target='%s' - transport='%d'",
+				      __func__, target, transport);
 			accept_target = CCAPI_FALSE;
 			break;
 	}
@@ -121,12 +121,11 @@ ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
 	size_t i;
 
 	/* Log request data */
-	log_dr_debug("app_receive_default_data_cb(): not registered target -"     \
-			" target='%s' - transport='%d'", target, transport);
+	log_dr_debug("%s: not registered target - target='%s' - transport='%d'",
+		     __func__, target, transport);
 	request_buffer = malloc(sizeof(char) * request_buffer_info->length + 1);
 	if (request_buffer == NULL) {
-		log_dr_error("%s", "app_receive_default_data_cb():"                   \
-				" request_buffer malloc error");
+		log_dr_error("%s: request_buffer malloc error", __func__);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 	for (i = 0 ; i < request_buffer_info->length ; i++)
@@ -134,13 +133,12 @@ ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
 	request_buffer[request_buffer_info->length] = '\0';
 	request_data = strtrim(request_buffer);
 	if (request_data == NULL) {
-		log_dr_error("%s", "app_receive_default_data_cb():"                   \
-				" request_data malloc error");
+		log_dr_error("%s: request_data malloc error", __func__);
 		free(request_buffer);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
-	log_dr_debug("app_receive_default_data_cb(): not registered target -"     \
-			" request='%s'", request_data);
+	log_dr_debug("%s: not registered target - request='%s'",
+		      __func__, request_data);
 	free(request_buffer);
 	free(request_data);
 
@@ -148,8 +146,8 @@ ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
 	if (response_buffer_info != NULL) {
 		response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE);
 		if (response_buffer_info->buffer == NULL) {
-			log_dr_error("%s", "app_receive_default_data_cb():" \
-					" response_buffer_info malloc error");
+			log_dr_error("%s: response_buffer_info malloc error",
+				     __func__);
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 		response_buffer_info->length = sprintf(response_buffer_info->buffer,
@@ -177,8 +175,8 @@ void app_receive_default_status_cb(char const *const target,
 		ccapi_buffer_info_t *const response_buffer_info,
 		ccapi_receive_error_t receive_error)
 {
-	log_dr_debug("app_receive_default_status_cb(): target='%s' -"             \
-			" transport='%d' - error='%d'", target, transport, receive_error);
+	log_dr_debug("%s: target='%s' - transport='%d' - error='%d'",
+		      __func__, target, transport, receive_error);
 	/* Free the response buffer */
 	if (response_buffer_info != NULL)
 		free(response_buffer_info->buffer);
