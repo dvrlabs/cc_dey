@@ -30,6 +30,10 @@
 /*------------------------------------------------------------------------------
                                   M A C R O S
 ------------------------------------------------------------------------------*/
+#ifndef UNUSED_ARGUMENT
+#define UNUSED_ARGUMENT(a)		(void)(a)
+#endif
+
 /**
  * init_logger() - Initialize the logger with the given log level
  *

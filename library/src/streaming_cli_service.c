@@ -33,10 +33,6 @@
 #include "cc_logging.h"
 #include "signals.h"
 
-#ifndef UNUSED_PARAMETER
-#define UNUSED_PARAMETER(a) (void)(a)
-#endif
-
 typedef enum {
 	sessionless_execute_state_init,
 	sessionless_execute_state_running,
@@ -257,7 +253,7 @@ static connector_callback_status_t end_session(connector_streaming_cli_session_e
 
 static connector_callback_status_t sessionless_execute(connector_streaming_cli_session_sessionless_execute_run_request_t * const request)
 {
-	UNUSED_PARAMETER(request);
+	UNUSED_ARGUMENT(request);
 
 	log_debug("    Called '%s'", __func__);
 
@@ -266,7 +262,7 @@ static connector_callback_status_t sessionless_execute(connector_streaming_cli_s
 
 static connector_callback_status_t sessionless_store(connector_streaming_cli_session_sessionless_execute_store_request_t * const request)
 {
-	UNUSED_PARAMETER(request);
+	UNUSED_ARGUMENT(request);
 
 	log_debug("    Called '%s'", __func__);
 

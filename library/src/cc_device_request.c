@@ -91,8 +91,8 @@ ccapi_bool_t app_receive_default_accept_cb(char const *const target,
 			break;
 	}
 #else
-	UNUSED_PARAMETER(transport);
-	UNUSED_PARAMETER(target);
+	UNUSED_ARGUMENT(transport);
+	UNUSED_ARGUMENT(target);
 #endif
 
 	return accept_target;

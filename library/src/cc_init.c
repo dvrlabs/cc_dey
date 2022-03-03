@@ -34,10 +34,6 @@
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
-#ifndef UNUSED_PARAMETER
-#define UNUSED_PARAMETER(a)			((void)(a))
-#endif
-
 #define DEVICE_ID_FORMAT	"%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX"
 
 #define CC_CONFIG_FILE		"/etc/cc.conf"
@@ -688,7 +684,7 @@ static void *reconnect_threaded(void *unused)
 
 	set_cloud_connection_status(CC_STATUS_CONNECTING);
 
-	UNUSED_PARAMETER(unused);
+	UNUSED_ARGUMENT(unused);
 
 	pthread_cleanup_push(reconnect_cleanup_handler, (void *)&tcp_info);
 

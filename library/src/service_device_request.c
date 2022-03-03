@@ -246,7 +246,7 @@ static ccapi_receive_error_t edp_cert_update_cb(const char *const target,
 	FILE *fp;
 	ccapi_receive_error_t ret;
 
-	UNUSED_PARAMETER(response_buffer_info);
+	UNUSED_ARGUMENT(response_buffer_info);
 
 	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {

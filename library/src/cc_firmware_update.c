@@ -34,10 +34,6 @@
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
-#ifndef UNUSED_PARAMETER
-#define UNUSED_PARAMETER(a)			((void)(a))
-#endif
-
 #define FW_UPDATE_TAG				"FW UPDATE:"
 
 #define REBOOT_TIMEOUT				1
@@ -348,8 +344,8 @@ void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_reset, ccap
 	unsigned int *reboot_timeout = NULL;
 	int error = 0;
 
-	UNUSED_PARAMETER(target);
-	UNUSED_PARAMETER(version);
+	UNUSED_ARGUMENT(target);
+	UNUSED_ARGUMENT(version);
 
 	*system_reset = CCAPI_FALSE;
 
