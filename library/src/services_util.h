@@ -20,9 +20,6 @@
 #ifndef SERVICES_UTIL_H
 #define SERVICES_UTIL_H
 
-#include <stdlib.h>
-#include <sys/types.h>
-#include <stdbool.h>
 #include "ccapi/ccapi.h"
 
 /*

@@ -17,24 +17,16 @@
  * ===========================================================================
  */
 
+#include <arpa/inet.h>
+#include <errno.h>
+#include <malloc.h>
+#include <stdbool.h>
+#include <unistd.h>
+
 #include "cc_logging.h"
 #include "ccapi/ccapi.h"
 #include "services_util.h"
 #include "service_device_request.h"
-
-#include <arpa/inet.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <malloc.h>
 
 ccapi_receive_service_t receive_service = { NULL, NULL, NULL };
 
@@ -238,113 +230,6 @@ out:
 
 	if (sock_fd >= 0)
 		close(sock_fd);
-}
-
-void builtin_request_done(const char *target,
-		ccapi_transport_t transport,
-		ccapi_buffer_info_t *response_buffer_info,
-		ccapi_receive_error_t receive_error)
-{
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE)
-		log_error("Error on device request response, target='%s' - transport='%d' - error='%d'",
-			target, transport, receive_error);
-}
-
-
-ccapi_receive_error_t builtin_request(char *builtin,
-			   ccapi_transport_t transport,
-			   const ccapi_buffer_info_t *request_buffer_info,
-			   ccapi_buffer_info_t *response_buffer_info)
-{
-	char *builtin_data = NULL;
-
-	/* The request buffer is not null-terminated, so create a null-terminated string */
-	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
-		builtin_data = malloc(request_buffer_info->length + sizeof(char));
-
-		if (builtin_data) {
-			memcpy(builtin_data, request_buffer_info->buffer, request_buffer_info->length);
-			*(builtin_data + request_buffer_info->length) = 0;
-		} else {
-			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-		}
-	}
-	pid_t pid = fork();
-	if (pid == (pid_t) -1)
-		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-
-	if (pid == (pid_t) 0) {
-		pid = fork();
-		if (pid == (pid_t) -1)
-			exit(1);
-		if (pid != (pid_t) 0)
-			exit(0);
-
-		if (builtin_data) {
-			char *argv[] = {"/bin/remote_builtin", builtin, builtin_data, NULL};
-			execv(argv[0], argv);
-		} else {
-			char *argv[] = {"/bin/remote_builtin", builtin, NULL};
-			execv(argv[0], argv);
-		}
-		exit(1);
-
-	} else {
-		int status, ret;
-
-		do {
-			ret = waitpid(pid, &status, 0);
-		} while (ret < 0 && errno == EINTR);
-
-		if (builtin_data)
-			free(builtin_data);
-
-		if (!WIFEXITED(status) || WEXITSTATUS(status) || ret != pid)
-			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-
-		if (!strcmp(builtin, "subscriptions")) {
-			response_buffer_info->buffer = strdup("{}");
-			/* Ignore the NULL termination */
-			response_buffer_info->length = 2 * sizeof(char);
-		} else {
-			response_buffer_info->length = 0;
-		}
-	}
-
-	return CCAPI_RECEIVE_ERROR_NONE;
-}
-
-ccapi_receive_error_t builtin_request_speedtest(const char *target,
-			   ccapi_transport_t transport,
-			   const ccapi_buffer_info_t *request_buffer_info,
-			   ccapi_buffer_info_t *response_buffer_info)
-{
-	return builtin_request("speedtest", transport, request_buffer_info, response_buffer_info);
-}
-
-
-ccapi_receive_error_t builtin_request_modem_firmware_update(const char *target,
-			   ccapi_transport_t transport,
-			   const ccapi_buffer_info_t *request_buffer_info,
-			   ccapi_buffer_info_t *response_buffer_info)
-{
-	return builtin_request("modem_firmware_update", transport, request_buffer_info, response_buffer_info);
-}
-
-ccapi_receive_error_t builtin_request_edp_certificate_update(const char *target,
-			   ccapi_transport_t transport,
-			   const ccapi_buffer_info_t *request_buffer_info,
-			   ccapi_buffer_info_t *response_buffer_info)
-{
-	return builtin_request("add_drm_certificate", transport, request_buffer_info, response_buffer_info);
-}
-
-ccapi_receive_error_t builtin_request_subscriptions(const char *target,
-			   ccapi_transport_t transport,
-			   const ccapi_buffer_info_t *request_buffer_info,
-			   ccapi_buffer_info_t *response_buffer_info)
-{
-	return builtin_request("subscriptions", transport, request_buffer_info, response_buffer_info);
 }
 
 static int read_request(int fd, request_data_t *out)

@@ -19,9 +19,11 @@
 
 #include <errno.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+
 #include "services_util.h"
 #include "cc_logging.h"
 

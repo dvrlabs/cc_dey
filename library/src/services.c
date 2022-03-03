@@ -17,25 +17,16 @@
  * ===========================================================================
  */
 
-#include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/ip.h>
-#include <signal.h>
+#include <pthread.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "ccapi/ccapi.h"
 #include "cc_logging.h"
 #include "service_device_request.h"
-#ifdef DO_COMMAND_SUPPORT
-#include "service_do_command.h"
-#endif
 #include "service_dp_upload.h"
-#include "service_name_upload.h"
 #include "services.h"
 #include "services_util.h"
 
@@ -44,33 +35,6 @@
 
 static bool received_sigterm = false;
 
-static void sigterm_handler(int signum)
-{
-	received_sigterm = true;
-}
-
-static int setup_sigterm_handler()
-{
-	struct sigaction act;
-	sigset_t set;
-
-	memset(&act, 0, sizeof(act));
-	act.sa_handler = sigterm_handler;
-	sigemptyset(&set);
-	sigaddset(&set, SIGTERM);
-
-	if (sigaction(SIGTERM, &act, NULL)) {
-		log_error("%s", "Failed to install signal handler");
-		return 1;
-	}
-
-	if (pthread_sigmask(SIG_UNBLOCK, &set, NULL)) {
-		log_error("%s", "Failed to unblock SIGTERM");
-		return 1;
-	}
-
-	return 0;
-}
 
 typedef int (*request_handler_t)(int socket_fd);
 
@@ -82,20 +46,6 @@ struct handler_t {
 		REQ_TAG_DP_FILE_REQUEST,
 		handle_datapoint_file_upload
 	},
-	{
-		REQ_TAG_NAME_REQUEST,
-		handle_name_upload
-	},
-#ifdef DO_COMMAND_SUPPORT
-	{
-		REQ_TAG_REGISTER_DC,
-		handle_register_do_command
-	},
-	{
-		REQ_TAG_UNREGISTER_DC,
-		handle_unregister_do_command
-	},
-#endif
 	{
 		REQ_TAG_REGISTER_DR,
 		handle_register_device_request
@@ -109,9 +59,6 @@ struct handler_t {
 static void handle_requests(int fd)
 {
 	int request_sock;
-
-	if (setup_sigterm_handler())
-		return;
 
 	while (!received_sigterm && (request_sock = accept4(fd, NULL, NULL, SOCK_CLOEXEC)) != -1) {
 		char *request_tag = NULL;

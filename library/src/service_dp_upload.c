@@ -17,10 +17,7 @@
  * ===========================================================================
  */
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "ccapi/ccapi.h"
 #include "cc_logging.h"
