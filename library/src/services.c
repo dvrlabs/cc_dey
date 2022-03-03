@@ -1,25 +1,22 @@
-/*****************************************************************************
- * Copyright 2019 Digi International Inc., All Rights Reserved
+/*
+ * Copyright (c) 2022 Digi International Inc.
  *
- * This software contains proprietary and confidential information of Digi
- * International Inc.  By accepting transfer of this copy, Recipient agrees
- * to retain this software in confidence, to prevent disclosure to others,
- * and to make no use of this software other than that for which it was
- * delivered.  This is an unpublished copyrighted work of Digi International
- * Inc.  Except as permitted by federal law, 17 USC 117, copying is strictly
- * prohibited.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * Restricted Rights Legend
- *
- * Use, duplication, or disclosure by the Government is subject to
- * restrictions set forth in sub-paragraph (c)(1)(ii) of The Rights in
- * Technical Data and Computer Software clause at DFARS 252.227-7031 or
- * subparagraphs (c)(1) and (2) of the Commercial Computer Software -
- * Restricted Rights at 48 CFR 52.227-19, as applicable.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  *
  * Digi International Inc., 9350 Excelsior Blvd., Suite 700, Hopkins, MN 55343
- ****************************************************************************/
- 
+ * ===========================================================================
+ */
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/ip.h>
@@ -62,14 +59,12 @@ static int setup_sigterm_handler()
 	sigemptyset(&set);
 	sigaddset(&set, SIGTERM);
 
-	if (sigaction(SIGTERM, &act, NULL))
-	{
+	if (sigaction(SIGTERM, &act, NULL)) {
 		log_error("%s", "Failed to install signal handler");
 		return 1;
 	}
 
-	if (pthread_sigmask(SIG_UNBLOCK, &set, NULL))
-	{
+	if (pthread_sigmask(SIG_UNBLOCK, &set, NULL)) {
 		log_error("%s", "Failed to unblock SIGTERM");
 		return 1;
 	}
@@ -114,14 +109,11 @@ struct handler_t {
 static void handle_requests(int fd)
 {
 	int request_sock;
-	
-	if (setup_sigterm_handler())
-	{
-		return;
-	}
 
-	while (!received_sigterm && (request_sock = accept4(fd, NULL, NULL, SOCK_CLOEXEC)) != -1)
-	{
+	if (setup_sigterm_handler())
+		return;
+
+	while (!received_sigterm && (request_sock = accept4(fd, NULL, NULL, SOCK_CLOEXEC)) != -1) {
 		char *request_tag = NULL;
 		int i;
 		bool handled = false;
@@ -129,43 +121,35 @@ static void handle_requests(int fd)
 			.tv_sec = 20,
 			.tv_usec = 0
 		};
+
 		/* Read request tag (to select handler for this request) */
-		if (read_string(request_sock, &request_tag, NULL, &timeout) < 0)
-		{
+		if (read_string(request_sock, &request_tag, NULL, &timeout) < 0) {
 			send_error(request_sock, "Failed to read request code");
 			log_error("Error reading request tag, %s", strerror(errno));
 			close(request_sock);
 			continue;
 		}
-		
+
 		/* Invoke the corresponding handler (only one handler per request */
-		for (i = 0; i < ARRAY_SIZE(request_handlers); i++)
-		{
+		for (i = 0; i < ARRAY_SIZE(request_handlers); i++) {
 			const struct handler_t *handler = &request_handlers[i];
 
-			if (!strcmp(request_tag, handler->request_tag))
-			{
+			if (!strcmp(request_tag, handler->request_tag)) {
 				if (handler->request_handler(request_sock))
-				{
 					log_error("Error handling request tagged with: '%s'", request_tag);
-				}
-				handled = true;
 
+				handled = true;
 				break;
 			}
 		}
 
 		/* Error on requets that cannot be handled, and clean up */
 		if (!handled)
-		{
 			send_error(request_sock, "Invalid request type");
-		}
 
 		if (close(request_sock) < 0)
-		{
 			log_warning("could not close service socket after attending request: %s", strerror(errno));
-		}
-		
+
 		free(request_tag);
 	}
 }
@@ -178,21 +162,16 @@ void listen_for_requests()
 
 	fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (fd == -1)
-	{
 		return;
-	}
 
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &n_options, sizeof(n_options)) < 0)
-	{
 		log_warning("Failed to set SO_REUSE* on request serversocket: %s", strerror(errno));
-	}
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(CONNECTOR_REQUEST_PORT);
 	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-	if (bind(fd, (struct sockaddr *) &addr, sizeof addr) || listen(fd, 3))
-	{
+	if (bind(fd, (struct sockaddr *) &addr, sizeof addr) || listen(fd, 3)) {
 		log_error("%s", "Failed to bind to local socket");
 		goto done;
 	}
