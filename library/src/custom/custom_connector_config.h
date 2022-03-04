@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Digi International Inc.
+ * Copyright (c) 2017-2022 Digi International Inc.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -32,6 +32,7 @@
 #define CCIMP_RCI_SERVICE_ENABLED
 #define CCIMP_FIRMWARE_SERVICE_ENABLED
 #define CCIMP_FILE_SYSTEM_SERVICE_ENABLED
+#define CCIMP_STREAMING_CLI_SERVICE_ENABLED
 
 /* OS Features */
 #define CCIMP_LITTLE_ENDIAN

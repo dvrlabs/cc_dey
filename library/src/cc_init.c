@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Digi International Inc.
+ * Copyright (c) 2017-2022 Digi International Inc.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -68,6 +68,7 @@ static int is_zero_array(const uint8_t *array, size_t size);
 extern ccapi_rci_data_t const ccapi_rci_data;
 extern connector_remote_config_data_t rci_internal_data;
 static ccapi_rci_service_t rci_service;
+extern ccapi_streaming_cli_service_t streaming_cli_service;
 static volatile cc_status_t connection_status = CC_STATUS_DISCONNECTED;
 static pthread_t reconnect_thread;
 cc_cfg_t *cc_cfg = NULL;
@@ -397,6 +398,9 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 
 	/* Initialize CLI service. */
 	start->service.cli = NULL;
+
+	/* Initialize Streaming CLI */
+	start->service.streaming_cli = &streaming_cli_service,
 
 	/* Initialize RCI service. */
 	rci_service.rci_data = &ccapi_rci_data;
