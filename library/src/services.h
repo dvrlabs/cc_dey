@@ -20,6 +20,7 @@
 #ifndef SERVICES_H
 #define SERVICES_H
 
-void listen_for_requests(void);
+void start_listening_for_local_requests(void);
+void stop_listening_for_local_requests(void);
 
 #endif

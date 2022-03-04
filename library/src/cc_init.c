@@ -30,6 +30,7 @@
 #include "cc_system_monitor.h"
 #include "network_utils.h"
 #include "service_device_request.h"
+#include "services.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -216,6 +217,8 @@ cc_start_error_t start_cloud_connection(void)
 	if (sys_mon_error != CC_SYS_MON_ERROR_NONE)
 		return CC_START_ERROR_SYSTEM_MONITOR;
 
+	start_listening_for_local_requests();
+
 	log_info("%s", "Cloud connection started");
 
 	return CC_START_ERROR_NONE;
@@ -231,10 +234,31 @@ cc_stop_error_t stop_cloud_connection(void)
 	cc_stop_error_t stop_error = CC_STOP_ERROR_NONE;
 	ccapi_stop_error_t ccapi_error;
 
+	stop_listening_for_local_requests();
+
 	if (!pthread_equal(reconnect_thread, 0))
 		pthread_cancel(reconnect_thread);
 
 	stop_system_monitor();
+
+	{
+		ccapi_tcp_stop_t tcp_stop = { .behavior = CCAPI_TRANSPORT_STOP_GRACEFULLY };
+		ccapi_stop_transport_tcp(&tcp_stop);
+	}
+
+#ifdef CCIMP_SMS_TRANSPORT_ENABLED
+	{
+		ccapi_sms_stop_t sms_stop = { .behavior = CCAPI_TRANSPORT_STOP_GRACEFULLY };
+		ccapi_stop_transport_sms(&sms_stop);
+	}
+#endif
+#ifdef CCIMP_UDP_TRANSPORT_ENABLED
+	{
+		ccapi_udp_stop_t udp_stop = { .behavior = CCAPI_TRANSPORT_STOP_GRACEFULLY };
+		ccapi_stop_transport_udp(&udp_stop);
+	}
+#endif
+
 	ccapi_error = ccapi_stop(CCAPI_STOP_GRACEFULLY);
 
 	if (ccapi_error == CCAPI_STOP_ERROR_NONE) {

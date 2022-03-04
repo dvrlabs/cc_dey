@@ -33,8 +33,9 @@
 #define CONNECTOR_REQUEST_PORT	977
 #define REQUEST_TAG_MAX_LENGTH	64
 
-static bool received_sigterm = false;
-
+static pthread_t listen_thread;
+static bool listen_thread_valid;
+static volatile bool stop_listening = false;
 
 typedef int (*request_handler_t)(int socket_fd);
 
@@ -60,7 +61,7 @@ static void handle_requests(int fd)
 {
 	int request_sock;
 
-	while (!received_sigterm && (request_sock = accept4(fd, NULL, NULL, SOCK_CLOEXEC)) != -1) {
+	while (!stop_listening && (request_sock = accept4(fd, NULL, NULL, SOCK_CLOEXEC)) != -1) {
 		char *request_tag = NULL;
 		unsigned long i;
 		bool handled = false;
@@ -68,7 +69,6 @@ static void handle_requests(int fd)
 			.tv_sec = 20,
 			.tv_usec = 0
 		};
-
 		/* Read request tag (to select handler for this request) */
 		if (read_string(request_sock, &request_tag, NULL, &timeout) < 0) {
 			send_error(request_sock, "Failed to read request code");
@@ -86,6 +86,7 @@ static void handle_requests(int fd)
 					log_error("Error handling request tagged with: '%s'", request_tag);
 
 				handled = true;
+
 				break;
 			}
 		}
@@ -95,21 +96,23 @@ static void handle_requests(int fd)
 			send_error(request_sock, "Invalid request type");
 
 		if (close(request_sock) < 0)
-			log_warning("could not close service socket after attending request: %s", strerror(errno));
+			log_warning("Could not close service socket after attending request: %s", strerror(errno));
 
 		free(request_tag);
 	}
 }
 
-void listen_for_requests(void)
+static void *listen_threaded(void *unused)
 {
 	struct sockaddr_in addr;
 	int fd;
 	int n_options = 1;
 
+	UNUSED_ARGUMENT(unused);
+
 	fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (fd == -1)
-		return;
+		return NULL;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &n_options, sizeof(n_options)) < 0)
 		log_warning("Failed to set SO_REUSE* on request serversocket: %s", strerror(errno));
@@ -127,4 +130,38 @@ void listen_for_requests(void)
 
 done:
 	close(fd);
+
+	pthread_exit(NULL);
+
+	return NULL;
+}
+
+void start_listening_for_local_requests(void)
+{
+	pthread_attr_t attr;
+
+	listen_thread_valid = (pthread_attr_init(&attr) == 0);
+	if (!listen_thread_valid) {
+		log_error("Unable to start listening for requests (%d)", listen_thread_valid);
+		return;
+	}
+
+	listen_thread_valid = (pthread_create(&listen_thread, &attr, listen_threaded, NULL) == 0);
+	if (!listen_thread_valid)
+		log_error("Unable to start sending response (%d)", listen_thread_valid);
+
+	pthread_attr_destroy(&attr);
+}
+
+void stop_listening_for_local_requests(void)
+{
+	if (stop_listening)
+		return;
+
+	stop_listening = true;
+
+	if (listen_thread_valid) {
+		pthread_cancel(listen_thread);
+		pthread_join(listen_thread, NULL);
+	}
 }
