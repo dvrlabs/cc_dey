@@ -24,8 +24,13 @@
 
 int set_signals(struct sigaction const sigpipe, int const sigterm_mask);
 
-#define _sigaction(handler, flags)  (struct sigaction){ .sa_handler = (handler), .sa_flags = (flags) }
-#define disable_signals()           set_signals(_sigaction(SIG_IGN, 0), SIG_BLOCK)
-#define enable_signals()            set_signals(_sigaction(SIG_DFL, 0), SIG_UNBLOCK)
+#define _sigaction(handler, flags) \
+	(struct sigaction){ .sa_handler = (handler), .sa_flags = (flags) }
 
-#endif
+#define disable_signals() \
+	set_signals(_sigaction(SIG_IGN, 0), SIG_BLOCK)
+
+#define enable_signals() \
+	set_signals(_sigaction(SIG_DFL, 0), SIG_UNBLOCK)
+
+#endif /* SIGNALS_H */

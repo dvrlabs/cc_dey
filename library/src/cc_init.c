@@ -17,17 +17,17 @@
  * ===========================================================================
  */
 
-#include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "cc_config.h"
-#include "cc_init.h"
-#include "cc_logging.h"
 #include "cc_device_request.h"
 #include "cc_firmware_update.h"
+#include "cc_init.h"
+#include "cc_logging.h"
 #include "cc_system_monitor.h"
 #include "network_utils.h"
 
@@ -122,8 +122,7 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 
 	ccapi_error = initialize_ccapi(cc_cfg);
 	if (ccapi_error != CCAPI_START_ERROR_NONE) {
-		switch(ccapi_error)
-		{
+		switch(ccapi_error) {
 			case CCAPI_START_ERROR_NONE:
 				return CC_INIT_ERROR_NONE;
 			case CCAPI_START_ERROR_NULL_PARAMETER:
@@ -273,8 +272,7 @@ cc_start_error_t start_cloud_connection(void)
 	tcp_start_error = initialize_tcp_transport(cc_cfg);
 	if (tcp_start_error != CCAPI_TCP_START_ERROR_NONE) {
 		log_error("Error initializing TCP transport: error %d", tcp_start_error);
-		switch(tcp_start_error)
-		{
+		switch(tcp_start_error) {
 			case CCAPI_TCP_START_ERROR_NONE:
 				return CC_START_ERROR_NONE;
 			case CCAPI_TCP_START_ERROR_ALREADY_STARTED:
@@ -387,6 +385,7 @@ static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg)
 		log_debug("ccapi_start() error %d", error);
 
 	free_ccapi_start_struct(start_st);
+
 	return error;
 }
 
@@ -434,6 +433,7 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 	}
 
 	free_ccapi_tcp_start_info_struct(tcp_info);
+
 	return error;
 }
 
@@ -599,6 +599,7 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 {
 	ccapi_tcp_info_t *tcp_info = malloc(sizeof *tcp_info);
 	iface_info_t active_interface;
+
 	if (tcp_info == NULL) {
 		log_error("%s", "Cannot allocate memory to start TCP Cloud Connection");
 		return tcp_info;
@@ -807,8 +808,8 @@ static void *reconnect_threaded(void *unused)
 	}
 
 	pthread_cleanup_pop(1);
-
 	pthread_exit(NULL);
+
 	return NULL;
 }
 

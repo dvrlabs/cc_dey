@@ -17,10 +17,12 @@
  * ===========================================================================
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include <ccapi/ccapi.h>
+
 #include "wifi.h"
 #include "cc_logging.h"
 #include "string_utils.h"
@@ -207,29 +209,29 @@ static int read_param_from_file(const char *param, char *value)
 		delete_leading_spaces(line);
 		delete_newline_character(line);
 		switch (state) {
-		case OUSIDE_NETWORK:
-			if (strncmp(line, "network={", strlen("network={")) == 0) {
-				/* Start 'network' section */
-				state = INSIDE_NETWORK;
-			}
-			break;
-		case INSIDE_NETWORK:
-			/* Within 'network' section */
-			if (line[0] == '}') {
-				/* End of 'network' section */
-				if (gotfield)
-					goto done;
-				else
+			case OUSIDE_NETWORK:
+				if (strncmp(line, "network={", strlen("network={")) == 0) {
+					/* Start 'network' section */
+					state = INSIDE_NETWORK;
+				}
+				break;
+			case INSIDE_NETWORK:
+				/* Within 'network' section */
+				if (line[0] == '}') {
+					/* End of 'network' section */
+					if (gotfield)
+						goto done;
+					else
+						state = OUSIDE_NETWORK;
+				} else if (strncmp(line, field, strlen(field)) == 0) {
+					strcpy(value, line + strlen(field));
+					gotfield = 1;
+				} else if (strncmp(line, "disabled=1", strlen("disabled=1")) == 0) {
+					/* Section is not valid. Reset flags and start again. */
 					state = OUSIDE_NETWORK;
-			} else if (strncmp(line, field, strlen(field)) == 0) {
-				strcpy(value, line + strlen(field));
-				gotfield = 1;
-			} else if (strncmp(line, "disabled=1", strlen("disabled=1")) == 0) {
-				/* Section is not valid. Reset flags and start again. */
-				state = OUSIDE_NETWORK;
-				gotfield = 0;
-			}
-			break;
+					gotfield = 0;
+				}
+				break;
 		}
 	}
 

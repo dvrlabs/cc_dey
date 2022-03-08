@@ -17,14 +17,14 @@
  * ===========================================================================
  */
 
-#include <stdlib.h>
-#include <libgen.h>
-#include <unistd.h>
+#include <confuse.h>
 #include <errno.h>
-#include <string.h>
+#include <libgen.h>
 #include <limits.h>
 #include <regex.h>
-#include <confuse.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "ccapi/ccapi.h"
 #include "cc_config.h"
@@ -267,15 +267,15 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 
 	/* Parse the configuration file. */
 	switch (cfg_parse(cfg, filename)) {
-	case CFG_FILE_ERROR:
-		log_error("Configuration file '%s' could not be read: %s\n", filename,
-				strerror(errno));
-		return -1;
-	case CFG_SUCCESS:
-		break;
-	case CFG_PARSE_ERROR:
-		log_error("Error parsing configuration file '%s'\n", filename);
-		return -1;
+		case CFG_FILE_ERROR:
+			log_error("Configuration file '%s' could not be read: %s\n", filename,
+					strerror(errno));
+			return -1;
+		case CFG_SUCCESS:
+			break;
+		case CFG_PARSE_ERROR:
+			log_error("Error parsing configuration file '%s'\n", filename);
+			return -1;
 	}
 
 	return fill_connector_config(cc_cfg);
@@ -567,23 +567,23 @@ static int cfg_check_vendor_id(cfg_t *cfg, cfg_opt_t *opt)
 
 	value = strtoul(val, &endptr, 16);
 	switch (errno) {
-	case 0:
-		if (*endptr != 0) {
-			cfg_error(cfg, "Invalid %s (%s): value contains invalid characters",
-					opt->name, val);
+		case 0:
+			if (*endptr != 0) {
+				cfg_error(cfg, "Invalid %s (%s): value contains invalid characters",
+						opt->name, val);
+				return -1;
+			}
+			if (value == 0 || value >= SETTING_VENDOR_ID_MAX) {
+				cfg_error(cfg, "Invalid %s (%s): value must be between 0 and 0x%08lX",
+						opt->name, val, SETTING_VENDOR_ID_MAX);
+				return -1;
+			}
+			break;
+		case ERANGE:
+			cfg_error(cfg, "Invalid %s (%s): value out of range", opt->name, val);
 			return -1;
-		}
-		if (value == 0 || value >= SETTING_VENDOR_ID_MAX) {
-			cfg_error(cfg, "Invalid %s (%s): value must be between 0 and 0x%08lX",
-					opt->name, val, SETTING_VENDOR_ID_MAX);
-			return -1;
-		}
-		break;
-	case ERANGE:
-		cfg_error(cfg, "Invalid %s (%s): value out of range", opt->name, val);
-		return -1;
-	default:
-		break;
+		default:
+			break;
 	}
 
 	return 0;
@@ -650,6 +650,7 @@ static int cfg_check_fw_version(cfg_t *cfg, cfg_opt_t *opt)
 
 done:
 	regfree(&regex);
+
 	return error;
 }
 
@@ -668,6 +669,7 @@ static int cfg_check_rm_url(cfg_t *cfg, cfg_opt_t *opt)
 		cfg_error(cfg, "Invalid %s (%s): cannot be empty", opt->name, val);
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -827,6 +829,7 @@ static int cfg_check_range(cfg_t *cfg, cfg_opt_t *opt, uint32_t min, uint32_t ma
 		cfg_error(cfg, "Invalid %s (%d): value must be between %d and %d", opt->name, val, min, max);
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -848,6 +851,7 @@ static int cfg_check_float_range(cfg_t *cfg, cfg_opt_t *opt, float min, float ma
 		cfg_error(cfg, "Invalid %s (%f): value must be between %f and %f", opt->name, val, min, max);
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -962,6 +966,7 @@ static int check_vendor_id(unsigned long value)
 				SETTING_VENDOR_ID, value, SETTING_VENDOR_ID_MAX);
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -988,6 +993,7 @@ static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg)
 		log_info("%s", "Cannot initialize virtual directories");
 		cc_cfg->n_vdirs = 0;
 		cc_cfg->vdirs = NULL;
+
 		return;
 	}
 
@@ -1011,12 +1017,14 @@ static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg)
 static int get_log_level(void)
 {
 	char *level = cfg_getstr(cfg, SETTING_LOG_LEVEL);
+
 	if (level == NULL || strlen(level) == 0)
 		return LOG_LEVEL_ERROR;
 	if (strcmp(level, LOG_LEVEL_DEBUG_STR) == 0)
 		return LOG_LEVEL_DEBUG;
 	if (strcmp(level, LOG_LEVEL_INFO_STR) == 0)
 		return LOG_LEVEL_INFO;
+
 	return LOG_LEVEL_ERROR;
 }
 

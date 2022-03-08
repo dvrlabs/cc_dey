@@ -17,20 +17,20 @@
  * ===========================================================================
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <openssl/md5.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <dirent.h>
-#include <errno.h>
-#include <openssl/md5.h>
+#include <unistd.h>
 
-#include "ccimp/ccimp_filesystem.h"
 #include "cc_logging.h"
+#include "ccimp/ccimp_filesystem.h"
 
 /*------------------------------------------------------------------------------
 							 D E F I N I T I O N S
@@ -204,8 +204,7 @@ ccimp_status_t ccimp_fs_file_close(ccimp_fs_file_close_t \
 	ccimp_status_t status = CCIMP_STATUS_OK;
 	int result = close(file_close_data->handle);
 
-	if (result < 0)
-	{
+	if (result < 0) {
 		file_close_data->errnum = errno;
 		status = CCIMP_STATUS_ERROR;
 	}
@@ -232,16 +231,16 @@ ccimp_status_t ccimp_fs_file_seek(ccimp_fs_file_seek_t *const file_seek_data)
 	off_t offset;
 
 	switch (file_seek_data->origin) {
-	case CCIMP_SEEK_SET:
-		origin = SEEK_SET;
-		break;
-	case CCIMP_SEEK_END:
-		origin = SEEK_END;
-		break;
-	case CCIMP_SEEK_CUR:
-	default:
-		origin = SEEK_CUR;
-		break;
+		case CCIMP_SEEK_SET:
+			origin = SEEK_SET;
+			break;
+		case CCIMP_SEEK_END:
+			origin = SEEK_END;
+			break;
+		case CCIMP_SEEK_CUR:
+		default:
+			origin = SEEK_CUR;
+			break;
 	}
 	offset = lseek(file_seek_data->handle,
 			file_seek_data->requested_offset, origin);
@@ -470,21 +469,20 @@ ccimp_status_t ccimp_fs_hash_alg(ccimp_fs_get_hash_alg_t \
 		*const hash_status_data)
 {
 	switch (hash_status_data->hash_alg.requested) {
-	case CCIMP_FS_HASH_NONE:
-	case CCIMP_FS_HASH_SHA3_512:
+		case CCIMP_FS_HASH_NONE:
+		case CCIMP_FS_HASH_SHA3_512:
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-		hash_status_data->hash_alg.actual = CCIMP_FS_HASH_NONE;
-		break;
+			hash_status_data->hash_alg.actual = CCIMP_FS_HASH_NONE;
+			break;
 #endif
-	case CCIMP_FS_HASH_SHA512:
-	case CCIMP_FS_HASH_MD5:
-	case CCIMP_FS_HASH_CRC32:
-		hash_status_data->hash_alg.actual = \
-		hash_status_data->hash_alg.requested;
-		break;
-	case CCIMP_FS_HASH_BEST:
-		hash_status_data->hash_alg.actual = CCIMP_FS_HASH_MD5;
-		break;
+		case CCIMP_FS_HASH_SHA512:
+		case CCIMP_FS_HASH_MD5:
+		case CCIMP_FS_HASH_CRC32:
+			hash_status_data->hash_alg.actual = hash_status_data->hash_alg.requested;
+			break;
+		case CCIMP_FS_HASH_BEST:
+			hash_status_data->hash_alg.actual = CCIMP_FS_HASH_MD5;
+			break;
 	}
 
 	return CCIMP_STATUS_OK;
@@ -507,19 +505,19 @@ ccimp_status_t ccimp_fs_hash_file(ccimp_fs_hash_file_t *const file_hash_data)
 	ccimp_status_t status = CCIMP_STATUS_OK;
 
 	switch (file_hash_data->hash_algorithm) {
-	case CCIMP_FS_HASH_CRC32:
-		status = app_calc_crc32(file_hash_data->path,
-				file_hash_data->hash_value, file_hash_data->bytes_requested);
-		break;
-	case CCIMP_FS_HASH_MD5:
-		status = app_calc_md5(file_hash_data->path,
-				file_hash_data->hash_value, file_hash_data->bytes_requested);
-		break;
-	case CCIMP_FS_HASH_NONE:
-	case CCIMP_FS_HASH_SHA3_512:
-	case CCIMP_FS_HASH_SHA512:
-	case CCIMP_FS_HASH_BEST:
-		break;
+		case CCIMP_FS_HASH_CRC32:
+			status = app_calc_crc32(file_hash_data->path,
+					file_hash_data->hash_value, file_hash_data->bytes_requested);
+			break;
+		case CCIMP_FS_HASH_MD5:
+			status = app_calc_md5(file_hash_data->path,
+					file_hash_data->hash_value, file_hash_data->bytes_requested);
+			break;
+		case CCIMP_FS_HASH_NONE:
+		case CCIMP_FS_HASH_SHA3_512:
+		case CCIMP_FS_HASH_SHA512:
+		case CCIMP_FS_HASH_BEST:
+			break;
 	}
 
 	return status;
@@ -556,32 +554,32 @@ ccimp_status_t ccimp_fs_error_desc(ccimp_fs_error_desc_t \
 	}
 
 	switch(errnum) {
-	case EACCES:
-	case EPERM:
-	case EROFS:
-		error_desc_data->error_status = CCIMP_FS_ERROR_PERMISSION_DENIED;
-		break;
-	case ENOMEM:
-	case ENAMETOOLONG:
-		error_desc_data->error_status = CCIMP_FS_ERROR_INSUFFICIENT_MEMORY;
-		break;
-	case ENOENT:
-	case ENODEV:
-	case EBADF:
-		error_desc_data->error_status = CCIMP_FS_ERROR_PATH_NOT_FOUND;
-		break;
-	case EINVAL:
-	case ENOSYS:
-	case ENOTDIR:
-	case EISDIR:
-		error_desc_data->error_status = CCIMP_FS_ERROR_INVALID_PARAMETER;
-		break;
-	case ENOSPC:
-		error_desc_data->error_status = CCIMP_FS_ERROR_INSUFFICIENT_SPACE;
-		break;
-	default:
-		error_desc_data->error_status = CCIMP_FS_ERROR_UNKNOWN;
-		break;
+		case EACCES:
+		case EPERM:
+		case EROFS:
+			error_desc_data->error_status = CCIMP_FS_ERROR_PERMISSION_DENIED;
+			break;
+		case ENOMEM:
+		case ENAMETOOLONG:
+			error_desc_data->error_status = CCIMP_FS_ERROR_INSUFFICIENT_MEMORY;
+			break;
+		case ENOENT:
+		case ENODEV:
+		case EBADF:
+			error_desc_data->error_status = CCIMP_FS_ERROR_PATH_NOT_FOUND;
+			break;
+		case EINVAL:
+		case ENOSYS:
+		case ENOTDIR:
+		case EISDIR:
+			error_desc_data->error_status = CCIMP_FS_ERROR_INVALID_PARAMETER;
+			break;
+		case ENOSPC:
+			error_desc_data->error_status = CCIMP_FS_ERROR_INSUFFICIENT_SPACE;
+			break;
+		default:
+			error_desc_data->error_status = CCIMP_FS_ERROR_UNKNOWN;
+			break;
 	}
 
 	return CCIMP_STATUS_OK;

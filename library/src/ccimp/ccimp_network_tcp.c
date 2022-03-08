@@ -91,13 +91,14 @@ ccimp_status_t ccimp_network_tcp_close(ccimp_network_close_t *const data)
 #if (defined APP_SSL)
 	/* send close notify to peer */
 	if (SSL_shutdown(ssl_ptr->ssl) == 0)
-		SSL_shutdown(ssl_ptr->ssl);  /* wait for peer's close notify */
+		SSL_shutdown(ssl_ptr->ssl); /* wait for peer's close notify */
 
 	app_free_ssl_info(ssl_ptr);
 #endif
 
 	*fd = -1;
 	free(fd);
+
 	return status;
 }
 
@@ -148,6 +149,7 @@ ccimp_status_t ccimp_network_tcp_receive(ccimp_network_receive_t *const data)
 		/* An error of some sort occurred: handle it appropriately. */
 #if (defined APP_SSL)
 		int ssl_error = SSL_get_error(ssl_ptr->ssl, read_bytes);
+
 		if (ssl_error == SSL_ERROR_WANT_READ) {
 			status = CCIMP_STATUS_BUSY;
 			goto done;
@@ -163,6 +165,7 @@ ccimp_status_t ccimp_network_tcp_receive(ccimp_network_receive_t *const data)
 			status = CCIMP_STATUS_ERROR;
 		}
 	}
+
 done:
 	return status;
 }
@@ -281,8 +284,7 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 		{
 			int enabled = 1;
 
-			if (ioctl(*pfd, FIONBIO, &enabled) < 0)
-			{
+			if (ioctl(*pfd, FIONBIO, &enabled) < 0) {
 				log_error("%s: ioctl: FIONBIO failed, errno %d\n", __func__, errno);
 				status = CCIMP_STATUS_ERROR;
 				goto error;
@@ -363,15 +365,16 @@ static ccimp_status_t app_tcp_connect(int const fd, in_addr_t const ip_addr)
 
 	if (connect(fd, (struct sockaddr *) &sin, sizeof sin) < 0) {
 		int const err = errno;
+
 		switch (err) {
-		case EINTR:
-		case EAGAIN:
-		case EINPROGRESS:
-			status = CCIMP_STATUS_BUSY;
-			break;
-		default:
-			log_error("%s: connect() failed, fd %d, errno %d", __func__, fd, err);
-			status = CCIMP_STATUS_ERROR;
+			case EINTR:
+			case EAGAIN:
+			case EINPROGRESS:
+				status = CCIMP_STATUS_BUSY;
+				break;
+			default:
+				log_error("%s: connect() failed, fd %d, errno %d", __func__, fd, err);
+				status = CCIMP_STATUS_ERROR;
 		}
 	}
 
@@ -412,12 +415,13 @@ static ccimp_status_t app_is_tcp_connect_complete(int const fd)
 			}
 		}
 	}
+
 	return status;
 }
 
 #if (defined APP_SSL)
 #if (defined APP_SSL_CLNT_CERT)
-static int get_user_passwd(char * buf, int size, int rwflag, void * password)
+static int get_user_passwd(char *buf, int size, int rwflag, void *password)
 {
 	char const passwd[] = APP_SSL_CLNT_CERT_PASSWORD;
 	int const pwd_bytes = ARRAY_SIZE(passwd) - 1;
@@ -496,6 +500,7 @@ static int app_verify_device_cloud_certificate(SSL *const ssl)
 
 done:
 	X509_free(device_cloud_cert);
+
 	return ret;
 }
 

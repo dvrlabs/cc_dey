@@ -17,12 +17,13 @@
  * ===========================================================================
  */
 
-#include <unistd.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include "file_utils.h"
+#include <unistd.h>
+
 #include "cc_logging.h"
+#include "file_utils.h"
 
 /**
  * file_exists() - Check that the file with the given name exists

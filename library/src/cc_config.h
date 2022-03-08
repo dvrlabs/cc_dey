@@ -21,8 +21,8 @@
 #define CC_CONFIG_H_
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "ccimp/ccimp_types.h"
 

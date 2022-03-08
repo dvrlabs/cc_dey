@@ -17,8 +17,8 @@
  * ===========================================================================
  */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #include "cc_device_request.h"
 #include "cc_logging.h"
@@ -77,14 +77,13 @@ ccapi_bool_t app_receive_default_accept_cb(char const *const target,
 	ccapi_bool_t accept_target = CCAPI_TRUE;
 
 #if (defined CCIMP_UDP_TRANSPORT_ENABLED || defined CCIMP_SMS_TRANSPORT_ENABLED)
-	switch (transport)
-	{
-	#if (defined CCIMP_UDP_TRANSPORT_ENABLED)
+	switch (transport) {
+#if (defined CCIMP_UDP_TRANSPORT_ENABLED)
 		case CCAPI_TRANSPORT_UDP:
-	#endif
-	#if (defined CCIMP_SMS_TRANSPORT_ENABLED)
+#endif
+#if (defined CCIMP_SMS_TRANSPORT_ENABLED)
 		case CCAPI_TRANSPORT_SMS:
-	#endif
+#endif
 			/* Don't accept requests from SMS and UDP transports */
 			log_dr_debug("%s: not accepted request - target='%s' - transport='%d'",
 				      __func__, target, transport);

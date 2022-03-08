@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 #include "ccapi/ccapi.h"
 #include "cc_logging.h"
 #include "signals.h"
@@ -72,6 +73,7 @@ static int exec_cli(void)
 
 	ret = execve(argv[0], (char * const *)argv, (char * const *)envp);
 	log_error("%s: Error executing execve()", __func__);   /* execve() returns only on error */
+
 	return ret;
 }
 
@@ -91,8 +93,7 @@ static void * kill_session_thread(void * arg)
 	if (conn->pty != -1)
 		close(conn->pty);
 
-	if (conn->pid != -1)
-	{
+	if (conn->pid != -1) {
 		kill(conn->pid, SIGTERM);
 
 		waitpid(conn->pid, NULL, 0);
@@ -115,9 +116,7 @@ static void kill_session(connection_handle_t * conn)
 
 	err = pthread_create(&thread, &attr, kill_session_thread, conn);
 	if (err)
-	{
 		kill_session_thread(conn);
-	}
 
 	pthread_attr_destroy(&attr);
 }
@@ -130,18 +129,17 @@ static connector_callback_status_t start_session(connector_streaming_cli_session
 	int ret;
 
 	log_debug("    Called '%s'", __func__);
-	if (request->terminal_mode != connector_cli_terminal_vt100)
-	{
+	if (request->terminal_mode != connector_cli_terminal_vt100) {
 		log_error("%s: Rejecting non-VT100 terminal_mode of: %d", __func__, request->terminal_mode);
 		return connector_callback_error;
 	}
 
 	conn = calloc(1, sizeof *conn);
-	if (conn == NULL) return connector_callback_error;
+	if (conn == NULL)
+		return connector_callback_error;
 
 	child_process = forkpty(&master, NULL, NULL, NULL);
-	if (child_process == 0)
-	{
+	if (child_process == 0) {
 		if (enable_signals() == 0) {
 			ret = exec_cli();
 			log_error("%s: Error executing CLI (%d)", __func__, ret);
@@ -150,12 +148,11 @@ static connector_callback_status_t start_session(connector_streaming_cli_session
 		}
 
 		exit(1);
-	}
-	else if (child_process == -1)
-	{
+	} else if (child_process == -1) {
 		log_debug("Failed to start CLI process. errno: %d", errno);
 		close(master);
 		free(conn);
+
 		return connector_callback_error;
 	}
 
@@ -163,9 +160,9 @@ static connector_callback_status_t start_session(connector_streaming_cli_session
 	conn->pid = child_process;
 	conn->execute.timeout = 0;
 
-	if (configure_pty(master))
-	{
+	if (configure_pty(master)) {
 		kill_session(conn);
+
 		return connector_callback_error;
 	}
 
@@ -179,13 +176,10 @@ static connector_callback_status_t poll_session(connector_streaming_cli_poll_req
 	connection_handle_t * conn = request->handle;
 	int numbytes;
 
-	if (ioctl(conn->pty, FIONREAD, &numbytes) || numbytes < 0)
-	{
+	if (ioctl(conn->pty, FIONREAD, &numbytes) || numbytes < 0) 
 		return connector_callback_error;
-	}
 
-	if (numbytes == 0)
-	{
+	if (numbytes == 0) {
 		struct pollfd fd = {
 			conn->pty,
 			POLLIN,
@@ -194,9 +188,7 @@ static connector_callback_status_t poll_session(connector_streaming_cli_poll_req
 		poll(&fd, 1, 0);
 
 		request->session_state = fd.revents & POLLHUP ? connector_cli_session_state_done : connector_cli_session_state_idle;
-	}
-	else
-	{
+	} else {
 		request->session_state = connector_cli_session_state_readable;
 	}
 
@@ -211,12 +203,10 @@ static connector_callback_status_t send_data(connector_streaming_cli_session_sen
 
 	ioctl(conn->pty, FIONREAD, &nleft);
 	nread = read(conn->pty, request->buffer, request->bytes_available);
-	if (nread < 0)
-	{
+	if (nread < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
-		{
 			return connector_callback_busy;
-		}
+
 		request->bytes_used = 0;
 		return connector_callback_error;
 	}
@@ -233,16 +223,11 @@ static connector_callback_status_t receive_data(connector_streaming_cli_session_
 	connection_handle_t * conn = request->handle;
 
 	nwritten = write(conn->pty, request->buffer, request->bytes_available);
-	if (nwritten < 0)
-	{
+	if (nwritten < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
-		{
 			nwritten = 0;
-		}
 		else
-		{
 			return connector_callback_error;
-		}
 	}
 
 	request->bytes_used = nwritten;
@@ -255,19 +240,18 @@ static connector_callback_status_t end_session(connector_streaming_cli_session_e
 	connection_handle_t * conn = request->handle;
 
 	log_debug("    Called '%s'", __func__);
-	if (conn->execute.file_command != NULL)
-	{
+	if (conn->execute.file_command != NULL) {
 			fclose(conn->execute.file_command);
 			conn->execute.file_command = NULL;
 	}
 
-	if (conn->execute.file_output != NULL)
-	{
+	if (conn->execute.file_output != NULL) {
 			fclose(conn->execute.file_output);
 			conn->execute.file_output = NULL;
 	}
 
 	kill_session(conn);
+
 	return connector_callback_continue;
 }
 

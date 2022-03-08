@@ -17,13 +17,13 @@
  * ===========================================================================
  */
 
+#include <errno.h>
 #include <malloc.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <semaphore.h>
-#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "ccimp/ccimp_os.h"
 #include "cc_logging.h"
@@ -125,13 +125,13 @@ ccimp_status_t ccimp_os_create_thread(ccimp_os_create_thread_info_t *const creat
 
 		switch(create_thread_info->type) {
 			case CCIMP_THREAD_FSM:
-			stack_size = 100 * 1024;
+				stack_size = 100 * 1024;
 			break;
 			case CCIMP_THREAD_RCI:
 			case CCIMP_THREAD_RECEIVE:
 			case CCIMP_THREAD_CLI:
 			case CCIMP_THREAD_FIRMWARE:
-			stack_size = 100 * 1024;
+				stack_size = 100 * 1024;
 			break;
 		}
 
@@ -184,6 +184,7 @@ ccimp_status_t ccimp_os_yield(void)
 		/* In the Linux implementation this function always succeeds */
 		log_error("%s: sched_yield failed with %d", __func__, error);
 	}
+
 	return CCIMP_STATUS_OK;
 }
 
@@ -292,6 +293,7 @@ ccimp_status_t ccimp_os_lock_destroy(ccimp_os_lock_destroy_t *const data)
 	}
 
 	free(sem);
+
 	return CCIMP_STATUS_OK;
 }
 

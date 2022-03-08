@@ -17,27 +17,27 @@
  * ===========================================================================
  */
 
-#include <unistd.h>
 #include <arpa/inet.h>
-#include <netdb.h>
 #include <ifaddrs.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <net/if.h>
 #include <regex.h>
-#include <string.h>
+#include <net/if.h>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include "ccimp/dns_helper.h"
 #include "ccimp/ccimp_network.h"
-#include "network_utils.h"
+#include "ccimp/dns_helper.h"
 #include "cc_logging.h"
+#include "network_utils.h"
 
 #define cast_for_alignment(cast, ptr)	((cast) ((void *) (ptr)))
-#define ARRAY_SIZE(array)  				(sizeof array/sizeof array[0])
+#define ARRAY_SIZE(array)				(sizeof array/sizeof array[0])
 
 #define DNS_FILE						"/etc/resolv.conf"
 #define DNS_ENTRY						"nameserver"
@@ -187,6 +187,7 @@ int get_iface_info(const char *iface_name, iface_info_t *iface_info)
 
 	if (ifaddr != NULL)
 		freeifaddrs(ifaddr);
+
 	return 0;
 }
 
@@ -248,6 +249,7 @@ uint8_t *get_primary_mac_address(uint8_t *const mac_addr)
 done:
 	if (ifaddr != NULL)
 		freeifaddrs(ifaddr);
+
 	return retval;
 }
 
@@ -283,6 +285,7 @@ static ccapi_bool_t interface_exists(const char *iface_name)
 done:
 	if (ifaddr != NULL)
 		freeifaddrs(ifaddr);
+
 	return exists;
 }
 
@@ -317,6 +320,7 @@ static int get_mac_address(const char *iface_name, uint8_t *mac_address)
 done:
 	if (sock >= 0)
 		close(sock);
+
 	return ret;
 }
 

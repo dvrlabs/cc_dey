@@ -17,15 +17,15 @@
  * ===========================================================================
  */
 
-#include <stdio.h>
-#include <unistd.h>
+#include <confuse.h>
 #include <errno.h>
 #include <miniunz/unzip.h>
 #include <pthread.h>
+#include <recovery.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <confuse.h>
-#include <recovery.h>
+#include <unistd.h>
 
 #include "cc_config.h"
 #include "cc_firmware_update.h"
@@ -263,6 +263,7 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 	if (last_chunk) {
 		if (fw_fp != NULL) {
 			int fd = fileno(fw_fp);
+
 			if (fsync(fd) != 0 || fclose(fw_fp) != 0) {
 				log_fw_error("Unable to close firmware file (errno %d: %s)", errno, strerror(errno));
 				return CCAPI_FW_DATA_ERROR_INVALID_DATA;
@@ -273,30 +274,30 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 		log_fw_info("Starting firmware update process (target '%d')", target);
 
 		switch(target) {
-		/* Target for *.swu files. */
-		case 0: {
-			if (cc_cfg->dualboot == CCAPI_FALSE) {
-				if (update_firmware(fw_downloaded_path)) {
+			/* Target for *.swu files. */
+			case 0: {
+				if (cc_cfg->dualboot == CCAPI_FALSE) {
+					if (update_firmware(fw_downloaded_path)) {
+						log_fw_error(
+								"Error updating firmware using package '%s' for target '%d'",
+								fw_downloaded_path, target);
+						error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+					}
+				}
+				break;
+			}
+			/* Target for manifest.txt files. */
+			case 1: {
+				if (update_manifest_firmware(fw_downloaded_path, target) != 0) {
 					log_fw_error(
 							"Error updating firmware using package '%s' for target '%d'",
 							fw_downloaded_path, target);
 					error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 				}
+				break;
 			}
-			break;
-		}
-		/* Target for manifest.txt files. */
-		case 1: {
-			if (update_manifest_firmware(fw_downloaded_path, target) != 0) {
-				log_fw_error(
-						"Error updating firmware using package '%s' for target '%d'",
-						fw_downloaded_path, target);
+			default:
 				error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
-			}
-			break;
-		}
-		default:
-			error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 		}
 
 		if (cc_cfg->dualboot == CCAPI_FALSE)
@@ -321,13 +322,12 @@ void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t cancel_
 
 	if (fw_fp != NULL) {
 		int fd = fileno(fw_fp);
-		if (fsync(fd) != 0 || fclose(fw_fp) != 0) {
+
+		if (fsync(fd) != 0 || fclose(fw_fp) != 0)
 			log_fw_error("Unable to close firmware file (errno %d: %s)", errno, strerror(errno));
-		} else {
-			if (remove(fw_downloaded_path) == -1)
-				log_fw_error("Unable to remove firmware file (errno %d: %s)",
-						errno, strerror(errno));
-		}
+		else if (remove(fw_downloaded_path) == -1)
+			log_fw_error("Unable to remove firmware file (errno %d: %s)",
+					errno, strerror(errno));
 	}
 
 	free(fw_downloaded_path);
@@ -558,17 +558,17 @@ static int parse_manifest(const char *const manifest_path, firmware_info_t *fw_i
 
 	/* Parse the manifest file. */
 	switch (cfg_parse(manifest_cfg, manifest_path)) {
-	case CFG_FILE_ERROR:
-		log_fw_error("Firmware manifest file '%s' could not be read: %s",
-				manifest_path, strerror(errno));
-		error = -1;
-		goto done;
-	case CFG_SUCCESS:
-		break;
-	case CFG_PARSE_ERROR:
-		log_fw_error("Error parsing firmware manifest file '%s'", manifest_path);
-		error = -1;
-		goto done;
+		case CFG_FILE_ERROR:
+			log_fw_error("Firmware manifest file '%s' could not be read: %s",
+					manifest_path, strerror(errno));
+			error = -1;
+			goto done;
+		case CFG_SUCCESS:
+			break;
+		case CFG_PARSE_ERROR:
+			log_fw_error("Error parsing firmware manifest file '%s'", manifest_path);
+			error = -1;
+			goto done;
 	}
 
 	/* Fill manifest properties. */
@@ -588,6 +588,7 @@ static int parse_manifest(const char *const manifest_path, firmware_info_t *fw_i
 
 done:
 	cfg_free(manifest_cfg);
+
 	return error;
 }
 

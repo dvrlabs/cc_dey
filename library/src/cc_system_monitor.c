@@ -17,17 +17,17 @@
  * ===========================================================================
  */
 
-#include <stdio.h>
-#include <unistd.h>
 #include <pthread.h>
-#include <time.h>
+#include <stdio.h>
 #include <sys/sysinfo.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "ccapi/ccapi.h"
 #include "cc_config.h"
 #include "cc_init.h"
-#include "cc_system_monitor.h"
 #include "cc_logging.h"
+#include "cc_system_monitor.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -140,6 +140,7 @@ cc_sys_mon_error_t start_system_monitor(const cc_cfg_t *const cc_cfg)
 		return CC_SYS_MON_ERROR_THREAD;
 	}
 	pthread_attr_destroy(&attr);
+
 	return CC_SYS_MON_ERROR_NONE;
 }
 
@@ -185,6 +186,7 @@ static void *system_monitor_threaded(void *cc_cfg)
 	system_monitor_loop(cc_cfg);
 
 	pthread_exit(NULL);
+
 	return NULL;
 }
 
@@ -457,6 +459,7 @@ static double get_cpu_temp(void)
 		log_sm_error("%s: cpu temp not enough fields error", __func__);
 		return -1;
 	}
+
 	return temperature / 1000;
 }
 
@@ -471,6 +474,7 @@ static double get_cpu_temp(void)
 static uint32_t calculate_number_samples(const cc_cfg_t *const cc_cfg)
 {
 	uint32_t channels = 0;
+
 	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
 		channels++;
 	if (cc_cfg->sys_mon_parameters & SYS_MON_LOAD)
@@ -516,5 +520,6 @@ static long read_file(const char *path, char **buffer, long file_size)
 	}
 
 	fclose(fd);
+
 	return read_size;
 }

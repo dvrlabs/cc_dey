@@ -46,52 +46,54 @@ static size_t bufsize = 0;
 void ccimp_hal_logging_vprintf(debug_t const debug, char const *const format, va_list args)
 {
 	switch (debug) {
-	case debug_beg: {
-		size_t offset = 0;
-		if (buffer == NULL) {
-			bufsize = MAX_CHARS + sizeof(CCAPI_DEBUG_PREFIX);
-			buffer = (char*) malloc(sizeof(char) * bufsize);
+		case debug_beg: {
+			size_t offset = 0;
+
+			if (buffer == NULL) {
+				bufsize = MAX_CHARS + sizeof(CCAPI_DEBUG_PREFIX);
+				buffer = (char*) malloc(sizeof(char) * bufsize);
+			}
+
+			snprintf(buffer, bufsize, "%s", CCAPI_DEBUG_PREFIX);
+			offset = strlen(buffer);
+
+			vsnprintf(buffer + offset, bufsize - offset, format, args);
+			break;
 		}
+		case debug_mid: {
+			size_t offset = strlen(buffer);
 
-		snprintf(buffer, bufsize, "%s", CCAPI_DEBUG_PREFIX);
-		offset = strlen(buffer);
-
-		vsnprintf(buffer + offset, bufsize - offset, format, args);
-		break;
-	}
-	case debug_mid: {
-		size_t offset = strlen(buffer);
-
-		vsnprintf(buffer + offset, bufsize - offset, format, args);
-		break;
-	}
-	case debug_end: {
-		size_t offset = strlen(buffer);
-
-		vsnprintf(buffer + offset, bufsize - offset, format, args);
-		log_debug("%s", buffer);
-		free(buffer);
-		buffer = NULL;
-		bufsize = 0;
-		break;
-	}
-	case debug_all: {
-		size_t offset = 0;
-		if (buffer == NULL) {
-			bufsize = MAX_CHARS + sizeof(CCAPI_DEBUG_PREFIX);
-			buffer = (char*) malloc(sizeof(char) * bufsize);
+			vsnprintf(buffer + offset, bufsize - offset, format, args);
+			break;
 		}
+		case debug_end: {
+			size_t offset = strlen(buffer);
 
-		snprintf(buffer, bufsize, "%s", CCAPI_DEBUG_PREFIX);
-		offset = strlen(buffer);
+			vsnprintf(buffer + offset, bufsize - offset, format, args);
+			log_debug("%s", buffer);
+			free(buffer);
+			buffer = NULL;
+			bufsize = 0;
+			break;
+		}
+		case debug_all: {
+			size_t offset = 0;
 
-		vsnprintf(buffer + offset, bufsize - offset, format, args);
-		log_debug("%s", buffer);
-		free(buffer);
-		buffer = NULL;
-		bufsize = 0;
-		break;
-	}
+			if (buffer == NULL) {
+				bufsize = MAX_CHARS + sizeof(CCAPI_DEBUG_PREFIX);
+				buffer = (char*) malloc(sizeof(char) * bufsize);
+			}
+
+			snprintf(buffer, bufsize, "%s", CCAPI_DEBUG_PREFIX);
+			offset = strlen(buffer);
+
+			vsnprintf(buffer + offset, bufsize - offset, format, args);
+			log_debug("%s", buffer);
+			free(buffer);
+			buffer = NULL;
+			bufsize = 0;
+			break;
+		}
 	}
 	return;
 }

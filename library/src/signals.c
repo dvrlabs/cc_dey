@@ -16,25 +16,23 @@
  * Digi International Inc., 9350 Excelsior Blvd., Suite 700, Hopkins, MN 55343
  * ===========================================================================
  */
+#include <stddef.h>
 
 #include "signals.h"
-#include <stddef.h>
 #include "cc_logging.h"
 
 int set_signals(struct sigaction const sigpipe, int const sigterm_mask)
 {
 	sigset_t set;
 
-	if (sigaction(SIGPIPE, &sigpipe, NULL) == -1)
-	{
+	if (sigaction(SIGPIPE, &sigpipe, NULL) == -1) {
 		log_error("Failed to handle SIGPIPE: handler=, flags=0x%x", (int) sigpipe.sa_flags);
 		return 1;
 	}
 
 	sigemptyset(&set);
 	sigaddset(&set, SIGTERM);
-	if (pthread_sigmask(sigterm_mask, &set, NULL))
-	{
+	if (pthread_sigmask(sigterm_mask, &set, NULL)) {
 		log_error("Failed to mask SIGTERM: mask=%d", sigterm_mask);
 		return 1;
 	}

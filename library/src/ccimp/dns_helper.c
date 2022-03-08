@@ -17,20 +17,20 @@
  * ===========================================================================
  */
 
-#include <stdio.h>
-#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <sys/ioctl.h>
-#include <errno.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include "ccimp/ccimp_network.h"
 #include "ccimp/ccimp_os.h"
-#include "dns_helper.h"
 #include "cc_logging.h"
+#include "dns_helper.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S

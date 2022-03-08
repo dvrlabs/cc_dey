@@ -17,12 +17,12 @@
  * ===========================================================================
  */
 
-#include "ccimp/ccimp_hal.h"
-
-#include <stdio.h>
-#include <unistd.h>
 #include <linux/reboot.h>
+#include <stdio.h>
 #include <sys/reboot.h>
+#include <unistd.h>
+
+#include "ccimp/ccimp_hal.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
