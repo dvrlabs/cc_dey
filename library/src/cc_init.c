@@ -23,13 +23,13 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "cc_config.h"
 #include "cc_device_request.h"
 #include "cc_firmware_update.h"
 #include "cc_init.h"
 #include "cc_logging.h"
 #include "cc_system_monitor.h"
 #include "network_utils.h"
+#include "service_device_request.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -47,17 +47,6 @@
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-static ccapi_receive_error_t register_builtin_requests(void);
-#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
-static ccapi_receive_error_t edp_cert_update_cb(const char *target,
-		ccapi_transport_t transport,
-		const ccapi_buffer_info_t *request_buffer_info,
-		ccapi_buffer_info_t *response_buffer_info);
-static void edp_cert_update_status_cb(const char *target,
-		ccapi_transport_t transport,
-		ccapi_buffer_info_t *response_buffer_info,
-		ccapi_receive_error_t receive_error);
-#endif
 static void set_cloud_connection_status(cc_status_t status);
 static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg);
 static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg);
@@ -180,79 +169,6 @@ char *get_client_cert_path(void)
 		return NULL;
 	return cc_cfg->client_cert_path;
 }
-
-/*
- * register_builtin_requests() - Register built-in device requests
- *
- * Return: Error code after registering the built-in device requests.
- */
-static ccapi_receive_error_t register_builtin_requests(void)
-{
-	ccapi_receive_error_t receive_error = CCAPI_RECEIVE_ERROR_NONE;
-
-#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
-	receive_error = ccapi_receive_add_target(TARGET_EDP_CERT_UPDATE,
-						 edp_cert_update_cb,
-						 edp_cert_update_status_cb,
-						 CCAPI_RECEIVE_NO_LIMIT);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_EDP_CERT_UPDATE,
-				receive_error);
-		return receive_error;
-	}
-#endif
-
-	return receive_error;
-}
-
-#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
-static ccapi_receive_error_t edp_cert_update_cb(const char *target, ccapi_transport_t transport,
-			const ccapi_buffer_info_t *request_buffer_info,
-			ccapi_buffer_info_t *response_buffer_info)
-{
-	FILE *fp;
-	ccapi_receive_error_t ret;
-
-	UNUSED_PARAMETER(response_buffer_info);
-
-	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
-	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
-		fp = fopen(cc_cfg->client_cert_path, "w");
-		if (!fp) {
-			log_error("%s: cannot open certificate %s: %s", __func__, cc_cfg->client_cert_path, strerror(errno));
-			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-		}
-		if (fwrite(request_buffer_info->buffer, sizeof(char), request_buffer_info->length, fp) < request_buffer_info->length) {
-			log_error("%s: cannot write certificate %s", __func__, cc_cfg->client_cert_path);
-			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-		} else {
-			log_debug("%s: certificate saved at %s", __func__, cc_cfg->client_cert_path);
-			ret = CCAPI_RECEIVE_ERROR_NONE;
-		}
-		fclose(fp);
-	} else {
-		log_error("%s: received invalid data", __func__);
-		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
-	}
-
-	return ret;
-}
-
-static void edp_cert_update_status_cb(const char *target,
-				      ccapi_transport_t transport,
-				      ccapi_buffer_info_t *response_buffer_info,
-				      ccapi_receive_error_t receive_error)
-{
-	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("error on %s: target='%s' - transport='%d' - error='%d'",
-			     __func__, target, transport, receive_error);
-	}
-	/* Free the response buffer */
-	if (response_buffer_info != NULL)
-		free(response_buffer_info->buffer);
-}
-#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
 
 /*
  * start_cloud_connection() - Start Cloud connection

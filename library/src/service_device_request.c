@@ -23,10 +23,13 @@
 #include <stdbool.h>
 #include <unistd.h>
 
+#include "cc_config.h"
 #include "cc_logging.h"
 #include "ccapi/ccapi.h"
 #include "services_util.h"
 #include "service_device_request.h"
+
+#define TARGET_EDP_CERT_UPDATE	"builtin/edp_certificate_update"
 
 ccapi_receive_service_t receive_service = { NULL, NULL, NULL };
 
@@ -230,6 +233,87 @@ out:
 
 	if (sock_fd >= 0)
 		close(sock_fd);
+}
+
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+static ccapi_receive_error_t edp_cert_update_cb(const char *const target,
+			const ccapi_transport_t transport,
+			const ccapi_buffer_info_t *const request_buffer_info,
+			ccapi_buffer_info_t *const response_buffer_info)
+{
+	FILE *fp;
+	ccapi_receive_error_t ret;
+
+	UNUSED_PARAMETER(response_buffer_info);
+
+	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
+		char *client_cert_path = get_client_cert_path();
+
+		if (!client_cert_path) {
+			log_error("%s", "Invalid client certificate");
+			return CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+		}
+
+		fp = fopen(client_cert_path, "w");
+		if (!fp) {
+			log_error("Unable to open certificate %s: %s", client_cert_path, strerror(errno));
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+		if (fwrite(request_buffer_info->buffer, sizeof(char), request_buffer_info->length, fp) < request_buffer_info->length) {
+			log_error("Unable to write certificate %s", client_cert_path);
+			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		} else {
+			log_debug("%s: certificate saved at %s", __func__, client_cert_path);
+			ret = CCAPI_RECEIVE_ERROR_NONE;
+		}
+		fclose(fp);
+	} else {
+		log_error("%s: received invalid data", __func__);
+		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+	}
+
+	return ret;
+}
+#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
+
+static void builtin_request_status_cb(const char *const target,
+			const ccapi_transport_t transport,
+			ccapi_buffer_info_t *const response_buffer_info,
+			ccapi_receive_error_t receive_error)
+{
+	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("Error on device request response: target='%s' - transport='%d' - error='%d'",
+			      target, transport, receive_error);
+	}
+	/* Free the response buffer */
+	if (response_buffer_info != NULL)
+		free(response_buffer_info->buffer);
+}
+
+/*
+ * register_builtin_requests() - Register built-in device requests
+ *
+ * Return: Error code after registering the built-in device requests.
+ */
+ccapi_receive_error_t register_builtin_requests(void)
+{
+	ccapi_receive_error_t receive_error = CCAPI_RECEIVE_ERROR_NONE;
+
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+	receive_error = ccapi_receive_add_target(TARGET_EDP_CERT_UPDATE,
+						 edp_cert_update_cb,
+						 builtin_request_status_cb,
+						 CCAPI_RECEIVE_NO_LIMIT);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("Cannot register target '%s', error %d", TARGET_EDP_CERT_UPDATE,
+				receive_error);
+		return receive_error;
+	}
+#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
+
+	return receive_error;
 }
 
 static int read_request(int fd, request_data_t *out)
