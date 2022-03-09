@@ -49,10 +49,8 @@
 ------------------------------------------------------------------------------*/
 static int start_connector(const char *config_file);
 static ccapi_receive_error_t register_custom_device_requests(void);
-static ccapi_bool_t check_stop(void);
-static void add_sigkill_signal(void);
-static void graceful_shutdown(void);
-static void sigint_handler(int signum);
+static int setup_signal_handler(void);
+static void signal_handler(int signum);
 static void usage(char const *const name);
 
 /*------------------------------------------------------------------------------
@@ -135,7 +133,8 @@ static int start_connector(const char *config_file)
 	cc_init_error_t init_error;
 	cc_start_error_t start_error;
 
-	add_sigkill_signal();
+	if (setup_signal_handler())
+		return EXIT_FAILURE;
 
 	init_error = init_cloud_connection(config_file);
 	if (init_error != CC_INIT_ERROR_NONE && init_error != CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY) {
@@ -153,7 +152,10 @@ static int start_connector(const char *config_file)
 
 	do {
 		sleep(2);
-	} while (check_stop() != CCAPI_TRUE);
+	} while (stop == CCAPI_FALSE);
+
+	stop_cloud_connection();
+	wait_for_ccimp_threads();
 
 	return EXIT_SUCCESS;
 }
@@ -184,56 +186,48 @@ static ccapi_receive_error_t register_custom_device_requests(void)
 }
 
 /*
- * check_stop() - Stop Cloud Connector
+ * setup_signal_handler() - Setup process signals
  *
- * Return: CCAPI_TRUE if Cloud Connector is successfully stopped, CCAPI_FALSE
- *         otherwise.
+ * Return: 0 on success, 1 otherwise.
  */
-static ccapi_bool_t check_stop(void)
+static int setup_signal_handler(void)
 {
-	if (stop == CCAPI_TRUE)
-		stop_cloud_connection();
+	struct sigaction new_action, old_action;
+	sigset_t set;
 
-	return stop;
-}
-
-/*
- * add_sigkill_signal() - Add the kill signal to the process
- */
-static void add_sigkill_signal(void)
-{
-	struct sigaction new_action;
-	struct sigaction old_action;
-
-	/* Setup signal hander. */
-	atexit(graceful_shutdown);
-	new_action.sa_handler = sigint_handler;
+	memset(&new_action, 0, sizeof(new_action));
+	new_action.sa_handler = signal_handler;
 	sigemptyset(&new_action.sa_mask);
 	new_action.sa_flags = 0;
-	sigaction(SIGINT, NULL, &old_action);
-	if (old_action.sa_handler != SIG_IGN)
-		sigaction(SIGINT, &new_action, NULL);
-}
 
-/*
- * graceful_shutdown() - Stop Cloud Connector and all threads
- */
-void graceful_shutdown(void)
-{
-	stop = CCAPI_TRUE;
-	check_stop();
-	wait_for_ccimp_threads();
+	sigaction(SIGINT, NULL, &old_action);
+	if (old_action.sa_handler != SIG_IGN) {
+		if (sigaction(SIGINT, &new_action, NULL)) {
+			log_error("%s", "Failed to install signal handler");
+			return 1;
+		}
+	}
+
+	sigemptyset(&set);
+	sigaddset(&set, SIGINT);
+
+	if (pthread_sigmask(SIG_UNBLOCK, &set, NULL)) {
+		log_error("%s", "Failed to unblock SIGTERM");
+		return 1;
+	}
+
+	return 0;
 }
 
 /**
- * sigint_handler() - Manage signal received.
+ * signal_handler() - Manage signal received.
  *
  * @signum: Received signal.
  */
-static void sigint_handler(int signum)
+static void signal_handler(int signum)
 {
-	log_debug("%s: received signal %d to close Cloud connection.", __func__, signum);
-	exit(0);
+	log_debug("%s: Received signal %d to close Cloud connection.", __func__, signum);
+	stop = CCAPI_TRUE;
 }
 
 /**
