@@ -55,6 +55,7 @@ static void free_ccapi_start_struct(ccapi_start_t *ccapi_start);
 static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs);
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause);
 static void *reconnect_threaded(void *unused);
+static bool retry_connection(void);
 static int get_device_id_from_mac(uint8_t *const device_id,
 		const uint8_t *const mac_addr);
 static uint32_t fw_string_to_int(const char *fw_string);
@@ -70,6 +71,7 @@ extern ccapi_streaming_cli_service_t streaming_cli_service;
 static volatile cc_status_t connection_status = CC_STATUS_DISCONNECTED;
 static pthread_t reconnect_thread;
 static bool reconnect_thread_valid;
+static bool initial_reconnection;
 cc_cfg_t *cc_cfg = NULL;
 
 /*------------------------------------------------------------------------------
@@ -106,6 +108,8 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	if (cc_cfg->log_console)
 		log_options = log_options | LOG_PERROR;
 	init_logger(cc_cfg->log_level, log_options);
+
+	initial_reconnection = true;
 
 	ccapi_error = initialize_ccapi(cc_cfg);
 	if (ccapi_error != CCAPI_START_ERROR_NONE) {
@@ -642,7 +646,8 @@ static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
 
 	reconnect_thread_valid = false;
 
-	if (!cc_cfg->enable_reconnect) {
+	if (!initial_reconnection && !retry_connection()) {
+		initial_reconnection = false;
 		set_cloud_connection_status(CC_STATUS_DISCONNECTED);
 		return CCAPI_FALSE;
 	}
@@ -693,13 +698,33 @@ error:
  */
 static void *reconnect_threaded(void *unused)
 {
+	int reconnect_time = cc_cfg->reconnect_time;
+
 	UNUSED_ARGUMENT(unused);
 
-	log_info("Reconnecting in %d seconds", cc_cfg->reconnect_time);
-	sleep(cc_cfg->reconnect_time);
+	initial_reconnection = false;
+
+	sleep(reconnect_time);
 	initialize_tcp_transport(cc_cfg);
 
 	return NULL;
+}
+
+static bool retry_connection(void)
+{
+	bool reconnect = cc_cfg->enable_reconnect;
+
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+	/*
+	 * Retry a connection if:
+	 *   * reconnect is enabled
+	 *   * client certificate path is defined in the configuration
+	 *   * the file is not yet downloaded
+	 */
+	reconnect = reconnect || access(cc_cfg->client_cert_path, F_OK) != 0;
+#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
+
+	return reconnect;
 }
 
 /*

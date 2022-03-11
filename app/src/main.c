@@ -152,9 +152,10 @@ static int start_connector(const char *config_file)
 
 	do {
 		sleep(2);
-	} while (stop == CCAPI_FALSE);
+	} while (get_cloud_connection_status() != CC_STATUS_DISCONNECTED && stop == CCAPI_FALSE);
 
 	stop_cloud_connection();
+
 	wait_for_ccimp_threads();
 
 	return EXIT_SUCCESS;
