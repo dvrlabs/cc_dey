@@ -41,20 +41,20 @@
 
 #define FW_SWU_CHUNK_SIZE	128 * 1024 /* 128KB, CC6UL flash sector size */
 
+#define CONNECT_TIMEOUT		30
+
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 static void set_cloud_connection_status(cc_status_t status);
 static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg);
-static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg);
+static int create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg, ccapi_tcp_info_t *tcp_info);
 static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg);
 static ccapi_tcp_start_error_t initialize_tcp_transport(const cc_cfg_t *const cc_cfg);
 static void free_ccapi_start_struct(ccapi_start_t *ccapi_start);
-static void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info);
 static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs);
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause);
 static void *reconnect_threaded(void *unused);
-static void reconnect_cleanup_handler(void *p_tcp_info);
 static int get_device_id_from_mac(uint8_t *const device_id,
 		const uint8_t *const mac_addr);
 static uint32_t fw_string_to_int(const char *fw_string);
@@ -69,6 +69,7 @@ static ccapi_rci_service_t rci_service;
 extern ccapi_streaming_cli_service_t streaming_cli_service;
 static volatile cc_status_t connection_status = CC_STATUS_DISCONNECTED;
 static pthread_t reconnect_thread;
+static bool reconnect_thread_valid;
 cc_cfg_t *cc_cfg = NULL;
 
 /*------------------------------------------------------------------------------
@@ -337,38 +338,32 @@ static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg)
 static ccapi_tcp_start_error_t initialize_tcp_transport(
 		const cc_cfg_t *const cc_cfg)
 {
-	ccapi_tcp_info_t *tcp_info = NULL;
+	ccapi_tcp_info_t tcp_info = {{ 0 }};
 	ccapi_tcp_start_error_t error = CCAPI_TCP_START_ERROR_TIMEOUT;
+	bool retry = false;
 
 	set_cloud_connection_status(CC_STATUS_CONNECTING);
 	do {
-		if (tcp_info == NULL)
-			tcp_info = create_ccapi_tcp_start_info_struct(cc_cfg);
-
-		if (tcp_info != NULL)
-			error = ccapi_start_transport_tcp(tcp_info);
-
-		if (error == CCAPI_TCP_START_ERROR_TIMEOUT
-		    && cc_cfg->enable_reconnect) {
-			log_info("Time out, retrying connection in %d seconds",
-					cc_cfg->reconnect_time);
+		if (retry) {
+			log_info("Failed to connect (%d), retrying in %d seconds", error, cc_cfg->reconnect_time);
 			sleep(cc_cfg->reconnect_time);
 		}
-	} while (error == CCAPI_TCP_START_ERROR_TIMEOUT
-		 && cc_cfg->enable_reconnect);
 
-	if (tcp_info == NULL) {
-		error = CCAPI_TCP_START_ERROR_NULL_POINTER;
-		set_cloud_connection_status(CC_STATUS_DISCONNECTED);
-	} else if (error) {
+		if (create_ccapi_tcp_start_info_struct(cc_cfg, &tcp_info) == 0)
+			error = ccapi_start_transport_tcp(&tcp_info);
+
+		retry = cc_cfg->enable_reconnect
+				&& error != CCAPI_TCP_START_ERROR_NONE
+				&& error != CCAPI_TCP_START_ERROR_ALREADY_STARTED;
+	} while (retry);
+
+	if (error != CCAPI_TCP_START_ERROR_NONE && error != CCAPI_TCP_START_ERROR_ALREADY_STARTED) {
 		log_debug("%s: failed with error %d", __func__, error);
 		if (error != CCAPI_TCP_START_ERROR_ALREADY_STARTED)
 			set_cloud_connection_status(CC_STATUS_DISCONNECTED);
 	} else {
 		set_cloud_connection_status(CC_STATUS_CONNECTED);
 	}
-
-	free_ccapi_tcp_start_info_struct(tcp_info);
 
 	return error;
 }
@@ -528,18 +523,14 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
  * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
  * 			settings parsed from the configuration file are stored.
  *
- * Return: The created ccapi_start_t struct with the data read from the
- *         configuration file.
+ * @tcp_info:	A ccapi_start_t struct to fill with the read data from the
+ *				configuration file.
+ *
+ * Return: 0 on success, 1 otherwise.
  */
-static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg)
+static int create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg, ccapi_tcp_info_t *tcp_info)
 {
-	ccapi_tcp_info_t *tcp_info = malloc(sizeof *tcp_info);
 	iface_info_t active_interface;
-
-	if (tcp_info == NULL) {
-		log_error("%s", "Cannot allocate memory to start TCP Cloud Connection");
-		return tcp_info;
-	}
 
 	tcp_info->callback.close = NULL;
 	tcp_info->callback.close = tcp_reconnect_cb;
@@ -547,39 +538,34 @@ static ccapi_tcp_info_t *create_ccapi_tcp_start_info_struct(const cc_cfg_t *cons
 	tcp_info->callback.keepalive = NULL;
 	tcp_info->connection.max_transactions = 0;
 	tcp_info->connection.password = NULL;
-	tcp_info->connection.start_timeout = 10;
+	tcp_info->connection.start_timeout = CONNECT_TIMEOUT;
 	tcp_info->connection.ip.type = CCAPI_IPV4;
 
-	if (get_main_iface_info(cc_cfg->url, &active_interface) != 0) {
-		free_ccapi_tcp_start_info_struct(tcp_info);
-		tcp_info = NULL;
-		return tcp_info;
+	if (get_main_iface_info(cc_cfg->url, &active_interface) != 0)
+		return 1;
+
+	/*
+	 * Some interfaces return a null MAC address (like ppp used by some
+	 * cellular modems). In those cases asume a WAN connection
+	 */
+	if (is_zero_array(active_interface.mac_addr, sizeof(active_interface.mac_addr))) {
+		tcp_info->connection.type = CCAPI_CONNECTION_WAN;
+		tcp_info->connection.info.wan.link_speed = 0;
+		tcp_info->connection.info.wan.phone_number = "*99#";
 	} else {
-		/*
-		 * Some interfaces return a null MAC address (like ppp used by some
-		 * cellular modems). In those cases asume a WAN connection 
-		 */
-		if (is_zero_array(active_interface.mac_addr, sizeof(active_interface.mac_addr))) {
-			tcp_info->connection.type = CCAPI_CONNECTION_WAN;
-			tcp_info->connection.info.wan.link_speed = 0;
-			tcp_info->connection.info.wan.phone_number = "*99#";
-			
-		} else {
-			tcp_info->connection.type = CCAPI_CONNECTION_LAN;
-			memcpy(tcp_info->connection.info.lan.mac_address,
-					active_interface.mac_addr,
-					sizeof(tcp_info->connection.info.lan.mac_address));
-		}
-		memcpy(tcp_info->connection.ip.address.ipv4,
-				active_interface.ipv4_addr,
-				sizeof(tcp_info->connection.ip.address.ipv4));
+		tcp_info->connection.type = CCAPI_CONNECTION_LAN;
+		memcpy(tcp_info->connection.info.lan.mac_address,
+				active_interface.mac_addr,
+				sizeof(tcp_info->connection.info.lan.mac_address));
 	}
+	memcpy(tcp_info->connection.ip.address.ipv4, active_interface.ipv4_addr,
+			sizeof(tcp_info->connection.ip.address.ipv4));
 
 	tcp_info->keepalives.rx = cc_cfg->keepalive_rx;
 	tcp_info->keepalives.tx = cc_cfg->keepalive_tx;
 	tcp_info->keepalives.wait_count = cc_cfg->wait_count;
 
-	return tcp_info;
+	return 0;
 }
 
 /**
@@ -598,16 +584,6 @@ static void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
 		free(ccapi_start->service.receive);
 		free(ccapi_start);
 	}
-}
-
-/**
- * free_ccapi_tcp_start_info_struct() - Release the ccapi_tcp_info_t struct
- *
- * @ccapi_start:	CCAPI TCP info struct (ccapi_tcp_info_t) to be released.
- */
-static void free_ccapi_tcp_start_info_struct(ccapi_tcp_info_t *const tcp_info)
-{
-	free(tcp_info);
 }
 
 /**
@@ -649,50 +625,64 @@ static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
  */
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
 {
+	pthread_attr_t attr;
+	int error;
+
 	log_debug("Reconnection, cause %d", cause);
 
-	if (!pthread_equal(reconnect_thread, 0)
-			&& !pthread_kill(reconnect_thread, 0))
-		return CCAPI_FALSE;
+	if (cause == CCAPI_TCP_CLOSE_REDIRECTED)
+		return CCAPI_TRUE;
 
-	set_cloud_connection_status(CC_STATUS_DISCONNECTED);
+	log_info("%s", "Disconnected from Remote Manager");
 
-	if (cc_cfg->enable_reconnect) {
-		pthread_attr_t attr;
-		int error;
-
-		/* Always return CCAPI_FALSE, to "manually" start the connection again
-		 * in another thread after the configured timeout.
-		 * Do not return CCAPI_TRUE, it will immediately and automatically
-		 * connect again (without any kind of timeout).
-		 */
-
-		error = pthread_attr_init(&attr);
-		if (error != 0) {
-			/* On Linux this function always succeeds. */
-			log_error(
-					"Unable to reconnect, cannot create reconnect thread: pthread_attr_init() error %d",
-					error);
-			return CCAPI_FALSE;
-		}
-
-		error = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (error != 0) {
-			log_error(
-					"Unable to reconnect, cannot create reconnect thread: pthread_attr_setdetachstate() error %d",
-					error);
-			return CCAPI_FALSE;
-		}
-
-		error = pthread_create(&reconnect_thread, NULL, reconnect_threaded,
-				NULL);
-		if (error != 0) {
-			log_error(
-					"Unable to reconnect, cannot create reconnect thread: pthread_create() error %d",
-					error);
-			return CCAPI_FALSE;
-		}
+	if (reconnect_thread_valid) {
+		pthread_cancel(reconnect_thread);
+		pthread_join(reconnect_thread, NULL);
 	}
+
+	reconnect_thread_valid = false;
+
+	if (!cc_cfg->enable_reconnect) {
+		set_cloud_connection_status(CC_STATUS_DISCONNECTED);
+		return CCAPI_FALSE;
+	}
+
+	set_cloud_connection_status(CC_STATUS_CONNECTING);
+
+	/* Always return CCAPI_FALSE, to "manually" start the connection again
+	 * in another thread after the configured timeout.
+	 * Do not return CCAPI_TRUE, it will immediately and automatically
+	 * connect again (without any kind of timeout).
+	 */
+	error = pthread_attr_init(&attr);
+	if (error != 0) {
+		/* On Linux this function always succeeds. */
+		log_error("Unable to reconnect, cannot create reconnect thread: pthread_attr_init() error %d",
+				error);
+		return CCAPI_FALSE;
+	}
+
+	error = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if (error != 0) {
+		log_error("Unable to reconnect, cannot create reconnect thread: pthread_attr_setdetachstate() error %d",
+				error);
+		goto error;
+	}
+
+	error = pthread_create(&reconnect_thread, NULL, reconnect_threaded, NULL);
+	if (error != 0) {
+		log_error("Unable to reconnect, cannot create reconnect thread: pthread_create() error %d",
+				error);
+		goto error;
+	}
+
+	reconnect_thread_valid = true;
+
+	return CCAPI_TRUE;
+
+error:
+	pthread_attr_destroy(&attr);
+
 	return CCAPI_FALSE;
 }
 
@@ -703,62 +693,13 @@ static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
  */
 static void *reconnect_threaded(void *unused)
 {
-	ccapi_tcp_info_t *tcp_info = NULL;
-	volatile ccapi_tcp_start_error_t error = CCAPI_TCP_START_ERROR_TIMEOUT;
-
-	set_cloud_connection_status(CC_STATUS_CONNECTING);
-
 	UNUSED_ARGUMENT(unused);
 
-	pthread_cleanup_push(reconnect_cleanup_handler, (void *)&tcp_info);
-
-	do {
-		int seconds;
-
-		log_info("Reconnecting in %d seconds", cc_cfg->reconnect_time);
-
-		for (seconds = 0; seconds < cc_cfg->reconnect_time; seconds++) {
-			pthread_testcancel();
-			sleep(1);
-		}
-
-		pthread_testcancel();
-		if (tcp_info == NULL) {
-			tcp_info = create_ccapi_tcp_start_info_struct(cc_cfg);
-			if (tcp_info == NULL)
-				continue;
-		}
-
-		pthread_testcancel();
-		error = ccapi_start_transport_tcp(tcp_info);
-	} while (error == CCAPI_TCP_START_ERROR_TIMEOUT);
-
-	if (error) {
-		log_error(
-				"Unable to reconnect: ccapi_start_transport_tcp() failed with error %d",
-				error);
-		if (error != CCAPI_TCP_START_ERROR_ALREADY_STARTED)
-			set_cloud_connection_status(CC_STATUS_DISCONNECTED);
-	} else {
-		set_cloud_connection_status(CC_STATUS_CONNECTED);
-	}
-
-	pthread_cleanup_pop(1);
-	pthread_exit(NULL);
+	log_info("Reconnecting in %d seconds", cc_cfg->reconnect_time);
+	sleep(cc_cfg->reconnect_time);
+	initialize_tcp_transport(cc_cfg);
 
 	return NULL;
-}
-
-/*
- * reconnect_cleanup_handler() - Clean up the reconnection thread
- *
- * @p_tcp_info:	Pointer to ccapi_tcp_info_t to free.
- */
-static void reconnect_cleanup_handler(void *p_tcp_info)
-{
-	ccapi_tcp_info_t **tcp_info = (ccapi_tcp_info_t **)p_tcp_info;
-
-	free_ccapi_tcp_start_info_struct(*tcp_info);
 }
 
 /*
