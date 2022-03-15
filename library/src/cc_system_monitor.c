@@ -94,7 +94,8 @@ static long read_file(const char *path, char **buffer, long file_size);
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
-static volatile ccapi_bool_t stop = CCAPI_TRUE;
+static volatile bool stop_requested = false;
+static volatile ccapi_bool_t dp_thread_valid = CCAPI_FALSE;
 static pthread_t dp_thread;
 static ccapi_dp_collection_handle_t dp_collection;
 static unsigned long long last_work = 0, last_total = 0;
@@ -150,7 +151,7 @@ cc_sys_mon_error_t start_system_monitor(const cc_cfg_t *const cc_cfg)
  * Return: True if system monitor is running, false if it is not.
  */
 ccapi_bool_t is_system_monitor_running(void) {
-	return !stop;
+	return dp_thread_valid;
 }
 
 /*
@@ -158,12 +159,13 @@ ccapi_bool_t is_system_monitor_running(void) {
  */
 void stop_system_monitor(void)
 {
-	if (!is_system_monitor_running())
-		return;
+	stop_requested = true;
 
-	stop = CCAPI_TRUE;
-	if (!pthread_equal(dp_thread, 0))
+	if (dp_thread_valid) {
+		pthread_cancel(dp_thread);
 		pthread_join(dp_thread, NULL);
+	}
+
 	ccapi_dp_destroy_collection(dp_collection);
 
 	log_sm_info("%s", "Stop monitoring the system");
@@ -182,7 +184,6 @@ static void *system_monitor_threaded(void *cc_cfg)
 		/* The data point collection could not be created. */
 		return NULL;
 
-	stop = CCAPI_FALSE;
 	system_monitor_loop(cc_cfg);
 
 	pthread_exit(NULL);
@@ -215,7 +216,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 				(cc_cfg->sys_mon_parameters & SYS_MON_LOAD) ? 1 : 0,
 				(cc_cfg->sys_mon_parameters & SYS_MON_TEMP) ? 1 : 0);
 
-	while (stop != CCAPI_TRUE) {
+	while (!stop_requested) {
 		uint32_t n_samples_to_send = calculate_number_samples(cc_cfg);
 		long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
 		uint32_t count = 0;
@@ -224,7 +225,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 		add_system_samples(get_free_memory(), get_cpu_load(), get_cpu_temp(), cc_cfg);
 
 		ccapi_dp_get_collection_points_count(dp_collection, &count);
-		if (count >= n_samples_to_send && stop != CCAPI_TRUE) {
+		if (count >= n_samples_to_send && !stop_requested) {
 			ccapi_dp_error_t dp_error;
 
 			/*
@@ -252,7 +253,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 		for (loop = 0; loop < n_loops; loop++) {
 			struct timespec sleepValue = {0};
 
-			if (stop == CCAPI_TRUE)
+			if (stop_requested)
 				break;
 
 			sleepValue.tv_nsec = LOOP_MS * 1000 * 1000;
