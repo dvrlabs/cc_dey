@@ -43,6 +43,7 @@
 
 #define CONNECT_TIMEOUT		30
 
+#define MAX_INC_TIME		5
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
@@ -60,6 +61,7 @@ static int setup_signal_handler(struct sigaction *orig_action);
 static void signal_handler(int signum);
 static int get_device_id_from_mac(uint8_t *const device_id,
 		const uint8_t *const mac_addr);
+static int calculate_reconnect_time(void);
 static uint32_t fw_string_to_int(const char *fw_string);
 static int is_zero_array(const uint8_t *array, size_t size);
 
@@ -193,6 +195,8 @@ cc_start_error_t start_cloud_connection(void)
 		log_error("%s", "Initialize the connection before starting");
 		return CC_START_ERROR_NOT_INITIALIZE;
 	}
+
+	srand(time(NULL));
 
 	/* Set a signal handler to be able to cancel while trying to connect */
 	ret = setup_signal_handler(&orig_action);
@@ -364,8 +368,9 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 	set_cloud_connection_status(CC_STATUS_CONNECTING);
 	do {
 		if (retry) {
-			log_info("Failed to connect (%d), retrying in %d seconds", error, cc_cfg->reconnect_time);
-			sleep(cc_cfg->reconnect_time);
+			int reconnect_time = calculate_reconnect_time();
+			log_info("Failed to connect (%d), retrying in %d seconds", error, reconnect_time);
+			sleep(reconnect_time);
 		}
 
 		if (create_ccapi_tcp_start_info_struct(cc_cfg, &tcp_info) == 0)
@@ -713,7 +718,7 @@ error:
  */
 static void *reconnect_threaded(void *unused)
 {
-	int reconnect_time = cc_cfg->reconnect_time;
+	int reconnect_time = calculate_reconnect_time();
 
 	UNUSED_ARGUMENT(unused);
 
@@ -832,6 +837,26 @@ static int get_device_id_from_mac(uint8_t *const device_id, const uint8_t *const
 	}
 
 	return 0;
+}
+
+/**
+ * calculate_reconnect_time() - Calculates the reconnect time.
+ *
+ * This function calculates the reconnect time based on the configured value,
+ * and adding a random value between 0 and MAX_INC_TIME.
+ *
+ * Returns: The calculated time.
+ */
+static int calculate_reconnect_time(void)
+{
+	int reconnect_time = cc_cfg->reconnect_time;
+	int increment;
+
+	do {
+		increment = rand() / (RAND_MAX / (MAX_INC_TIME + 1));
+	} while (increment > MAX_INC_TIME);
+
+	return reconnect_time + increment;
 }
 
 /**
