@@ -56,6 +56,8 @@ static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs);
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause);
 static void *reconnect_threaded(void *unused);
 static bool retry_connection(void);
+static int setup_signal_handler(struct sigaction *orig_action);
+static void signal_handler(int signum);
 static int get_device_id_from_mac(uint8_t *const device_id,
 		const uint8_t *const mac_addr);
 static uint32_t fw_string_to_int(const char *fw_string);
@@ -72,6 +74,7 @@ static volatile cc_status_t connection_status = CC_STATUS_DISCONNECTED;
 static pthread_t reconnect_thread;
 static bool reconnect_thread_valid;
 static bool initial_reconnection;
+static volatile bool stop_requested;
 cc_cfg_t *cc_cfg = NULL;
 
 /*------------------------------------------------------------------------------
@@ -92,6 +95,8 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	ccapi_start_error_t ccapi_error;
 	ccapi_receive_error_t reg_builtin_error;
 	int error;
+
+	stop_requested = false;
 
 	cc_cfg = calloc(1, sizeof(cc_cfg_t));
 	if (cc_cfg == NULL) {
@@ -181,13 +186,21 @@ cc_start_error_t start_cloud_connection(void)
 {
 	ccapi_tcp_start_error_t tcp_start_error;
 	cc_sys_mon_error_t sys_mon_error;
+	struct sigaction orig_action;
+	int ret;
 
 	if (cc_cfg == NULL) {
 		log_error("%s", "Initialize the connection before starting");
 		return CC_START_ERROR_NOT_INITIALIZE;
 	}
 
+	/* Set a signal handler to be able to cancel while trying to connect */
+	ret = setup_signal_handler(&orig_action);
 	tcp_start_error = initialize_tcp_transport(cc_cfg);
+	/* Restore the original signal handler */
+	if (!ret)
+		sigaction(SIGINT, &orig_action, NULL);
+
 	if (tcp_start_error != CCAPI_TCP_START_ERROR_NONE) {
 		log_error("Error initializing TCP transport: error %d", tcp_start_error);
 		switch(tcp_start_error) {
@@ -241,8 +254,11 @@ cc_stop_error_t stop_cloud_connection(void)
 
 	stop_listening_for_local_requests();
 
-	if (!pthread_equal(reconnect_thread, 0))
+	stop_requested = true;
+	if (reconnect_thread_valid) {
 		pthread_cancel(reconnect_thread);
+		pthread_join(reconnect_thread, NULL);
+	}
 
 	stop_system_monitor();
 
@@ -265,7 +281,6 @@ cc_stop_error_t stop_cloud_connection(void)
 #endif
 
 	ccapi_error = ccapi_stop(CCAPI_STOP_GRACEFULLY);
-
 	if (ccapi_error == CCAPI_STOP_ERROR_NONE) {
 		log_info("%s", "Cloud connection stopped");
 	} else {
@@ -359,7 +374,7 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
 		retry = cc_cfg->enable_reconnect
 				&& error != CCAPI_TCP_START_ERROR_NONE
 				&& error != CCAPI_TCP_START_ERROR_ALREADY_STARTED;
-	} while (retry);
+	} while (retry && !stop_requested);
 
 	if (error != CCAPI_TCP_START_ERROR_NONE && error != CCAPI_TCP_START_ERROR_ALREADY_STARTED) {
 		log_debug("%s: failed with error %d", __func__, error);
@@ -725,6 +740,42 @@ static bool retry_connection(void)
 #endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
 
 	return reconnect;
+}
+
+/*
+ * setup_signal_handler() - Setup process signals
+ *
+ * Return: 0 on success, 1 otherwise.
+ */
+static int setup_signal_handler(struct sigaction *orig_action)
+{
+	struct sigaction new_action;
+
+	memset(&new_action, 0, sizeof(new_action));
+	new_action.sa_handler = signal_handler;
+	sigemptyset(&new_action.sa_mask);
+	new_action.sa_flags = 0;
+
+	sigaction(SIGINT, NULL, orig_action);
+	if (orig_action->sa_handler != SIG_IGN) {
+		if (sigaction(SIGINT, &new_action, NULL)) {
+			log_error("Failed to install signal handler: %s (%d)", strerror(errno), errno);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * signal_handler() - Manage signal received.
+ *
+ * @signum: Received signal.
+ */
+static void signal_handler(int signum)
+{
+	log_debug("%s: Received signal %d", __func__, signum);
+	stop_requested = true;
 }
 
 /*
