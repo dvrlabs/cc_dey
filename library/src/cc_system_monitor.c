@@ -38,18 +38,24 @@
 
 #define SYSTEM_MONITOR_TAG			"SYSMON:"
 
-#define DATA_STREAM_MEMORY			"system_monitor/free_memory"
+#define DATA_STREAM_FREE_MEMORY		"system_monitor/free_memory"
+#define DATA_STREAM_USED_MEMORY		"system_monitor/used_memory"
 #define DATA_STREAM_CPU_LOAD		"system_monitor/cpu_load"
 #define DATA_STREAM_CPU_TEMP		"system_monitor/cpu_temperature"
+#define DATA_STREAM_FREQ			"system_monitor/frequency"
+#define DATA_STREAM_UPTIME			"system_monitor/uptime"
 
-#define TOTAL_DATA_STREAMS			3
+#define TOTAL_DATA_STREAMS			6
 
 #define DATA_STREAM_MEMORY_UNITS	"kB"
 #define DATA_STREAM_CPU_LOAD_UNITS	"%"
 #define DATA_STREAM_CPU_TEMP_UNITS	"C"
+#define DATA_STREAM_FREQ_UNITS		"kHz"
+#define DATA_STREAM_UPTIME_UNITS	"s"
 
 #define FILE_CPU_LOAD				"/proc/stat"
 #define FILE_CPU_TEMP				"/sys/class/thermal/thermal_zone0/temp"
+#define FILE_CPU_FREQ				"/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
@@ -57,11 +63,15 @@
 static void *system_monitor_threaded(void *cc_cfg);
 static void system_monitor_loop(const cc_cfg_t *const cc_cfg);
 static ccapi_dp_error_t init_system_monitor(void);
-static void add_system_samples(unsigned long memory, double load, double temp);
+static void add_system_samples(void);
 static ccapi_timestamp_t *get_timestamp(void);
+static void free_timestamp(ccapi_timestamp_t *timestamp);
 static long get_free_memory(void);
+static long get_used_memory(void);
 static double get_cpu_load(void);
 static double get_cpu_temp(void);
+static unsigned long get_cpu_freq(void);
+static unsigned long get_uptime(void);
 static long read_file(const char *path, char *buffer, long file_size);
 
 /*------------------------------------------------------------------------------
@@ -135,7 +145,7 @@ cc_sys_mon_error_t start_system_monitor(const cc_cfg_t *const cc_cfg)
 	}
 	error = pthread_create(&dp_thread, &attr, system_monitor_threaded, (void *) cc_cfg);
 	if (error != 0) {
-		log_sm_error("pthread_create() error %d", error);
+		log_sm_error("Error while starting the system monitor, %d", error);
 		pthread_attr_destroy(&attr);
 		return CC_SYS_MON_ERROR_THREAD;
 	}
@@ -216,7 +226,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 		uint32_t count = 0;
 		long loop;
 
-		add_system_samples(get_free_memory(), get_cpu_load(), get_cpu_temp());
+		add_system_samples();
 
 		ccapi_dp_get_collection_points_count(dp_collection, &count);
 		if (count >= n_samples_to_send && !stop_requested) {
@@ -239,8 +249,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 				log_sm_debug("%s", "Sending system monitor samples");
 				dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, dp_collection);
 				if (dp_error != CCAPI_DP_ERROR_NONE)
-					log_sm_error("%s: ccapi_dp_send_collection() error %d",
-						     __func__, dp_error);
+					log_sm_error("Error sending system monitor samples, %d", dp_error);
 			}
 		}
 
@@ -267,43 +276,108 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
  */
 static ccapi_dp_error_t init_system_monitor(void)
 {
+	char *stream_name;
+
 	ccapi_dp_error_t dp_error = ccapi_dp_create_collection(&dp_collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
-		log_sm_error("%s: ccapi_dp_create_collection error %d",
-			     __func__, dp_error);
+		log_sm_error("Error initalizing system monitor, %d", dp_error);
 		return dp_error;
 	}
 
-	ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-			DATA_STREAM_MEMORY, "int32 ts_iso", DATA_STREAM_MEMORY_UNITS, NULL);
-	ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-			DATA_STREAM_CPU_LOAD, "double ts_iso", DATA_STREAM_CPU_LOAD_UNITS, NULL);
-	ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-			DATA_STREAM_CPU_TEMP, "double ts_iso", DATA_STREAM_CPU_TEMP_UNITS, NULL);
+	stream_name = DATA_STREAM_FREE_MEMORY;
+	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+				stream_name, "int32 ts_iso", DATA_STREAM_MEMORY_UNITS, NULL);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		goto error;
+
+	stream_name = DATA_STREAM_USED_MEMORY;
+	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+				stream_name, "int32 ts_iso", DATA_STREAM_MEMORY_UNITS, NULL);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		goto error;
+
+	stream_name = DATA_STREAM_CPU_LOAD;
+	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+				stream_name, "double ts_iso", DATA_STREAM_CPU_LOAD_UNITS, NULL);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		goto error;
+
+	stream_name = DATA_STREAM_CPU_TEMP;
+	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+				stream_name, "double ts_iso", DATA_STREAM_CPU_TEMP_UNITS, NULL);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		goto error;
+
+	stream_name = DATA_STREAM_FREQ;
+	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+				stream_name, "int32 ts_iso", DATA_STREAM_FREQ_UNITS, NULL);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		goto error;
+
+	stream_name = DATA_STREAM_UPTIME;
+	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+				stream_name, "int32 ts_iso", DATA_STREAM_UPTIME_UNITS, NULL);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		goto error;
 
 	return CCAPI_DP_ERROR_NONE;
+
+error:
+
+	log_sm_error("Cannot add '%s' stream to data point collection, error %d", stream_name, dp_error);
+
+	return dp_error;
 }
 
 /*
  * add_system_samples() - Add memory, CPU load, and temp values to the data
  *                        point collection
- *
- * @memory:		Free memory available in kB.
- * @load:		CPU load in %.
- * @temp:		CPU temperature in C.
  */
-static void add_system_samples(unsigned long memory, double load, double temp)
+static void add_system_samples(void)
 {
+	ccapi_dp_error_t dp_error;
 	ccapi_timestamp_t *timestamp = get_timestamp();
+	unsigned long free_mem = get_free_memory();
+	long used_mem = get_used_memory();
+	double load = get_cpu_load();
+	double temp =  get_cpu_temp();
+	long freq = get_cpu_freq();
+	long uptime = get_uptime();
+	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_FREE_MEMORY, free_mem, timestamp);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		log_sm_error("Cannot add free memory value, %d", dp_error);
+	else
+		log_sm_debug("Free memory = %lu%s", free_mem, DATA_STREAM_MEMORY_UNITS);
 
-	ccapi_dp_add(dp_collection, DATA_STREAM_MEMORY, memory, timestamp);
-	log_sm_debug("Free memory = %lu %s", memory, DATA_STREAM_MEMORY_UNITS);
+	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_USED_MEMORY, used_mem, timestamp);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		log_sm_error("Cannot add used memory value, %d", dp_error);
+	else
+		log_sm_debug("Used memory = %ld%s", used_mem, DATA_STREAM_MEMORY_UNITS);
 
-	ccapi_dp_add(dp_collection, DATA_STREAM_CPU_LOAD, load, timestamp);
-	log_sm_debug("CPU load = %f%s", load, DATA_STREAM_CPU_LOAD_UNITS);
+	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_CPU_LOAD, load, timestamp);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		log_sm_error("Cannot add CPU load value, %d", dp_error);
+	else
+		log_sm_debug("CPU load = %f%s", load, DATA_STREAM_CPU_LOAD_UNITS);
 
-	ccapi_dp_add(dp_collection, DATA_STREAM_CPU_TEMP, temp, timestamp);
-	log_sm_debug("Temperature = %f%s", temp, DATA_STREAM_CPU_TEMP_UNITS);
+	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_CPU_TEMP, temp, timestamp);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		log_sm_error("Cannot add CPU temperature value, %d", dp_error);
+	else
+		log_sm_debug("CPU temperature = %f%s", temp, DATA_STREAM_CPU_TEMP_UNITS);
+
+	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_FREQ, freq, timestamp);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		log_sm_error("Cannot add CPU frequency value, %d", dp_error);
+	else
+		log_sm_debug("Frequency = %ld%s", freq, DATA_STREAM_FREQ_UNITS);
+
+	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_UPTIME, uptime, timestamp);
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		log_sm_error("Cannot add uptime value, %d", dp_error);
+	else
+		log_sm_debug("Uptime = %ld%s", uptime, DATA_STREAM_UPTIME_UNITS);
 
 	if (timestamp != NULL) {
 		if (timestamp->iso8601 != NULL) {
@@ -349,6 +423,22 @@ static ccapi_timestamp_t *get_timestamp(void)
 }
 
 /*
+ * free_timestamp() - Free given timestamp structure
+ *
+ * @timestamp:	The timestamp structure to release.
+ */
+static void free_timestamp(ccapi_timestamp_t *timestamp)
+{
+	if (timestamp != NULL) {
+		if (timestamp->iso8601 != NULL) {
+			free((char *) timestamp->iso8601);
+			timestamp->iso8601 = NULL;
+		}
+		free(timestamp);
+	}
+}
+
+/*
  * get_free_memory() - Get the free memory of the system
  *
  * Return: The free memory of the system in kB.
@@ -358,11 +448,28 @@ static long get_free_memory(void)
 	struct sysinfo info;
 
 	if (sysinfo(&info) != 0) {
-		log_sm_error("%s: sysinfo error", __func__);
+		log_sm_error("%s", "Error getting free memory");
 		return -1;
 	}
 
 	return info.freeram / 1024;
+}
+
+/*
+ * get_used_memory() - Get the usded memory of the system
+ *
+ * Return: The used memory of the system in kB, -1 if error.
+ */
+static long get_used_memory(void)
+{
+	struct sysinfo info;
+
+	if (sysinfo(&info) != 0) {
+		log_sm_error("%s", "Error getting used memory");
+		return -1;
+	}
+
+	return (info.totalram - info.freeram) / 1024;
 }
 
 /*
@@ -380,7 +487,7 @@ static double get_cpu_load(void) {
 
 	file_size = read_file(FILE_CPU_LOAD, file_data, MAX_LENGTH);
 	if (file_size <= 0) {
-		log_sm_error("%s: error reading cpu load file", __func__);
+		log_sm_error("%s", "Error getting CPU load");
 		return -1;
 	}
 
@@ -389,7 +496,7 @@ static double get_cpu_load(void) {
 			&fields[5], &fields[6], &fields[7], &fields[8], &fields[9]);
 
 	if (result < 4) {
-		log_sm_error("%s: cpu load not enough fields error", __func__);
+		log_sm_error("%s", "Error getting CPU load");
 		return -1;
 	}
 
@@ -428,17 +535,61 @@ static double get_cpu_temp(void)
 
 	file_size = read_file(FILE_CPU_TEMP, file_data, MAX_LENGTH);
 	if (file_size <= 0) {
-		log_sm_error("%s: Error reading cpu temperature file", __func__);
+		log_sm_error("%s", "Error getting CPU temperature");
 		return -1;
 	}
 
 	result = sscanf(file_data, "%lf", &temperature);
 	if (result < 1) {
-		log_sm_error("%s: cpu temp not enough fields error", __func__);
+		log_sm_error("%s", "Error getting CPU temperature");
 		return -1;
 	}
 
 	return temperature / 1000;
+}
+
+/*
+ * get_cpu_freq() - Get the CPU frequency
+ *
+ * Return: The CPU frequency in kHz, -1 if error.
+ */
+static unsigned long get_cpu_freq(void)
+{
+	char data[MAX_LENGTH] = {0};
+	long file_size;
+	long freq;
+
+	freq = -1;
+
+	file_size = read_file(FILE_CPU_FREQ, data, MAX_LENGTH);
+	if (file_size <= 0) {
+		log_sm_error("%s", "Error getting CPU frequency");
+		return -1;
+	}
+
+	if (sscanf(data, "%ld", &freq) < 1) {
+		log_sm_error("%s", "Error getting CPU frequency");
+		return -1;
+	}
+
+	return freq;
+}
+
+/*
+ * get_uptime() - Get number of seconds since boot
+ *
+ * Return: Number of seconds since boot.
+ */
+static unsigned long get_uptime(void)
+{
+	struct sysinfo info;
+
+	if (sysinfo(&info) != 0) {
+		log_sm_error("%s", "Error getting uptime");
+		return -1;
+	}
+
+	return info.uptime;
 }
 
 /**
