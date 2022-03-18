@@ -284,12 +284,6 @@ static unsigned int get_element(ccapi_rci_info_t * const info, ccapi_element_val
 			ret = rci_setting_system_monitor_sample_rate_get(info, &element->unsigned_integer_value);
 		else if (strcmp(info->element.name, "n_dp_upload") == 0)
 			ret = rci_setting_system_monitor_n_dp_upload_get(info, &element->unsigned_integer_value);
-		else if (strcmp(info->element.name, "enable_sysmon_mem") == 0)
-			ret = rci_setting_system_monitor_enable_sysmon_mem_get(info, &element->on_off_value);
-		else if (strcmp(info->element.name, "enable_sysmon_cpuload") == 0)
-			ret = rci_setting_system_monitor_enable_sysmon_cpuload_get(info, &element->on_off_value);
-		else if (strcmp(info->element.name, "enable_sysmon_cputemp") == 0)
-			ret = rci_setting_system_monitor_enable_sysmon_cputemp_get(info, &element->on_off_value);
 	}
 
 	/* group setting system "System" */
@@ -331,12 +325,6 @@ static unsigned int set_element(ccapi_rci_info_t * const info, ccapi_element_val
 			ret = rci_setting_system_monitor_sample_rate_set(info, &element->unsigned_integer_value);
 		else if (strcmp(info->element.name, "n_dp_upload") == 0)
 			ret = rci_setting_system_monitor_n_dp_upload_set(info, &element->unsigned_integer_value);
-		else if (strcmp(info->element.name, "enable_sysmon_mem") == 0)
-			ret = rci_setting_system_monitor_enable_sysmon_mem_set(info, &element->on_off_value);
-		else if (strcmp(info->element.name, "enable_sysmon_cpuload") == 0)
-			ret = rci_setting_system_monitor_enable_sysmon_cpuload_set(info, &element->on_off_value);
-		else if (strcmp(info->element.name, "enable_sysmon_cputemp") == 0)
-			ret = rci_setting_system_monitor_enable_sysmon_cputemp_set(info, &element->on_off_value);
 	}
 
 	/* group setting system "System" */

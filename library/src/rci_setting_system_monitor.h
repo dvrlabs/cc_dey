@@ -58,19 +58,4 @@ ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_n_dp_upload_g
 ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_n_dp_upload_set(
 		ccapi_rci_info_t * const info, uint32_t const * const value);
 
-ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_mem_get(
-		ccapi_rci_info_t * const info, ccapi_on_off_t * const value);
-ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_mem_set(
-		ccapi_rci_info_t * const info, ccapi_on_off_t const * const value);
-
-ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_cpuload_get(
-		ccapi_rci_info_t * const info, ccapi_on_off_t * const value);
-ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_cpuload_set(
-		ccapi_rci_info_t * const info, ccapi_on_off_t const * const value);
-
-ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_cputemp_get(
-		ccapi_rci_info_t * const info, ccapi_on_off_t * const value);
-ccapi_setting_system_monitor_error_id_t rci_setting_system_monitor_enable_sysmon_cputemp_set(
-		ccapi_rci_info_t * const info, ccapi_on_off_t const * const value);
-
 #endif

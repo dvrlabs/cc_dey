@@ -34,11 +34,15 @@
 ------------------------------------------------------------------------------*/
 #define LOOP_MS						100
 
+#define MAX_LENGTH					256
+
 #define SYSTEM_MONITOR_TAG			"SYSMON:"
 
 #define DATA_STREAM_MEMORY			"system_monitor/free_memory"
 #define DATA_STREAM_CPU_LOAD		"system_monitor/cpu_load"
 #define DATA_STREAM_CPU_TEMP		"system_monitor/cpu_temperature"
+
+#define TOTAL_DATA_STREAMS			3
 
 #define DATA_STREAM_MEMORY_UNITS	"kB"
 #define DATA_STREAM_CPU_LOAD_UNITS	"%"
@@ -52,14 +56,13 @@
 ------------------------------------------------------------------------------*/
 static void *system_monitor_threaded(void *cc_cfg);
 static void system_monitor_loop(const cc_cfg_t *const cc_cfg);
-static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg);
-static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t *const cc_cfg);
+static ccapi_dp_error_t init_system_monitor(void);
+static void add_system_samples(unsigned long memory, double load, double temp);
 static ccapi_timestamp_t *get_timestamp(void);
 static long get_free_memory(void);
 static double get_cpu_load(void);
 static double get_cpu_temp(void);
-static uint32_t calculate_number_samples(const cc_cfg_t *const cc_cfg);
-static long read_file(const char *path, char **buffer, long file_size);
+static long read_file(const char *path, char *buffer, long file_size);
 
 /*------------------------------------------------------------------------------
                                   M A C R O S
@@ -117,13 +120,9 @@ static unsigned long long last_work = 0, last_total = 0;
 cc_sys_mon_error_t start_system_monitor(const cc_cfg_t *const cc_cfg)
 {
 	pthread_attr_t attr;
-	int any_sys_mon_enabled = (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
-			| (cc_cfg->sys_mon_parameters & SYS_MON_LOAD)
-			| (cc_cfg->sys_mon_parameters & SYS_MON_TEMP);
 	int error;
 
-	if (!(cc_cfg->services & SYS_MONITOR_SERVICE)
-			|| !any_sys_mon_enabled || cc_cfg->sys_mon_sample_rate <= 0)
+	if (!(cc_cfg->services & SYS_MONITOR_SERVICE) || cc_cfg->sys_mon_sample_rate <= 0)
 		return CC_SYS_MON_ERROR_NONE;
 
 	if (is_system_monitor_running())
@@ -179,7 +178,7 @@ void stop_system_monitor(void)
  */
 static void *system_monitor_threaded(void *cc_cfg)
 {
-	ccapi_dp_error_t dp_error = init_system_monitor(cc_cfg);
+	ccapi_dp_error_t dp_error = init_system_monitor();
 	if (dp_error != CCAPI_DP_ERROR_NONE)
 		/* The data point collection could not be created. */
 		return NULL;
@@ -211,18 +210,13 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 {
 	log_sm_info("%s", "Start monitoring the system");
 
-	log_sm_debug("free_memory=%d, cpu_load=%d, cpu_temperature=%d",
-				(cc_cfg->sys_mon_parameters & SYS_MON_MEMORY) ? 1 : 0,
-				(cc_cfg->sys_mon_parameters & SYS_MON_LOAD) ? 1 : 0,
-				(cc_cfg->sys_mon_parameters & SYS_MON_TEMP) ? 1 : 0);
-
 	while (!stop_requested) {
-		uint32_t n_samples_to_send = calculate_number_samples(cc_cfg);
+		uint32_t n_samples_to_send = TOTAL_DATA_STREAMS * cc_cfg->sys_mon_num_samples_upload;
 		long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
 		uint32_t count = 0;
 		long loop;
 
-		add_system_samples(get_free_memory(), get_cpu_load(), get_cpu_temp(), cc_cfg);
+		add_system_samples(get_free_memory(), get_cpu_load(), get_cpu_temp());
 
 		ccapi_dp_get_collection_points_count(dp_collection, &count);
 		if (count >= n_samples_to_send && !stop_requested) {
@@ -266,15 +260,12 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
  * init_system_monitor() - Create and initialize the system monitor data point
  *                         collection
  *
- * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
- * 			settings parsed from the configuration file are stored.
- *
  * Return: Error code after the initialization of the system monitor collection.
  *
  * The return value will always be 'CCAPI_DP_ERROR_NONE' unless there is any
  * problem creating the collection.
  */
-static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg)
+static ccapi_dp_error_t init_system_monitor(void)
 {
 	ccapi_dp_error_t dp_error = ccapi_dp_create_collection(&dp_collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
@@ -283,15 +274,12 @@ static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg)
 		return dp_error;
 	}
 
-	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
-		ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				DATA_STREAM_MEMORY, "int32 ts_iso", DATA_STREAM_MEMORY_UNITS, NULL);
-	if (cc_cfg->sys_mon_parameters & SYS_MON_LOAD)
-		ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				DATA_STREAM_CPU_LOAD, "double ts_iso", DATA_STREAM_CPU_LOAD_UNITS, NULL);
-	if (cc_cfg->sys_mon_parameters & SYS_MON_TEMP)
-		ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				DATA_STREAM_CPU_TEMP, "double ts_iso", DATA_STREAM_CPU_TEMP_UNITS, NULL);
+	ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+			DATA_STREAM_MEMORY, "int32 ts_iso", DATA_STREAM_MEMORY_UNITS, NULL);
+	ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+			DATA_STREAM_CPU_LOAD, "double ts_iso", DATA_STREAM_CPU_LOAD_UNITS, NULL);
+	ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+			DATA_STREAM_CPU_TEMP, "double ts_iso", DATA_STREAM_CPU_TEMP_UNITS, NULL);
 
 	return CCAPI_DP_ERROR_NONE;
 }
@@ -303,25 +291,19 @@ static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg)
  * @memory:		Free memory available in kB.
  * @load:		CPU load in %.
  * @temp:		CPU temperature in C.
- * @cc_cfg:		Connector configuration struct (cc_cfg_t) where the
- * 				settings parsed from the configuration file are stored.
  */
-static void add_system_samples(unsigned long memory, double load, double temp, const cc_cfg_t *const cc_cfg)
+static void add_system_samples(unsigned long memory, double load, double temp)
 {
 	ccapi_timestamp_t *timestamp = get_timestamp();
 
-	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY) {
-		ccapi_dp_add(dp_collection, DATA_STREAM_MEMORY, memory, timestamp);
-		log_sm_debug("Free memory = %lu %s", memory, DATA_STREAM_MEMORY_UNITS);
-	}
-	if (cc_cfg->sys_mon_parameters & SYS_MON_LOAD) {
-		ccapi_dp_add(dp_collection, DATA_STREAM_CPU_LOAD, load, timestamp);
-		log_sm_debug("CPU load = %f%s", load, DATA_STREAM_CPU_LOAD_UNITS);
-	}
-	if (cc_cfg->sys_mon_parameters & SYS_MON_TEMP) {
-		ccapi_dp_add(dp_collection, DATA_STREAM_CPU_TEMP, temp, timestamp);
-		log_sm_debug("Temperature = %f%s", temp, DATA_STREAM_CPU_TEMP_UNITS);
-	}
+	ccapi_dp_add(dp_collection, DATA_STREAM_MEMORY, memory, timestamp);
+	log_sm_debug("Free memory = %lu %s", memory, DATA_STREAM_MEMORY_UNITS);
+
+	ccapi_dp_add(dp_collection, DATA_STREAM_CPU_LOAD, load, timestamp);
+	log_sm_debug("CPU load = %f%s", load, DATA_STREAM_CPU_LOAD_UNITS);
+
+	ccapi_dp_add(dp_collection, DATA_STREAM_CPU_TEMP, temp, timestamp);
+	log_sm_debug("Temperature = %f%s", temp, DATA_STREAM_CPU_TEMP_UNITS);
 
 	if (timestamp != NULL) {
 		if (timestamp->iso8601 != NULL) {
@@ -389,17 +371,17 @@ static long get_free_memory(void)
  * Return: The CPU load in %, -1 if the value is not available.
  */
 static double get_cpu_load(void) {
-	char *file_data = NULL;
+	char file_data[MAX_LENGTH] = {0};
 	long file_size;
 	unsigned long long int fields[10];
 	unsigned long long work = 0, total = 0;
 	double usage = -1;
 	int i, result;
 
-	file_size = read_file(FILE_CPU_LOAD, &file_data, 4096);
+	file_size = read_file(FILE_CPU_LOAD, file_data, MAX_LENGTH);
 	if (file_size <= 0) {
 		log_sm_error("%s: error reading cpu load file", __func__);
-		goto done;
+		return -1;
 	}
 
 	result = sscanf(file_data, "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
@@ -408,15 +390,13 @@ static double get_cpu_load(void) {
 
 	if (result < 4) {
 		log_sm_error("%s: cpu load not enough fields error", __func__);
-		goto done;
+		return -1;
 	}
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++)
 		work += fields[i];
-	}
-	for (i = 0; i < result; i++) {
+	for (i = 0; i < result; i++)
 		total += fields[i];
-	}
 
 	if (last_work == 0 && last_total == 0) {
 		/* The first time report 0%. */
@@ -431,8 +411,6 @@ static double get_cpu_load(void) {
 	last_total = total;
 	last_work = work;
 
-done:
-	free(file_data);
 	return usage;
 }
 
@@ -443,47 +421,24 @@ done:
  */
 static double get_cpu_temp(void)
 {
-	char *file_data = NULL;
+	char file_data[MAX_LENGTH] = {0};
 	long file_size;
 	double temperature;
 	int result;
 
-	file_size = read_file(FILE_CPU_TEMP, &file_data, 1024);
+	file_size = read_file(FILE_CPU_TEMP, file_data, MAX_LENGTH);
 	if (file_size <= 0) {
 		log_sm_error("%s: Error reading cpu temperature file", __func__);
 		return -1;
 	}
 
 	result = sscanf(file_data, "%lf", &temperature);
-	free(file_data);
 	if (result < 1) {
 		log_sm_error("%s: cpu temp not enough fields error", __func__);
 		return -1;
 	}
 
 	return temperature / 1000;
-}
-
-/*
- * calculate_number_samples() - Calculate the number of samples to be uploaded
- *
- * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
- * 			settings parsed from the configuration file are stored.
- *
- * Return: The number of samples in a collection to be uploaded to Remote Manager.
- */
-static uint32_t calculate_number_samples(const cc_cfg_t *const cc_cfg)
-{
-	uint32_t channels = 0;
-
-	if (cc_cfg->sys_mon_parameters & SYS_MON_MEMORY)
-		channels++;
-	if (cc_cfg->sys_mon_parameters & SYS_MON_LOAD)
-		channels++;
-	if (cc_cfg->sys_mon_parameters & SYS_MON_TEMP)
-		channels++;
-
-	return channels * cc_cfg->sys_mon_num_samples_upload;
 }
 
 /**
@@ -495,31 +450,25 @@ static uint32_t calculate_number_samples(const cc_cfg_t *const cc_cfg)
  *
  * Return: The number of read bytes.
  */
-static long read_file(const char *path, char **buffer, long file_size)
+static long read_file(const char *path, char *buffer, long file_size)
 {
 	FILE *fd = NULL;
-	long read_size;
+	long read_size = -1;
 
 	if ((fd = fopen(path, "rb")) == NULL) {
-		log_sm_error("%s: fopen error: %s", __func__, path);
+		log_sm_debug("%s: fopen error: %s", __func__, path);
 		return -1;
 	}
 
-	*buffer = (char*) malloc(sizeof(char) * file_size);
-	if (*buffer == NULL) {
-		log_sm_error("%s: malloc error: %s", __func__, path);
-		fclose(fd);
-		return -1;
-	}
-
-	read_size = fread(*buffer, sizeof(char), file_size, fd);
+	read_size = fread(buffer, sizeof(char), file_size, fd);
 	if (ferror(fd)) {
-		log_sm_error("%s: fread error: %s", __func__, path);
-		read_size = -1;
-	} else {
-		(*buffer)[read_size - 1] = '\0';
+		log_sm_debug("%s: fread error: %s", __func__, path);
+		goto done;
 	}
 
+	buffer[read_size - 1] = '\0';
+
+done:
 	fclose(fd);
 
 	return read_size;

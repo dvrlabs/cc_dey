@@ -39,9 +39,6 @@
 #define ENABLE_FS_SERVICE			"enable_file_system"
 
 #define ENABLE_SYSTEM_MONITOR		"enable_system_monitor"
-#define ENABLE_SYS_MON_MEMORY		"system_monitor_enable_memory_sampling"
-#define ENABLE_SYS_MON_LOAD			"system_monitor_enable_cpu_load_sampling"
-#define ENABLE_SYS_MON_TEMP			"system_monitor_enable_cpu_temperature_sampling"
 
 #define SETTING_VENDOR_ID			"vendor_id"
 #define SETTING_VENDOR_ID_MAX		0xFFFFFFFFUL
@@ -213,9 +210,6 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 
 			/* System monitor settings. */
 			CFG_BOOL	(ENABLE_SYSTEM_MONITOR,		cfg_true,	CFGF_NONE),
-			CFG_BOOL	(ENABLE_SYS_MON_MEMORY,		cfg_true,	CFGF_NONE),
-			CFG_BOOL	(ENABLE_SYS_MON_LOAD,		cfg_true,	CFGF_NONE),
-			CFG_BOOL	(ENABLE_SYS_MON_TEMP,		cfg_true,	CFGF_NONE),
 			CFG_INT		(SETTING_SYS_MON_SAMPLE_RATE,	5,		CFGF_NONE),
 			CFG_INT		(SETTING_SYS_MON_UPLOAD_SIZE,	10,		CFGF_NONE),
 
@@ -453,14 +447,6 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	cc_cfg->on_the_fly = (ccapi_bool_t) cfg_getbool(cfg, SETTING_ON_THE_FLY);
 
 	/* Fill system monitor settings. */
-	cc_cfg->sys_mon_parameters = 0;
-	if (cfg_getbool(cfg, ENABLE_SYS_MON_MEMORY))
-		cc_cfg->sys_mon_parameters = cc_cfg->sys_mon_parameters | SYS_MON_MEMORY;
-	if (cfg_getbool(cfg, ENABLE_SYS_MON_LOAD))
-		cc_cfg->sys_mon_parameters = cc_cfg->sys_mon_parameters | SYS_MON_LOAD;
-	if (cfg_getbool(cfg, ENABLE_SYS_MON_TEMP))
-		cc_cfg->sys_mon_parameters = cc_cfg->sys_mon_parameters | SYS_MON_TEMP;
-
 	cc_cfg->sys_mon_sample_rate = cfg_getint(cfg, SETTING_SYS_MON_SAMPLE_RATE);
 	cc_cfg->sys_mon_num_samples_upload = cfg_getint(cfg, SETTING_SYS_MON_UPLOAD_SIZE);
 
@@ -517,9 +503,6 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 	/* TODO: Set virtual directories */
 
 	/* Fill system monitor settings. */
-	cfg_setbool(cfg, ENABLE_SYS_MON_MEMORY, cc_cfg->sys_mon_parameters & SYS_MON_MEMORY ? cfg_true : cfg_false);
-	cfg_setbool(cfg, ENABLE_SYS_MON_LOAD, cc_cfg->sys_mon_parameters & SYS_MON_LOAD ? cfg_true : cfg_false);
-	cfg_setbool(cfg, ENABLE_SYS_MON_TEMP, cc_cfg->sys_mon_parameters & SYS_MON_TEMP ? cfg_true : cfg_false);
 	cfg_setint(cfg, SETTING_SYS_MON_SAMPLE_RATE, cc_cfg->sys_mon_sample_rate);
 	cfg_setint(cfg, SETTING_SYS_MON_UPLOAD_SIZE, cc_cfg->sys_mon_num_samples_upload);
 

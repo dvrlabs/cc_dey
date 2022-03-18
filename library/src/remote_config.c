@@ -296,34 +296,10 @@ static connector_element_t CONST setting_system_monitor__n_dp_upload_element = {
     { 0, NULL }, 
 };
 
-static connector_element_t CONST setting_system_monitor__enable_sysmon_mem_element = {
-    "enable_sysmon_mem",
-    NULL,
-    connector_element_access_read_write,
-    { 0, NULL }, 
-};
-
-static connector_element_t CONST setting_system_monitor__enable_sysmon_cpuload_element = {
-    "enable_sysmon_cpuload",
-    NULL,
-    connector_element_access_read_write,
-    { 0, NULL }, 
-};
-
-static connector_element_t CONST setting_system_monitor__enable_sysmon_cputemp_element = {
-    "enable_sysmon_cputemp",
-    NULL,
-    connector_element_access_read_write,
-    { 0, NULL }, 
-};
-
 static connector_item_t CONST setting_system_monitor_items[] = {
 { connector_element_type_on_off, { .element = &setting_system_monitor__enable_sysmon_element } },
 { connector_element_type_uint32, { .element = &setting_system_monitor__sample_rate_element } },
-{ connector_element_type_uint32, { .element = &setting_system_monitor__n_dp_upload_element } },
-{ connector_element_type_on_off, { .element = &setting_system_monitor__enable_sysmon_mem_element } },
-{ connector_element_type_on_off, { .element = &setting_system_monitor__enable_sysmon_cpuload_element } },
-{ connector_element_type_on_off, { .element = &setting_system_monitor__enable_sysmon_cputemp_element } }
+{ connector_element_type_uint32, { .element = &setting_system_monitor__n_dp_upload_element } }
 };
 
 static connector_element_t CONST setting_system__description_element = {
@@ -389,7 +365,7 @@ static connector_group_t CONST connector_setting_groups[] = {
         "system_monitor",
         connector_collection_type_fixed_array,
         { 1 /* instances */ },
-        { 6, setting_system_monitor_items }, 
+        { 3, setting_system_monitor_items },
     },
     { 0, NULL }
 },

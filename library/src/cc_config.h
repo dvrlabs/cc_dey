@@ -32,10 +32,6 @@
 #define FS_SERVICE			(1 << 0)
 #define SYS_MONITOR_SERVICE	(1 << 1)
 
-#define SYS_MON_MEMORY		(1 << 0)
-#define SYS_MON_LOAD		(1 << 1)
-#define SYS_MON_TEMP		(1 << 2)
-
 #define LOG_LEVEL_ERROR		LOG_ERR
 #define LOG_LEVEL_INFO		LOG_INFO
 #define LOG_LEVEL_DEBUG		LOG_DEBUG
@@ -74,7 +70,6 @@ typedef struct {
  * @vdirs:						List of virtual directories
  * @n_vdirs:					Number of virtual directories in the list
  * @fw_download_path			Absolute path to download firmware files
- * @sys_mon_parameters:			Enabled parameters to monitor
  * @sys_mon_sample_rate:		Frequency at which gather system information
  * @sys_mon_num_samples_upload:	Number of samples of each channel to gather before uploading
  * @use_static_location			If true, use static location as GPS value
@@ -109,8 +104,6 @@ typedef struct {
 	unsigned int n_vdirs;
 
 	char *fw_download_path;
-
-	uint16_t sys_mon_parameters;
 
 	uint32_t sys_mon_sample_rate;
 	uint32_t sys_mon_num_samples_upload;
