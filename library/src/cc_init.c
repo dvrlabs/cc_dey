@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "cc_device_request.h"
 #include "cc_firmware_update.h"
 #include "cc_init.h"
 #include "cc_logging.h"
