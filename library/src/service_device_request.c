@@ -44,6 +44,15 @@
 	log_debug("%s " format, DEVICE_REQUEST_TAG, __VA_ARGS__)
 
 /**
+ * log_dr_warning() - Log the given message as warning
+ *
+ * @format:		Warning message to log.
+ * @args:		Additional arguments.
+ */
+#define log_dr_warning(format, ...)									\
+	log_warning("%s " format, DEVICE_REQUEST_TAG, __VA_ARGS__)
+
+/**
  * log_dr_error() - Log the given message as error
  *
  * @format:		Error message to log.
@@ -86,7 +95,7 @@ static const char *to_user_error_msg(ccapi_receive_error_t error) {
 		case CCAPI_RECEIVE_ERROR_STATUS_TIMEOUT:
 			return "Timeout";
 		default:
-			log_error("unknown internal connection error: ccapi_receive_error_t[%d]", error);
+			log_dr_error("Unknown internal connection error: ccapi_receive_error_t[%d]", error);
 			return "Internal connector error";
 	}
 }
@@ -148,24 +157,24 @@ static int get_socket_for_target(const char *target)
 	int ret = -1; /* Assume error */
 
 	if (!req) {
-		log_error("Could not get port for registered target %s", target);
+		log_dr_error("Could not get port for registered target %s", target);
 		goto out;
 	}
 
 	if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		log_error("Could not open socket to send device request: %s", strerror(errno));
+		log_dr_error("Could not open socket to send device request: %s", strerror(errno));
 		goto out;
 	}
 
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(req->port);
 	if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-		log_error("Could not set serv_addr.sin_addr: %s", strerror(errno));
+		log_dr_error("Could not set serv_addr.sin_addr: %s", strerror(errno));
 		goto out;
 	}
 
 	if (connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof serv_addr) < 0) {
-		log_error("Could not connect to socket to deliver device request: %s", strerror(errno));
+		log_dr_error("Could not connect to socket to deliver device request: %s", strerror(errno));
 		goto out;
 	}
 
@@ -202,12 +211,12 @@ static ccapi_receive_error_t device_request(const char *target,
 	if (write_string(sock_fd, REQUEST_CB)  ||											/* The request type */
 		write_string(sock_fd, target) ||												/* The registered target device name */
 		write_blob(sock_fd, request_buffer_info->buffer, request_buffer_info->length)) {/* The payload data passed to the device callback */
-		log_error("Could not write device request to socket: %s", strerror(errno));
+		log_dr_error("Could not write device request to socket: %s", strerror(errno));
 		goto out;
 	}
 	/* Read the blob response from the device */
 	if (read_blob(sock_fd, &response_buffer_info->buffer, &response_buffer_info->length, &timeout)) {
-		log_error("Could not recv device request data from socket: %s", strerror(errno));
+		log_dr_error("Could not recv device request data from socket: %s", strerror(errno));
 		response_buffer_info->length = 0;
 		goto out;
 	}
@@ -236,7 +245,7 @@ static void device_request_done(const char *target,
 	int sock_fd = get_socket_for_target(target);
 
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE)
-		log_error("Error on device request response, target='%s' - transport='%d' - error='%d'",
+		log_dr_error("Error on device request response, target='%s' - transport='%d' - error='%d'",
 			target, transport, receive_error);
 
 	if (sock_fd < 0)
@@ -247,7 +256,7 @@ static void device_request_done(const char *target,
 		|| write_string(sock_fd, target)		/* The registered target name */
 		|| write_uint32(sock_fd, error_code)	/* The DRM call return status code */
 		|| write_string(sock_fd, err_msg)) {		/* And a text description of the status code */
-		log_error("Could not write device request to socket: %s", strerror(errno));
+		log_dr_error("Could not write device request to socket: %s", strerror(errno));
 		goto out;
 	}
 out:
@@ -269,30 +278,30 @@ static ccapi_receive_error_t edp_cert_update_cb(const char *const target,
 
 	UNUSED_ARGUMENT(response_buffer_info);
 
-	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
 		char *client_cert_path = get_client_cert_path();
 
 		if (!client_cert_path) {
-			log_error("%s", "Invalid client certificate");
+			log_dr_error("%s", "Invalid client certificate");
 			return CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
 		}
 
 		fp = fopen(client_cert_path, "w");
 		if (!fp) {
-			log_error("Unable to open certificate %s: %s", client_cert_path, strerror(errno));
+			log_dr_error("Unable to open certificate %s: %s", client_cert_path, strerror(errno));
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 		if (fwrite(request_buffer_info->buffer, sizeof(char), request_buffer_info->length, fp) < request_buffer_info->length) {
-			log_error("Unable to write certificate %s", client_cert_path);
+			log_dr_error("Unable to write certificate %s", client_cert_path);
 			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		} else {
-			log_debug("%s: certificate saved at %s", __func__, client_cert_path);
+			log_dr_debug("%s: certificate saved at %s", __func__, client_cert_path);
 			ret = CCAPI_RECEIVE_ERROR_NONE;
 		}
 		fclose(fp);
 	} else {
-		log_error("%s: received invalid data", __func__);
+		log_dr_error("%s: received invalid data", __func__);
 		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
 	}
 
@@ -305,9 +314,9 @@ static void builtin_request_status_cb(const char *const target,
 			ccapi_buffer_info_t *const response_buffer_info,
 			ccapi_receive_error_t receive_error)
 {
-	log_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Error on device request response: target='%s' - transport='%d' - error='%d'",
+		log_dr_error("Error on device request response: target='%s' - transport='%d' - error='%d'",
 			      target, transport, receive_error);
 	}
 	/* Free the response buffer */
@@ -330,7 +339,7 @@ ccapi_receive_error_t register_builtin_requests(void)
 						 builtin_request_status_cb,
 						 CCAPI_RECEIVE_NO_LIMIT);
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_EDP_CERT_UPDATE,
+		log_dr_error("Cannot register target '%s', error %d", TARGET_EDP_CERT_UPDATE,
 				receive_error);
 		return receive_error;
 	}
@@ -379,7 +388,7 @@ static ccapi_receive_error_t unregister_target(const char *target)
 		 * This should never happen, and if it does happen still return OK to
 		 * the calling process, as the CCAPI did unregister the target
 		 */
-		log_error("Could not remove registered target %s", target);
+		log_dr_error("Could not remove registered target %s", target);
 	}
 
 	return ret;
@@ -397,16 +406,16 @@ static int register_device_request(int fd, const request_data_t *req_data)
 		previously_registered_req = find_request_data(req_data->target);
 		if (!previously_registered_req) {
 			/* This should never happen */
-			log_error("%s", "target already registered in CCAPI, but not registered on service_device_request!!");
+			log_dr_error("%s", "Target already registered in CCAPI, but not registered on service_device_request!!");
 			if (fd >= 0)
 				send_error(fd, "Internal connector error");
 		} else {
-			log_warning("target %s has been overriden by new process listening on port %d",
+			log_dr_warning("Target %s has been overriden by new process listening on port %d",
 				req_data->target, req_data->port);
 			previously_registered_req->port = req_data->port;
 		}
 	} else if (status != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Could not register device request: %d\n", status);
+		log_dr_error("Could not register device request: %d", status);
 		if (fd >= 0)
 			send_error(fd, to_user_error_msg(status));
 		result = status;
@@ -476,19 +485,19 @@ int import_devicerequests(const char *file_path)
 	long fpos, flen;
 
 	if (!file) {
-		log_error("Could not read registered targets from %s: %s\n", file_path, strerror(errno));
+		log_dr_error("Could not read registered targets from %s: %s", file_path, strerror(errno));
 		return -1;
 	}
 
 	if (fread(&n, sizeof n, 1, file) != 1) {
-		log_error("Could not read number of registered targets: %s\n", strerror(errno));
+		log_dr_error("Could not read number of registered targets: %s", strerror(errno));
 		goto out;
 	}
 
 	for (i = 0; i < n; i++) {
 		if (fread(&temp.port, sizeof temp.port, 1, file) != 1
 			|| fread(&string_len, sizeof string_len, 1, file) != 1) {
-			log_error("Could not read registered target %zu\n", i);
+			log_dr_error("Could not read registered target %zu", i);
 			goto out;
 		}
 
@@ -515,12 +524,12 @@ int import_devicerequests(const char *file_path)
 		 * around e.g. 0 < 0xfffffffffff
 		 */
 		if (!temp_string || malloc_usable_size(temp_string) < (size_t) (string_len)) {
-			log_error("%s", "Could not read registered target, out of memory\n");
+			log_dr_error("%s", "Could not read registered target, out of memory");
 			free(temp_string);
 			goto out;
 		}
 		if (fread(temp_string, string_len, 1, file) != 1) {
-			log_error("Could not read registered target %zu\n", i);
+			log_dr_error("Could not read registered target %zu", i);
 			free(temp_string);
 			goto out;
 		}
@@ -548,12 +557,12 @@ int dump_devicerequests(const char *file_path)
 		return 0;
 
 	if (!(file = fopen(file_path, "w"))) {
-		log_error("Could not dump registered targets to %s: %s\n", file_path, strerror(errno));
+		log_dr_error("Could not dump registered targets to %s: %s", file_path, strerror(errno));
 		return -1;
 	}
 
 	if (fwrite(&n, sizeof n, 1, file) != 1) {
-		log_error("Could not write registered targets: %s\n", strerror(errno));
+		log_dr_error("Could not write registered targets: %s", strerror(errno));
 		goto out;
 	}
 
@@ -564,7 +573,7 @@ int dump_devicerequests(const char *file_path)
 		if (fwrite(&dr->port, sizeof dr->port, 1, file) != 1
 			|| fwrite(&target_len, sizeof target_len, 1, file) != 1
 			|| fwrite(dr->target, target_len, 1, file) != 1) {
-			log_error("Could not write registered targets: %s\n", strerror(errno));
+			log_dr_error("Could not write registered targets: %s", strerror(errno));
 			goto out;
 		}
 	}
@@ -691,20 +700,20 @@ ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
 	if (request_buffer_info->length > 0) {
 		request_buffer = calloc(request_buffer_info->length + 1, sizeof(char));
 		if (request_buffer == NULL) {
-			log_error("Could not read received device request: %s", "Out of memory");
+			log_dr_error("Could not read received device request: %s", "Out of memory");
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 		memcpy(request_buffer, request_buffer_info->buffer, request_buffer_info->length);
 		request_data = trim(request_buffer);
 		if (request_data == NULL) {
-			log_error("Could not read received device request: %s", "Out of memory");
+			log_dr_error("Could not read received device request: %s", "Out of memory");
 			free(request_buffer);
 
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 	}
 
-	log_debug("%s: not registered target - request='%s'", __func__, request_data);
+	log_dr_debug("%s: not registered target - request='%s'", __func__, request_data);
 	free(request_buffer);
 	free(request_data);
 
@@ -714,7 +723,7 @@ ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
 
 		response_buffer_info->buffer = calloc(len + 1, sizeof(char));
 		if (response_buffer_info->buffer == NULL) {
-			log_error("%s: response_buffer_info malloc error", __func__);
+			log_dr_error("Could not read received device request: %s", "Out of memory");
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 		response_buffer_info->length = sprintf(response_buffer_info->buffer,
