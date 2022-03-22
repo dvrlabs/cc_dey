@@ -21,19 +21,29 @@
 #include <ctype.h>
 #include <errno.h>
 #include <malloc.h>
+#include <net/if.h>
 #include <stdbool.h>
+#include <sys/sysinfo.h>
 #include <unistd.h>
 
 #include "cc_config.h"
 #include "cc_logging.h"
 #include "ccapi/ccapi.h"
+#include "network_utils.h"
 #include "services_util.h"
 #include "service_device_request.h"
 #include "string_utils.h"
 
 #define TARGET_EDP_CERT_UPDATE	"builtin/edp_certificate_update"
 
-#define DEVICE_REQUEST_TAG	"DEVREQ:"
+#define TARGET_DEVICE_INFO		"device_info"
+
+#define DEVICE_REQUEST_TAG		"DEVREQ:"
+
+#define MAX_RESPONSE_SIZE		512
+
+#define FORMAT_INFO_TOTAL_MEM	"\"total_mem\": %ld,"
+#define FORMAT_INFO_IFACE		"\"%s\": {\"mac\": \"" MAC_FORMAT "\",\"ip\": \"" IP_FORMAT "\"},"
 
 /**
  * log_dr_debug() - Log the given message as debug
@@ -597,7 +607,7 @@ out:
  * Return: CCAPI_FALSE if the device request is not accepted,
  *         CCAPI_TRUE otherswise.
  */
-ccapi_bool_t app_receive_default_accept_cb(char const *const target,
+ccapi_bool_t receive_default_accept_cb(char const *const target,
 		ccapi_transport_t const transport)
 {
 	ccapi_bool_t accept_target = CCAPI_TRUE;
@@ -625,8 +635,8 @@ ccapi_bool_t app_receive_default_accept_cb(char const *const target,
 }
 
 /**
- * app_receive_default_data_cb() - Default data callback for non registered
- *                                 device requests
+ * receive_default_data_cb() - Default data callback for non registered
+ *                             device requests
  *
  * @target:					Target ID associated to the device request.
  * @transport:				Communication transport used by the device request.
@@ -636,7 +646,7 @@ ccapi_bool_t app_receive_default_accept_cb(char const *const target,
  * Logs information about the received request and sends an answer to Device
  * Cloud indicating that the device request with that target is not registered.
  */
-ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
+ccapi_receive_error_t receive_default_data_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
@@ -682,8 +692,8 @@ ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
 }
 
 /**
- * app_receive_default_status_cb() - Default status callback for non registered
- *                                   device requests
+ * receive_default_status_cb() - Default status callback for non registered
+ *                               device requests
  *
  * @target:					Target ID associated to the device request.
  * @transport:				Communication transport used by the device request.
@@ -695,7 +705,7 @@ ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
  *
  * Cleans and frees the response buffer.
  */
-void app_receive_default_status_cb(char const *const target,
+void receive_default_status_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t *const response_buffer_info,
 		ccapi_receive_error_t receive_error)
@@ -705,4 +715,128 @@ void app_receive_default_status_cb(char const *const target,
 	/* Free the response buffer */
 	if (response_buffer_info != NULL)
 		free(response_buffer_info->buffer);
+}
+
+/*
+ * device_info_cb() - Data callback for 'device_info' device requests
+ *
+ * @target:					Target ID of the device request (device_info).
+ * @transport:				Communication transport used by the device request.
+ * @request_buffer_info:	Buffer containing the device request.
+ * @response_buffer_info:	Buffer to store the answer of the request.
+ *
+ * Logs information about the received request and executes the corresponding
+ * command.
+ */
+static ccapi_receive_error_t device_info_cb(char const *const target,
+		ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info)
+{
+	char *response = NULL;
+	size_t len;
+
+	UNUSED_ARGUMENT(request_buffer_info);
+
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+
+	{
+		struct sysinfo s_info;
+		long total_mem = -1;
+
+		if (sysinfo(&s_info) != 0)
+			log_dr_error("Error getting total memory: %s (%d)", strerror(errno), errno);
+		else
+			total_mem = s_info.totalram / 1024;
+
+		len = snprintf(NULL, 0, "{" FORMAT_INFO_TOTAL_MEM, total_mem);
+
+		response = calloc(len + 1, sizeof(char));
+		if (response == NULL) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+
+		sprintf(response, "{" FORMAT_INFO_TOTAL_MEM, s_info.totalram / 1024);
+	}
+
+	{
+		struct if_nameindex *if_name_idx;
+
+		if_name_idx = if_nameindex();
+		if (if_name_idx) {
+			struct if_nameindex *iface;
+
+			for (iface = if_name_idx; iface->if_index != 0 || iface->if_name != NULL; iface++) {
+				char *iface_name = iface->if_name;
+				char *tmp = NULL;
+				iface_info_t i_info;
+				int ret = -1;
+
+				ret = get_iface_info(iface_name, &i_info);
+				if (ret == 0) {
+					uint8_t *mac = i_info.mac_addr;
+					uint8_t const * const ip = i_info.ipv4_addr;
+
+					len = snprintf(NULL, 0, FORMAT_INFO_IFACE, iface_name,
+						/* mac */ mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+						/* ip */ ip[0], ip[1], ip[2], ip[3]);
+				} else {
+					len = snprintf(NULL, 0, FORMAT_INFO_IFACE, iface_name,
+						/* mac */ 0, 0, 0, 0, 0, 0,
+						/* ip */ 0, 0, 0, 0);
+				}
+
+				/* Expand the available memory with realloc */
+				tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
+				if (tmp == NULL) {
+					log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+					free(response);
+					if_freenameindex(if_name_idx);
+					return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+				}
+
+				response = tmp;
+
+				if (ret == 0) {
+					uint8_t *mac = i_info.mac_addr;
+					uint8_t const * const ip = i_info.ipv4_addr;
+
+					sprintf(response + strlen(response), FORMAT_INFO_IFACE,
+						iface_name,
+						/* mac */ mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+						/* ip */ ip[0], ip[1], ip[2], ip[3]);
+				} else {
+					sprintf(response + strlen(response), FORMAT_INFO_IFACE,
+						iface_name, /* mac */ 0, 0, 0, 0, 0, 0, /* ip */ 0, 0, 0, 0);
+				}
+			}
+			if_freenameindex(if_name_idx);
+		}
+	}
+
+	response[strlen(response) - 1] = '}'; /* Remove last comma */
+	response_buffer_info->buffer = response;
+	response_buffer_info->length = strlen(response);
+
+	log_dr_debug("%s: response: %s (len: %lu)", __func__,
+		(char *)response_buffer_info->buffer, response_buffer_info->length);
+
+	return CCAPI_RECEIVE_ERROR_NONE;
+}
+
+/*
+ * register_device_requests() - Register custom device requests
+ *
+ * Return: Error code after registering the custom device requests.
+ */
+ccapi_receive_error_t register_cc_device_requests(void)
+{
+	ccapi_receive_error_t error = ccapi_receive_add_target(TARGET_DEVICE_INFO,
+			device_info_cb, receive_default_status_cb, 0);
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		log_error("Cannot register target '%s', error %d", TARGET_DEVICE_INFO,
+				error);
+
+	return error;
 }

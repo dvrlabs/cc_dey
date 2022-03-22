@@ -163,6 +163,10 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	if (reg_builtin_error != CCAPI_RECEIVE_ERROR_NONE)
 		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
 
+	reg_builtin_error = register_cc_device_requests();
+	if (reg_builtin_error != CCAPI_RECEIVE_ERROR_NONE)
+		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
+
 	return CC_INIT_ERROR_NONE;
 }
 
@@ -447,9 +451,9 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 		start = NULL;
 		return start;
 	}
-	dreq_service->accept = app_receive_default_accept_cb;
-	dreq_service->data = app_receive_default_data_cb;
-	dreq_service->status = app_receive_default_status_cb;
+	dreq_service->accept = receive_default_accept_cb;
+	dreq_service->data = receive_default_data_cb;
+	dreq_service->status = receive_default_status_cb;
 	start->service.receive = dreq_service;
 
 	/* Initialize short messaging. */
