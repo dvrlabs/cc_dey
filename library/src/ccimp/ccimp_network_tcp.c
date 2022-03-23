@@ -538,7 +538,14 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 		SSL_CTX_set_verify(ssl_ptr->ctx, SSL_VERIFY_PEER, NULL);
 		SSL_CTX_use_certificate_file(ssl_ptr->ctx, key_filename, SSL_FILETYPE_PEM);
 		SSL_CTX_use_PrivateKey_file(ssl_ptr->ctx, key_filename, SSL_FILETYPE_PEM);
+#if OPENSSL_VERSION_NUMBER >= 0x1010100fL
+		/*
+		 * For OpenSSL >=1.1.1, turn on client cert support which is
+		 * otherwise turned off by default (by design).
+		 * https://github.com/openssl/openssl/issues/6933
+		 */
 		SSL_CTX_set_post_handshake_auth(ssl_ptr->ctx, 1);
+#endif
 	} else {
 		log_debug("Error setting up SSL connection: Certificate file '%s' does not exist. Maybe first connection?",
 				key_filename);
