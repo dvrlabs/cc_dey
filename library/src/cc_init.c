@@ -414,6 +414,9 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 
 	start->device_cloud_url = cc_cfg->url;
 	start->device_type = cc_cfg->device_type;
+	start->service.file_system = NULL;
+	start->service.firmware = NULL;
+	start->service.receive = NULL;
 	start->vendor_id = cc_cfg->vendor_id;
 	if (get_device_id_from_mac(start->device_id, get_primary_mac_address(mac_address)) != 0) {
 		log_error("%s", "Cannot calculate Device ID");
@@ -465,15 +468,10 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 		fs_service->access = NULL;
 		fs_service->changed = NULL;
 		start->service.file_system = fs_service;
-	} else {
-		start->service.file_system = NULL;
 	}
 
 	/* Initialize firmware service. */
-	start->service.firmware = NULL;
-	if (cc_cfg->fw_version == NULL) {
-		start->service.firmware = NULL;
-	} else {
+	if (cc_cfg->fw_version != NULL) {
 		unsigned int fw_version_major;
 		unsigned int fw_version_minor;
 		unsigned int fw_version_revision;
@@ -485,7 +483,6 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 		if (error != 4) {
 			log_error("Bad firmware_version string '%s', firmware update disabled",
 					cc_cfg->fw_version);
-			start->service.firmware = NULL;
 		} else {
 			uint8_t n_targets = 2;
 			ccapi_firmware_target_t *fw_list = NULL;

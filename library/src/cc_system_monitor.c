@@ -360,7 +360,7 @@ static ccapi_timestamp_t *get_timestamp(void)
 		timestamp->iso8601 = date;
 	} else {
 		free(date);
-		timestamp->iso8601 = "";
+		timestamp->iso8601 = strdup("");
 	}
 
 	return timestamp;

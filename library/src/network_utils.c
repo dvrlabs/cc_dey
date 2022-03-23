@@ -63,7 +63,7 @@ int get_main_iface_info(const char *url, iface_info_t *iface_info)
 	struct ifaddrs *ifaddr = NULL, *ifa = NULL;
 	int retval = -1;
 	struct sockaddr_in sin = {0};
-	struct sockaddr_in info;
+	struct sockaddr_in info = {0};
 	in_addr_t ip_addr = {0};
 	int sockfd = -1;
 	socklen_t len = sizeof(struct sockaddr);
