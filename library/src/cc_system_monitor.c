@@ -28,6 +28,7 @@
 #include "cc_init.h"
 #include "cc_logging.h"
 #include "cc_system_monitor.h"
+#include "file_utils.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -72,7 +73,6 @@ static double get_cpu_load(void);
 static double get_cpu_temp(void);
 static unsigned long get_cpu_freq(void);
 static unsigned long get_uptime(void);
-static long read_file(const char *path, char *buffer, long file_size);
 
 /*------------------------------------------------------------------------------
                                   M A C R O S
@@ -592,35 +592,3 @@ static unsigned long get_uptime(void)
 	return info.uptime;
 }
 
-/**
- * read_file() - Read the given file and returns its contents
- *
- * @path:		Absolute path of the file to read.
- * @buffer:		Buffer to store the contents of the file.
- * @file_size:	The number of bytes to read.
- *
- * Return: The number of read bytes.
- */
-static long read_file(const char *path, char *buffer, long file_size)
-{
-	FILE *fd = NULL;
-	long read_size = -1;
-
-	if ((fd = fopen(path, "rb")) == NULL) {
-		log_sm_debug("%s: fopen error: %s", __func__, path);
-		return -1;
-	}
-
-	read_size = fread(buffer, sizeof(char), file_size, fd);
-	if (ferror(fd)) {
-		log_sm_debug("%s: fread error: %s", __func__, path);
-		goto done;
-	}
-
-	buffer[read_size - 1] = '\0';
-
-done:
-	fclose(fd);
-
-	return read_size;
-}

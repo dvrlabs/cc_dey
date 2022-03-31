@@ -23,6 +23,7 @@
 int file_exists(const char * const filename);
 int file_readable(const char * const filename);
 int file_writable(const char * const filename);
+long read_file(const char *path, char *buffer, long file_size);
 int read_file_line(const char * const path, char *buffer, int bytes_to_read);
 int write_to_file(const char * const path, const char * const format, ...);
 

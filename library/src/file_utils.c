@@ -62,6 +62,39 @@ int file_writable(const char * const filename)
 }
 
 /**
+ * read_file() - Read the given file and returns its contents
+ *
+ * @path:		Absolute path of the file to read.
+ * @buffer:		Buffer to store the contents of the file.
+ * @file_size:	The number of bytes to read.
+ *
+ * Return: The number of read bytes.
+ */
+long read_file(const char *path, char *buffer, long file_size)
+{
+	FILE *fd = NULL;
+	long read_size = -1;
+
+	if ((fd = fopen(path, "rb")) == NULL) {
+		log_debug("%s: fopen error: %s", __func__, path);
+		return -1;
+	}
+
+	read_size = fread(buffer, sizeof(char), file_size, fd);
+	if (ferror(fd)) {
+		log_debug("%s: fread error: %s", __func__, path);
+		goto done;
+	}
+
+	buffer[read_size - 1] = '\0';
+
+done:
+	fclose(fd);
+
+	return read_size;
+}
+
+/**
  * read_file_line() - Read the first line of the file and return its contents
  *
  * @path:			Absolute path of the file to read.
