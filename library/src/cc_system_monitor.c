@@ -46,8 +46,6 @@
 #define DATA_STREAM_FREQ			"system_monitor/frequency"
 #define DATA_STREAM_UPTIME			"system_monitor/uptime"
 
-#define TOTAL_DATA_STREAMS			6
-
 #define DATA_STREAM_MEMORY_UNITS	"kB"
 #define DATA_STREAM_CPU_LOAD_UNITS	"%"
 #define DATA_STREAM_CPU_TEMP_UNITS	"C"
@@ -57,6 +55,26 @@
 #define FILE_CPU_LOAD				"/proc/stat"
 #define FILE_CPU_TEMP				"/sys/class/thermal/thermal_zone0/temp"
 #define FILE_CPU_FREQ				"/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
+
+/*------------------------------------------------------------------------------
+                 D A T A    T Y P E S    D E F I N I T I O N S
+------------------------------------------------------------------------------*/
+typedef enum {
+	STREAM_FREE_MEM,
+	STREAM_USED_MEM,
+	STREAM_CPU_LOAD,
+	STREAM_CPU_TEMP,
+	STREAM_FREQ,
+	STREAM_UPTIME,
+} stream_type_t;
+
+typedef struct {
+	char *name;
+	char *path;
+	const char *units;
+	const char *format;
+	stream_type_t type;
+} stream_t;
 
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
@@ -112,6 +130,50 @@ static volatile ccapi_bool_t dp_thread_valid = CCAPI_FALSE;
 static pthread_t dp_thread;
 static ccapi_dp_collection_handle_t dp_collection;
 static unsigned long long last_work = 0, last_total = 0;
+static stream_t sys_streams[] = {
+	{
+		.name = "free memory",
+		.path = DATA_STREAM_FREE_MEMORY,
+		.units = DATA_STREAM_MEMORY_UNITS,
+		.format = "int32 ts_iso",
+		.type = STREAM_FREE_MEM
+	},
+	{
+		.name = "used memory",
+		.path = DATA_STREAM_USED_MEMORY,
+		.units = DATA_STREAM_MEMORY_UNITS,
+		.format = "int32 ts_iso",
+		.type = STREAM_USED_MEM
+	},
+	{
+		.name = "CPU load",
+		.path = DATA_STREAM_CPU_LOAD,
+		.units = DATA_STREAM_CPU_LOAD_UNITS,
+		.format = "double ts_iso",
+		.type = STREAM_CPU_LOAD
+	},
+	{
+		.name = "CPU temperature",
+		.path = DATA_STREAM_CPU_TEMP,
+		.units = DATA_STREAM_CPU_TEMP_UNITS,
+		.format = "double ts_iso",
+		.type = STREAM_CPU_TEMP
+	},
+	{
+		.name = "CPU frequency",
+		.path = DATA_STREAM_FREQ,
+		.units = DATA_STREAM_FREQ_UNITS,
+		.format = "int32 ts_iso",
+		.type = STREAM_FREQ
+	},
+	{
+		.name = "uptime",
+		.path = DATA_STREAM_UPTIME,
+		.units = DATA_STREAM_UPTIME_UNITS,
+		.format = "int32 ts_iso",
+		.type = STREAM_UPTIME
+	}
+};
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
@@ -221,7 +283,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 	log_sm_info("%s", "Start monitoring the system");
 
 	while (!stop_requested) {
-		uint32_t n_samples_to_send = TOTAL_DATA_STREAMS * cc_cfg->sys_mon_num_samples_upload;
+		uint32_t n_samples_to_send = ARRAY_SIZE(sys_streams) * cc_cfg->sys_mon_num_samples_upload;
 		long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
 		uint32_t count = 0;
 		long loop;
@@ -276,7 +338,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
  */
 static ccapi_dp_error_t init_system_monitor(void)
 {
-	char *stream_name;
+	unsigned int i;
 
 	ccapi_dp_error_t dp_error = ccapi_dp_create_collection(&dp_collection);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
@@ -284,58 +346,30 @@ static ccapi_dp_error_t init_system_monitor(void)
 		return dp_error;
 	}
 
-	stream_name = DATA_STREAM_FREE_MEMORY;
-	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				stream_name, "int32 ts_iso", DATA_STREAM_MEMORY_UNITS, NULL);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		goto error;
+	for (i = 0; i < sizeof(sys_streams) / sizeof(sys_streams[0]); i++) {
+		stream_t stream = sys_streams[i];
 
-	stream_name = DATA_STREAM_USED_MEMORY;
-	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				stream_name, "int32 ts_iso", DATA_STREAM_MEMORY_UNITS, NULL);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		goto error;
-
-	stream_name = DATA_STREAM_CPU_LOAD;
-	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				stream_name, "double ts_iso", DATA_STREAM_CPU_LOAD_UNITS, NULL);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		goto error;
-
-	stream_name = DATA_STREAM_CPU_TEMP;
-	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				stream_name, "double ts_iso", DATA_STREAM_CPU_TEMP_UNITS, NULL);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		goto error;
-
-	stream_name = DATA_STREAM_FREQ;
-	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				stream_name, "int32 ts_iso", DATA_STREAM_FREQ_UNITS, NULL);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		goto error;
-
-	stream_name = DATA_STREAM_UPTIME;
-	dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
-				stream_name, "int32 ts_iso", DATA_STREAM_UPTIME_UNITS, NULL);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		goto error;
+		dp_error = ccapi_dp_add_data_stream_to_collection_extra(dp_collection,
+				stream.path, stream.format, stream.units, NULL);
+		if (dp_error != CCAPI_DP_ERROR_NONE) {
+			log_sm_error("Cannot add '%s' stream to data point collection, error %d",
+					stream.path, dp_error);
+			ccapi_dp_destroy_collection(dp_collection);
+			return dp_error;
+		}
+	}
 
 	return CCAPI_DP_ERROR_NONE;
-
-error:
-
-	log_sm_error("Cannot add '%s' stream to data point collection, error %d", stream_name, dp_error);
-
-	return dp_error;
 }
 
 /*
- * add_system_samples() - Add memory, CPU load, and temp values to the data
- *                        point collection
+ * add_system_samples() - Add free and used memory, CPU load and temp, system
+ *                        frequency, and uptime values to the data point collection
  */
 static void add_system_samples(void)
 {
 	ccapi_dp_error_t dp_error;
+	unsigned int i;
 	ccapi_timestamp_t *timestamp = get_timestamp();
 	unsigned long free_mem = get_free_memory();
 	long used_mem = get_used_memory();
@@ -343,41 +377,43 @@ static void add_system_samples(void)
 	double temp =  get_cpu_temp();
 	long freq = get_cpu_freq();
 	long uptime = get_uptime();
-	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_FREE_MEMORY, free_mem, timestamp);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		log_sm_error("Cannot add free memory value, %d", dp_error);
-	else
-		log_sm_debug("Free memory = %lu%s", free_mem, DATA_STREAM_MEMORY_UNITS);
 
-	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_USED_MEMORY, used_mem, timestamp);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		log_sm_error("Cannot add used memory value, %d", dp_error);
-	else
-		log_sm_debug("Used memory = %ld%s", used_mem, DATA_STREAM_MEMORY_UNITS);
+	for (i = 0; i < sizeof(sys_streams) / sizeof(sys_streams[0]); i++) {
+		stream_t stream = sys_streams[i];
 
-	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_CPU_LOAD, load, timestamp);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		log_sm_error("Cannot add CPU load value, %d", dp_error);
-	else
-		log_sm_debug("CPU load = %f%s", load, DATA_STREAM_CPU_LOAD_UNITS);
+		switch(stream.type) {
+			case STREAM_FREE_MEM:
+				dp_error = ccapi_dp_add(dp_collection, stream.path, free_mem, timestamp);
+				log_sm_debug("%s = %lu %s", stream.name, free_mem, stream.units);
+				break;
+			case STREAM_USED_MEM:
+				dp_error = ccapi_dp_add(dp_collection, stream.path, used_mem, timestamp);
+				log_sm_debug("%s = %lu %s", stream.name, used_mem, stream.units);
+				break;
+			case STREAM_CPU_LOAD:
+				dp_error = ccapi_dp_add(dp_collection, stream.path, load, timestamp);
+				log_sm_debug("%s = %f %s", stream.name, load, stream.units);
+				break;
+			case STREAM_CPU_TEMP:
+				dp_error = ccapi_dp_add(dp_collection, stream.path, temp, timestamp);
+				log_sm_debug("%s = %f %s", stream.name, temp, stream.units);
+				break;
+			case STREAM_FREQ:
+				dp_error = ccapi_dp_add(dp_collection, stream.path, freq, timestamp);
+				log_sm_debug("%s = %lu %s", stream.name, freq, stream.units);
+				break;
+			case STREAM_UPTIME:
+				dp_error = ccapi_dp_add(dp_collection, stream.path, uptime, timestamp);
+				log_sm_debug("%s = %lu %s", stream.name, uptime, stream.units);
+				break;
+			default:
+				/* Should not occur */
+				break;
+		}
 
-	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_CPU_TEMP, temp, timestamp);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		log_sm_error("Cannot add CPU temperature value, %d", dp_error);
-	else
-		log_sm_debug("CPU temperature = %f%s", temp, DATA_STREAM_CPU_TEMP_UNITS);
-
-	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_FREQ, freq, timestamp);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		log_sm_error("Cannot add CPU frequency value, %d", dp_error);
-	else
-		log_sm_debug("Frequency = %ld%s", freq, DATA_STREAM_FREQ_UNITS);
-
-	dp_error = ccapi_dp_add(dp_collection, DATA_STREAM_UPTIME, uptime, timestamp);
-	if (dp_error != CCAPI_DP_ERROR_NONE)
-		log_sm_error("Cannot add uptime value, %d", dp_error);
-	else
-		log_sm_debug("Uptime = %ld%s", uptime, DATA_STREAM_UPTIME_UNITS);
+		if (dp_error != CCAPI_DP_ERROR_NONE)
+			log_sm_error("Cannot add %s value, %d", stream.name, dp_error);
+	}
 
 	if (timestamp != NULL) {
 		if (timestamp->iso8601 != NULL) {
@@ -591,4 +627,3 @@ static unsigned long get_uptime(void)
 
 	return info.uptime;
 }
-
