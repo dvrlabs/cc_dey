@@ -27,6 +27,9 @@
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+#define TARGET_GET_TIME		"get_time"
+#define TARGET_STOP_CC		"stop_cc"
+
 #define DEVREQ_TAG			"DEVREQ:"
 
 #define MAX_RESPONSE_SIZE	256
@@ -57,8 +60,48 @@
 	log_error("%s " format, DEVREQ_TAG, __VA_ARGS__)
 
 /*------------------------------------------------------------------------------
+                    F U N C T I O N  D E C L A R A T I O N S
+------------------------------------------------------------------------------*/
+static ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info);
+static ccapi_receive_error_t get_time_cb(char const *const target, ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info);
+static void request_status_cb(char const *const target,
+		ccapi_transport_t const transport,
+		ccapi_buffer_info_t *const response_buffer_info,
+		ccapi_receive_error_t receive_error);
+
+/*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+
+/*
+ * register_custom_device_requests() - Register custom device requests
+ *
+ * Return: Error code after registering the custom device requests.
+ */
+ccapi_receive_error_t register_custom_device_requests(void)
+{
+	ccapi_receive_error_t receive_error;
+
+	receive_error = ccapi_receive_add_target(TARGET_GET_TIME, get_time_cb,
+			request_status_cb, 0);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("Cannot register target '%s', error %d", TARGET_GET_TIME,
+				receive_error);
+	}
+	receive_error = ccapi_receive_add_target(TARGET_STOP_CC, stop_cb,
+			request_status_cb, 0);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("Cannot register target '%s', error %d", TARGET_STOP_CC,
+				receive_error);
+	}
+
+	return receive_error;
+}
+
 /*
  * stop_cb() - Data callback for 'stop_cc' device requests
  *
@@ -70,7 +113,7 @@
  * Logs information about the received request and executes the corresponding
  * command.
  */
-ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
+static ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
 {
@@ -88,6 +131,7 @@ ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const 
 
 	response_buffer_info->length = snprintf(response_buffer_info->buffer,
 			strlen(stop_response) + 1, "%s", stop_response);
+
 	return CCAPI_RECEIVE_ERROR_NONE;
 }
 
@@ -102,7 +146,7 @@ ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const 
  * Logs information about the received request and executes the corresponding
  * command.
  */
-ccapi_receive_error_t get_time_cb(char const *const target,
+static ccapi_receive_error_t get_time_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
@@ -120,6 +164,7 @@ ccapi_receive_error_t get_time_cb(char const *const target,
 	time_t t = time(NULL);
 	response_buffer_info->length = snprintf(response_buffer_info->buffer,
 			MAX_RESPONSE_SIZE, "Time: %s", ctime(&t));
+
 	return CCAPI_RECEIVE_ERROR_NONE;
 }
 
@@ -136,7 +181,7 @@ ccapi_receive_error_t get_time_cb(char const *const target,
  *
  * Cleans and frees the response buffer.
  */
-void request_status_cb(char const *const target,
+static void request_status_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t *const response_buffer_info,
 		ccapi_receive_error_t receive_error)

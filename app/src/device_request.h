@@ -22,18 +22,6 @@
 
 #include <cloudconnector.h>
 
-#define TARGET_GET_TIME		"get_time"
-#define TARGET_STOP_CC		"stop_cc"
-
-ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
-		ccapi_buffer_info_t const *const request_buffer_info,
-		ccapi_buffer_info_t *const response_buffer_info);
-ccapi_receive_error_t get_time_cb(char const *const target, ccapi_transport_t const transport,
-		ccapi_buffer_info_t const *const request_buffer_info,
-		ccapi_buffer_info_t *const response_buffer_info);
-void request_status_cb(char const *const target,
-		ccapi_transport_t const transport,
-		ccapi_buffer_info_t *const response_buffer_info,
-		ccapi_receive_error_t receive_error);
+ccapi_receive_error_t register_custom_device_requests(void);
 
 #endif /* DEVICE_REQUEST_H_ */

@@ -48,7 +48,6 @@
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 static int start_connector(const char *config_file);
-static ccapi_receive_error_t register_custom_device_requests(void);
 static int setup_signal_handler(void);
 static void signal_handler(int signum);
 static void usage(char const *const name);
@@ -159,31 +158,6 @@ static int start_connector(const char *config_file)
 	wait_for_ccimp_threads();
 
 	return EXIT_SUCCESS;
-}
-
-/*
- * register_custom_device_requests() - Register custom device requests
- *
- * Return: Error code after registering the custom device requests.
- */
-static ccapi_receive_error_t register_custom_device_requests(void)
-{
-	ccapi_receive_error_t receive_error;
-
-	receive_error = ccapi_receive_add_target(TARGET_GET_TIME, get_time_cb,
-			request_status_cb, 0);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_GET_TIME,
-				receive_error);
-	}
-	receive_error = ccapi_receive_add_target(TARGET_STOP_CC, stop_cb,
-			request_status_cb, 0);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_STOP_CC,
-				receive_error);
-	}
-
-	return receive_error;
 }
 
 /*
