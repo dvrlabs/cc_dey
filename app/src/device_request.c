@@ -92,36 +92,6 @@ ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const 
 }
 
 /*
- * stop_status_cb() - Status callback for 'stop' device requests
- *
- * @target:					Target ID of the device request (stop)
- * @transport:				Communication transport used by the device request.
- * @response_buffer_info:	Buffer containing the response data.
- * @receive_error:			The error status of the receive process.
- *
- * This callback is executed when the receive process has finished. It doesn't
- * matter if everything worked or there was an error during the process.
- *
- * Cleans and frees the response buffer.
- */
-void stop_status_cb(char const *const target,
-		ccapi_transport_t const transport,
-		ccapi_buffer_info_t *const response_buffer_info,
-		ccapi_receive_error_t receive_error)
-{
-	log_dr_debug(
-			"%s: target='%s' - transport='%d' - error='%d'", __func__, target,
-			transport, receive_error);
-
-	/* Free the response buffer */
-	if (response_buffer_info != NULL)
-		free(response_buffer_info->buffer);
-
-	if (receive_error == CCAPI_RECEIVE_ERROR_NONE)
-		kill(getpid(), SIGINT);
-}
-
-/*
  * get_time_cb() - Data callback for 'get_time' device requests
  *
  * @target:					Target ID of the device request (get_time).
@@ -154,19 +124,19 @@ ccapi_receive_error_t get_time_cb(char const *const target,
 }
 
 /*
- * get_time_status_cb() - Status callback for 'get_time' device requests
+ * request_status_cb() - Status callback for application device requests
  *
- * @target:					Target ID of the device request (get_time)
- * @transport:				Communication transport used by the device request.
- * @response_buffer_info:	Buffer containing the response data.
- * @receive_error:			The error status of the receive process.
+ * @target:                 Target ID of the device request.
+ * @transport:              Communication transport used by the device request.
+ * @response_buffer_info:   Buffer containing the response data.
+ * @receive_error:          The error status of the receive process.
  *
  * This callback is executed when the receive process has finished. It doesn't
  * matter if everything worked or there was an error during the process.
  *
  * Cleans and frees the response buffer.
  */
-void get_time_status_cb(char const *const target,
+void request_status_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t *const response_buffer_info,
 		ccapi_receive_error_t receive_error)
@@ -178,4 +148,7 @@ void get_time_status_cb(char const *const target,
 	/* Free the response buffer */
 	if (response_buffer_info != NULL)
 		free(response_buffer_info->buffer);
+
+	if (receive_error == CCAPI_RECEIVE_ERROR_NONE && strcmp(TARGET_STOP_CC, target) == 0)
+		kill(getpid(), SIGINT);
 }

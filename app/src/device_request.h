@@ -28,14 +28,10 @@
 ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info);
-void stop_status_cb(char const *const target,
-		ccapi_transport_t const transport,
-		ccapi_buffer_info_t *const response_buffer_info,
-		ccapi_receive_error_t receive_error);
 ccapi_receive_error_t get_time_cb(char const *const target, ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info);
-void get_time_status_cb(char const *const target,
+void request_status_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t *const response_buffer_info,
 		ccapi_receive_error_t receive_error);

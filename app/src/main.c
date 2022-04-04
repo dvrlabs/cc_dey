@@ -171,13 +171,13 @@ static ccapi_receive_error_t register_custom_device_requests(void)
 	ccapi_receive_error_t receive_error;
 
 	receive_error = ccapi_receive_add_target(TARGET_GET_TIME, get_time_cb,
-			get_time_status_cb, 0);
+			request_status_cb, 0);
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
 		log_error("Cannot register target '%s', error %d", TARGET_GET_TIME,
 				receive_error);
 	}
 	receive_error = ccapi_receive_add_target(TARGET_STOP_CC, stop_cb,
-			stop_status_cb, 0);
+			request_status_cb, 0);
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
 		log_error("Cannot register target '%s', error %d", TARGET_STOP_CC,
 				receive_error);
