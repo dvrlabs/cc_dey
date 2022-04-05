@@ -125,7 +125,7 @@ static ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t
 
 	response_buffer_info->buffer = malloc(sizeof(char) * strlen(stop_response) + 1);
 	if (response_buffer_info->buffer == NULL) {
-		log_dr_error("%s: response_buffer_info malloc error", __func__);
+		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 
@@ -157,7 +157,7 @@ static ccapi_receive_error_t get_time_cb(char const *const target,
 
 	response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE + 1);
 	if (response_buffer_info->buffer == NULL) {
-		log_dr_error("%s: response_buffer_info malloc error", __func__);
+		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 
