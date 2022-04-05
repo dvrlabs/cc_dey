@@ -20,10 +20,10 @@
 #ifndef STRING_UTILS_H
 #define STRING_UTILS_H
 
-void delete_quotes(char *str);
-void delete_leading_spaces(char *str);
-void delete_trailing_spaces(char *str);
-void trim(char *str);
-void delete_newline_character(char *str);
+char *delete_quotes(char *str);
+char *delete_leading_spaces(char *str);
+char *delete_trailing_spaces(char *str);
+char *trim(char *str);
+char *delete_newline_character(char *str);
 
 #endif

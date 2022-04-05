@@ -27,35 +27,56 @@
  * delete_quotes() - Delete quotes from the given string.
  *
  * @str:	String to delete quotes from.
+ *
+ * This function modifies the original string.
+ *
+ * Return: The original string without the quotes.
  */
-void delete_quotes(char *str)
+char *delete_quotes(char *str)
 {
-	if (str[0] == '"' && str[strlen(str) - 1] == '"') {
-		strcpy(str, str + 1);
-		str[strlen(str) - 1] = '\0';
-	}
+	int len = 0;
+
+	if (str == NULL)
+		return str;
+
+	len = strlen(str);
+	if (len == 0)
+		return str;
+
+	if (str[len - 1] == '"')
+		str[len - 1] = 0;
+
+	if (str[0] == '"')
+		memmove(str, str + 1, len);
+
+	return str;
 }
 
 /*
  * delete_leading_spaces() - Delete leading spaces from the given string.
  *
  * @str:	String to delete leading spaces from.
+ *
+ * This function modifies the original string.
+ *
+ * Return: The original string without leading white spaces.
  */
-void delete_leading_spaces(char *str)
+char *delete_leading_spaces(char *str)
 {
-	unsigned int i;
+	int len = 0;
 	char *p = str;
 
-	if (str != NULL) {
-		for (i = 0; i < strlen(str); i++) {
-			if (isspace(str[i]))
-				p++;
-			else
-				break;
-		}
-	}
-	if (p != str)
-		strcpy(str, p);
+	if (str == NULL || strlen(str) == 0)
+		return str;
+
+	while (isspace(*p) || !isprint(*p))
+		++p;
+
+	len = strlen(p);
+	memmove(str, p, len);
+	str[len] = 0;
+
+	return str;
 }
 
 /*
@@ -64,19 +85,26 @@ void delete_leading_spaces(char *str)
  * Trailing spaces also include new line '\n' and carriage return '\r' chars.
  *
  * @str:	String to delete trailing spaces from.
+ *
+ * This function modifies the original string.
+ *
+ * Return: The original string without trailing white spaces.
  */
-void delete_trailing_spaces(char *str)
+char *delete_trailing_spaces(char *str)
 {
-	int i;
+	char *p = NULL;
 
-	if (str != NULL) {
-		for (i = strlen(str) - 1; i >= 0; i--) {
-			if ((str[i] == '\n') || (str[i] == ' ') || (str[i] == '\r'))
-				str[i] = '\0';
-			else
-				break;
-		}
-	}
+	if (str == NULL || strlen(str) == 0)
+		return str;
+
+	p = str + strlen(str) - 1;
+
+	while ((isspace(*p) || !isprint(*p) || *p == 0) && p >= str)
+		--p;
+
+	*++p = 0;
+
+	return str;
 }
 
 /*
@@ -85,11 +113,14 @@ void delete_trailing_spaces(char *str)
  * Trailing spaces also include new line '\n' and carriage return '\r' chars.
  *
  * @str:	String to delete leading and trailing spaces from.
+ *
+ * This function modifies the original string.
+ *
+ * Return: The original string without leading nor trailing white spaces.
  */
-void trim(char *str)
+char *trim(char *str)
 {
-	delete_leading_spaces(str);
-	delete_trailing_spaces(str);
+	return delete_leading_spaces(delete_trailing_spaces(str));
 }
 
 /*
@@ -97,11 +128,24 @@ void trim(char *str)
  *                              the given string.
  *
  * @str:	String to delete ending new line character '\n' from.
+ *
+ * This function modifies the original string.
+ *
+ * Return: The original string without the final new line.
  */
-void delete_newline_character(char *str)
+char *delete_newline_character(char *str)
 {
-	if (str != NULL) {
-		if (str[strlen(str) - 1] == '\n')
-			str[strlen(str) - 1] = '\0';
-	}
+	int len = 0;
+
+	if (str == NULL)
+		return str;
+
+	len = strlen(str);
+	if (len == 0)
+		return str;
+
+	if (str[len - 1] == '\n')
+		str[len - 1] = '\0';
+
+	return str;
 }

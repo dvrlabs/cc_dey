@@ -98,13 +98,15 @@ static int get_ssid(const char *iface_name, char *ssid)
 			return -1;
 		}
 		if (fgets(line, sizeof (line) - 1, fd)) {
-			delete_newline_character(line);
-			delete_quotes(line);
-			strncpy(ssid, line, SSID_SIZE + 1);
+			char *l = trim(line);
+			l = delete_quotes(l);
+			strncpy(ssid, l, SSID_SIZE + 1);
 		}
 		pclose(fd);
-	} else
-		delete_quotes(ssid);
+	} else {
+		char *s = delete_quotes(ssid);
+		strncpy(ssid, s, SSID_SIZE + 1);
+	}
 
 	/* Crop SSID name */
 	if (strlen(ssid) > SSID_SIZE) {
@@ -126,10 +128,9 @@ static int get_ssid(const char *iface_name, char *ssid)
 static int read_param_from_cli(const char *iface_name, const char *param, char *value)
 {
 	FILE *fd;
-	char line[255] = {0};
-	char cmd[255] = {0};
+	char line[255] = {0}, cmd[255] = {0};
 	int network;
-	char *ret = NULL;
+	char *ret = NULL, *l = NULL;
 
 	/* Sanity checks */
 	if (iface_name == NULL || param == NULL || value == NULL)
@@ -163,9 +164,9 @@ static int read_param_from_cli(const char *iface_name, const char *param, char *
 	if (!ret)
 		return -1;
 
-	delete_newline_character(line);
-	delete_quotes(line);
-	strcpy(value, line);
+	l = trim(line);
+	l = delete_quotes(l);
+	strcpy(value, l);
 	if (strcmp(value, "FAIL") == 0) {
 		value[0] = '\0';
 		return -1;
@@ -191,8 +192,7 @@ static int read_param_from_file(const char *param, char *value)
 	FILE *fd;
 	supplicant_parser_state_t state = 0;
 	char gotfield = 0;
-	char field[255] = {0};
-	char line[255] = {0};
+	char field[255] = {0}, line[255] = {0};
 
 	/* Sanity checks */
 	if (param == NULL || value == NULL)
@@ -206,27 +206,26 @@ static int read_param_from_file(const char *param, char *value)
 	}
 	sprintf(field, "%s=", param);
 	while (fgets(line, sizeof (line) - 1, fd)) {
-		delete_leading_spaces(line);
-		delete_newline_character(line);
+		char *l = trim(line);
 		switch (state) {
 			case OUSIDE_NETWORK:
-				if (strncmp(line, "network={", strlen("network={")) == 0) {
+				if (strncmp(l, "network={", strlen("network={")) == 0) {
 					/* Start 'network' section */
 					state = INSIDE_NETWORK;
 				}
 				break;
 			case INSIDE_NETWORK:
 				/* Within 'network' section */
-				if (line[0] == '}') {
+				if (l[0] == '}') {
 					/* End of 'network' section */
 					if (gotfield)
 						goto done;
 					else
 						state = OUSIDE_NETWORK;
-				} else if (strncmp(line, field, strlen(field)) == 0) {
-					strcpy(value, line + strlen(field));
+				} else if (strncmp(l, field, strlen(field)) == 0) {
+					strcpy(value, l + strlen(field));
 					gotfield = 1;
-				} else if (strncmp(line, "disabled=1", strlen("disabled=1")) == 0) {
+				} else if (strncmp(l, "disabled=1", strlen("disabled=1")) == 0) {
 					/* Section is not valid. Reset flags and start again. */
 					state = OUSIDE_NETWORK;
 					gotfield = 0;
@@ -270,8 +269,7 @@ static ccapi_bool_t is_supplicant_running(void)
  */
 int get_current_wifi_network(const char *iface_name)
 {
-	char cmd[255];
-	char line[255];
+	char cmd[255], line[255];
 	FILE *fd;
 	int network;
 	char *ret = NULL;
@@ -314,9 +312,8 @@ int get_current_wifi_network(const char *iface_name)
 wpa_state_t get_wpa_status(const char *iface_name)
 {
 	FILE *fd;
-	char cmd[255];
-	char line[255];
-	char *ret = NULL;
+	char cmd[255], line[255];
+	char *ret = NULL, *l = NULL;
 
 	/* Sanity checks */
 	if (iface_name == NULL)
@@ -340,23 +337,23 @@ wpa_state_t get_wpa_status(const char *iface_name)
 	if (!ret)
 		return WPA_UNKNOWN;
 
-	delete_newline_character(line);
+	l = trim(line);
 
-	if (strncmp(line, WPA_DISCONNECTED_STRING, strlen(WPA_DISCONNECTED_STRING)) == 0)
+	if (strncmp(l, WPA_DISCONNECTED_STRING, strlen(WPA_DISCONNECTED_STRING)) == 0)
 		return WPA_DISCONNECTED;
-	if (strncmp(line, WPA_INACTIVE_STRING, strlen(WPA_INACTIVE_STRING)) == 0)
+	if (strncmp(l, WPA_INACTIVE_STRING, strlen(WPA_INACTIVE_STRING)) == 0)
 		return WPA_INACTIVE;
-	if (strncmp(line, WPA_SCANNING_STRING, strlen(WPA_SCANNING_STRING)) == 0)
+	if (strncmp(l, WPA_SCANNING_STRING, strlen(WPA_SCANNING_STRING)) == 0)
 		return WPA_SCANNING;
-	if (strncmp(line, WPA_ASSOCIATING_STRING, strlen(WPA_ASSOCIATING_STRING)) == 0)
+	if (strncmp(l, WPA_ASSOCIATING_STRING, strlen(WPA_ASSOCIATING_STRING)) == 0)
 		return WPA_ASSOCIATING;
-	if (strncmp(line, WPA_ASSOCIATED_STRING, strlen(WPA_ASSOCIATED_STRING)) == 0)
+	if (strncmp(l, WPA_ASSOCIATED_STRING, strlen(WPA_ASSOCIATED_STRING)) == 0)
 		return WPA_ASSOCIATED;
-	if (strncmp(line, WPA_4WAY_HANDSHAKE_STRING, strlen(WPA_4WAY_HANDSHAKE_STRING)) == 0)
+	if (strncmp(l, WPA_4WAY_HANDSHAKE_STRING, strlen(WPA_4WAY_HANDSHAKE_STRING)) == 0)
 		return WPA_4WAY_HANDSHAKE;
-	if (strncmp(line, WPA_GROUP_HANDSHAKE_STRING, strlen(WPA_GROUP_HANDSHAKE_STRING)) == 0)
+	if (strncmp(l, WPA_GROUP_HANDSHAKE_STRING, strlen(WPA_GROUP_HANDSHAKE_STRING)) == 0)
 		return WPA_GROUP_HANDSHAKE;
-	if (strncmp(line, WPA_WPA_COMPLETED_STRING, strlen(WPA_WPA_COMPLETED_STRING)) == 0)
+	if (strncmp(l, WPA_WPA_COMPLETED_STRING, strlen(WPA_WPA_COMPLETED_STRING)) == 0)
 		return WPA_COMPLETED;
 
 	return WPA_UNKNOWN;

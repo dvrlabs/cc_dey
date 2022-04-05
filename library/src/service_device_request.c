@@ -29,6 +29,7 @@
 #include "ccapi/ccapi.h"
 #include "services_util.h"
 #include "service_device_request.h"
+#include "string_utils.h"
 
 #define TARGET_EDP_CERT_UPDATE	"builtin/edp_certificate_update"
 
@@ -587,60 +588,8 @@ out:
 }
 
 /**
- * strltrim() - Remove leading whitespaces from the given string
- *
- * @s: String to remove leading whitespaces.
- *
- * Return: New string without leading whitespaces.
- */
-static char *strltrim(const char *s)
-{
-	while (isspace(*s) || !isprint(*s))
-		++s;
-
-	return strdup(s);
-}
-
-/**
- * strrtrim() - Remove trailing whitespaces from the given string
- *
- * @s: String to remove trailing whitespaces.
- *
- * Return: New string without trailing whitespaces.
- */
-static char *strrtrim(const char *s)
-{
-	char *r = strdup(s);
-
-	if (r != NULL) {
-		char *fr = r + strlen(s) - 1;
-		while ((isspace(*fr) || !isprint(*fr) || *fr == 0) && fr >= r)
-			--fr;
-		*++fr = 0;
-	}
-
-	return r;
-}
-
-/**
- * strtrim() - Remove leading and trailing whitespaces from the given string
- *
- * @s: String to remove leading and trailing whitespaces.
- *
- * Return: New string without leading and trailing whitespaces.
- */
-static char *strtrim(const char *s)
-{
-	char *r = strrtrim(s);
-	char *f = strltrim(r);
-	free(r);
-
-	return f;
-}
-
-/**
- * app_receive_default_accept_cb() - Default accept callback for non registered
- *                                   device requests
+ * receive_default_accept_cb() - Default accept callback for non registered
+ *                               device requests
  *
  * @target:		Target ID associated to the device request.
  * @transport:	Communication transport used by the device request.
@@ -715,11 +664,10 @@ ccapi_receive_error_t app_receive_default_data_cb(char const *const target,
 
 	log_dr_debug("%s: not registered target - request='%s'", __func__, request_data);
 	free(request_buffer);
-	free(request_data);
 
 	/* Provide response to Remote Manager */
 	if (response_buffer_info != NULL) {
-		size_t len = snprintf(NULL, 0, "Target '%s' not registered",target);
+		size_t len = snprintf(NULL, 0, "Target '%s' not registered", target);
 
 		response_buffer_info->buffer = calloc(len + 1, sizeof(char));
 		if (response_buffer_info->buffer == NULL) {
