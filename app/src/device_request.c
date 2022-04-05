@@ -17,6 +17,7 @@
  * ===========================================================================
  */
 
+#include <libdigiapix/gpio.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
@@ -29,6 +30,12 @@
 ------------------------------------------------------------------------------*/
 #define TARGET_GET_TIME		"get_time"
 #define TARGET_STOP_CC		"stop_cc"
+#define TARGET_USER_LED		"user_led"
+
+#define RESPONSE_ERROR		"ERROR"
+#define RESPONSE_OK			"OK"
+
+#define USER_LED_ALIAS		"USER_LED"
 
 #define DEVREQ_TAG			"DEVREQ:"
 
@@ -68,6 +75,9 @@ static ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t
 static ccapi_receive_error_t get_time_cb(char const *const target, ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info);
+static ccapi_receive_error_t update_user_led_cb(char const *const target, ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info);
 static void request_status_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t *const response_buffer_info,
@@ -98,6 +108,12 @@ ccapi_receive_error_t register_custom_device_requests(void)
 		log_error("Cannot register target '%s', error %d", TARGET_STOP_CC,
 				receive_error);
 	}
+	receive_error = ccapi_receive_add_target(TARGET_USER_LED, update_user_led_cb,
+			request_status_cb, 5); /* Max size of possible values (on, off, 0, 1, true, false): 5 */
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("Cannot register target '%s', error %d", TARGET_USER_LED,
+				receive_error);
+	}
 
 	return receive_error;
 }
@@ -123,7 +139,7 @@ static ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t
 
 	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 
-	response_buffer_info->buffer = malloc(sizeof(char) * strlen(stop_response) + 1);
+	response_buffer_info->buffer = calloc(MAX_RESPONSE_SIZE + 1, sizeof(char));
 	if (response_buffer_info->buffer == NULL) {
 		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
@@ -155,7 +171,7 @@ static ccapi_receive_error_t get_time_cb(char const *const target,
 
 	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 
-	response_buffer_info->buffer = malloc(sizeof(char) * MAX_RESPONSE_SIZE + 1);
+	response_buffer_info->buffer = calloc(MAX_RESPONSE_SIZE + 1, sizeof(char));
 	if (response_buffer_info->buffer == NULL) {
 		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
@@ -166,6 +182,79 @@ static ccapi_receive_error_t get_time_cb(char const *const target,
 			MAX_RESPONSE_SIZE, "Time: %s", ctime(&t));
 
 	return CCAPI_RECEIVE_ERROR_NONE;
+}
+
+/*
+ * update_user_led_cb() - Data callback for 'user_led' device requests
+ *
+ * @target:					Target ID of the device request (user_led).
+ * @transport:				Communication transport used by the device request.
+ * @request_buffer_info:	Buffer containing the device request.
+ * @response_buffer_info:	Buffer to store the answer of the request.
+ *
+ * Logs information about the received request and executes the corresponding
+ * command.
+ */
+static ccapi_receive_error_t update_user_led_cb(char const *const target,
+		ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info)
+{
+	ccapi_receive_error_t ret = CCAPI_RECEIVE_ERROR_NONE;
+	char *val = NULL, *error_msg = NULL;
+	gpio_t *led = NULL;
+	gpio_value_t led_value = GPIO_LOW;
+
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+
+	response_buffer_info->buffer = calloc(MAX_RESPONSE_SIZE + 1, sizeof(char));
+	val = calloc(request_buffer_info->length + 1, sizeof(char));
+	if (response_buffer_info->buffer == NULL || val == NULL) {
+		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+		ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		goto exit;
+	}
+
+	strncpy(val, request_buffer_info->buffer, request_buffer_info->length);
+	log_dr_debug("%s=%s", target, val);
+
+	if (strcmp(val, "true") == 0 || strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
+		led_value = GPIO_HIGH;
+	} else if (strcmp(val, "false") == 0 || strcmp(val, "off") == 0 || strcmp(val, "0") == 0) {
+		led_value = GPIO_LOW;
+	} else {
+		error_msg = "Unknown LED status";
+		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+		goto done;
+	}
+
+	/* Request User LED GPIO */
+	led = ldx_gpio_request_by_alias(USER_LED_ALIAS, GPIO_OUTPUT_LOW, REQUEST_SHARED);
+	if (led == NULL) {
+		error_msg = "Failed to initialize LED";
+		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+		goto done;
+	}
+
+	if (ldx_gpio_set_value(led, led_value) != EXIT_SUCCESS) {
+		error_msg = "Failed to set LED";
+		ret = CCAPI_RECEIVE_ERROR_STATUS_SESSION_ERROR;
+		goto done;
+	}
+
+done:
+	if (ret != CCAPI_RECEIVE_ERROR_NONE) {
+		response_buffer_info->length = sprintf(response_buffer_info->buffer, "ERROR: %s", error_msg);
+		log_dr_error("Cannot process request for target '%s': %s", target, error_msg);
+	} else {
+		response_buffer_info->length = sprintf(response_buffer_info->buffer, "OK");
+	}
+
+exit:
+	ldx_gpio_free(led);
+	free(val);
+
+	return ret;
 }
 
 /*

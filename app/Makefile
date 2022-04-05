@@ -64,6 +64,8 @@ CFLAGS += -DGIT_REVISION=\"$(if $(GIT_REVISION),-g$(GIT_REVISION))\"
 
 CFLAGS += -g -O -DDEBUG
 
+CFLAGS += $(shell pkg-config --cflags libdigiapix)
+
 # Target output to generate.
 APP_SRCS = $(wildcard $(SRC)/*.c)
 
@@ -71,6 +73,7 @@ SRCS = $(APP_SRCS)
 
 # Libraries to Link
 LIBS += $(shell PKG_CONFIG_PATH=../library:$${PKG_CONFIG_PATH} pkg-config --libs --static cloudconnector)
+LIBS += $(shell pkg-config --libs --static libdigiapix)
 
 # Generated Executable Name.
 EXECUTABLE = cloud-connector
