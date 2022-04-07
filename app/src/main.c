@@ -24,6 +24,7 @@
 #include <unistd.h>
 
 #include "daemonize.h"
+#include "data_points.h"
 #include "device_request.h"
 
 /*------------------------------------------------------------------------------
@@ -149,9 +150,14 @@ static int start_connector(const char *config_file)
 		return EXIT_FAILURE;
 	}
 
+	if (start_monitoring() != 0)
+		log_error("%s", "Cannot start monitoring");
+
 	do {
 		sleep(2);
 	} while (get_cloud_connection_status() != CC_STATUS_DISCONNECTED && stop == CCAPI_FALSE);
+
+	stop_monitoring();
 
 	stop_cloud_connection();
 
