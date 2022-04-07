@@ -41,9 +41,6 @@ CCAPI_PUBLIC_HEADER_DIR = $(CCAPI_DIR)/include
 CUSTOM_PUBLIC_HEADER_DIR = $(CC_LIB_SRC)/custom
 CUSTOM_CCFSM_PUBLIC_HEADER_DIR = $(CCAPI_DIR)/source/cc_ansic_custom_include
 
-# Location of Platform Source Code.
-PLATFORM_DIR = $(CC_LIB_SRC)/ccimp
-
 # Get commit sha1 for the version
 GIT_REVISION := $(shell git rev-parse --verify --short=7 HEAD 2>/dev/null)
 
@@ -61,10 +58,8 @@ CFLAGS +=-std=c99
 # Include POSIX and GNU features.
 CFLAGS += -D_POSIX_C_SOURCE=200112L -D_GNU_SOURCE
 # Include Public Header Files.
-CFLAGS += -I $(SRC) -I $(CUSTOM_CCFSM_PUBLIC_HEADER_DIR) -I $(CCFSM_PUBLIC_HEADER_DIR)
-CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR) 
-# Include Platform Header Files.
-CFLAGS += -I $(CC_LIB_SRC)
+CFLAGS += -I $(SRC) -I $(CC_LIB_SRC) -I $(CUSTOM_CCFSM_PUBLIC_HEADER_DIR)
+CFLAGS += -I $(CCFSM_PUBLIC_HEADER_DIR) -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
 CFLAGS += -DGIT_REVISION=\"$(if $(GIT_REVISION),-g$(GIT_REVISION))\"
 
 CFLAGS += -g -O -DDEBUG

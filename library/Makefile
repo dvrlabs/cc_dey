@@ -102,6 +102,7 @@ install: lib$(NAME).a
 	install -m 0644 src/cc_api/include/ccapi/*.h $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccapi/
 	install -m 0644 src/cc_api/include/custom/*.h $(DESTDIR)$(INSTALL_HEADERS_DIR)/custom/
 	install -m 0644 src/cc_api/include/ccimp/ccimp_types.h $(DESTDIR)/$(INSTALL_HEADERS_DIR)/ccimp/
+	install -m 0644 src/custom/custom_connector_config.h $$(DESTDIR)$(INSTALL_HEADERS_DIR)/custom/
 	install -m 0644 src/cloudconnector.h src/cc_init.h src/cc_logging.h $(DESTDIR)/$(INSTALL_HEADERS_DIR)/
 	# Install certificates
 	install -d $(DESTDIR)/etc/ssl/certs
