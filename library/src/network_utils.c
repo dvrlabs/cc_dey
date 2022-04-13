@@ -40,6 +40,8 @@
 #include "cc_logging.h"
 #include "file_utils.h"
 #include "network_utils.h"
+#include "services_util.h"
+#include "string_utils.h"
 
 #define cast_for_alignment(cast, ptr)	((cast) ((void *) (ptr)))
 #define ARRAY_SIZE(array)				(sizeof array/sizeof array[0])
@@ -59,6 +61,8 @@ static bool is_dhcp(const char *iface_name);
 static char *get_iface_name(char *buffer, char *name);
 static int fill_stats_fields(char *iface_line, net_stats_t *net_stats);
 static int compare_iface(const char *n1, const char *n2);
+static int exec_bt_cmd(const char *cmd_fmt, const char *iface_name, const char *info_name, char **resp);
+static char *parse_bt_info(const char *line, const char *pattern, int group_idx, const char* info_name);
 
 /*
  * get_main_iface_info() - Retrieve information about the network
@@ -319,6 +323,123 @@ done:
 		freeifaddrs(ifaddr);
 
 	return retval;
+}
+
+/*
+ * get_bt_info() - Retrieve information about the given Bluetooth interface.
+ *
+ * @name:		Bluetooth interface name.
+ * @bt_info:	Struct to fill with the Bluetooth interface information.
+ *
+ * Return: 0 on success, 1 otherwise.
+ */
+int get_bt_info(const char *iface_name, bt_info_t *bt_info)
+{
+	char **lines = NULL;
+	char *resp = NULL, *info=NULL;
+	int i = 0, n_lines = 0, ret = 0;
+
+	strncpy(bt_info->name, iface_name, IFNAMSIZ - 1);
+
+	if (exec_bt_cmd("hciconfig %s | sed -ne '2,5p'", iface_name, "info", &resp) != 0) {
+		ret = 1;
+		goto error;
+	}
+
+	info = strtok(resp, "\n");
+	do {
+		char **tmp = NULL;
+
+		if (info == NULL)
+			break;
+
+		tmp = realloc(lines, sizeof(char*) * (n_lines + 1));
+		if (tmp == NULL) {
+			log_error("Could not get '%s' Bluetooth info: Out of memory", iface_name);
+			ret = 1;
+			n_lines--;
+			goto error;
+		}
+		lines = tmp;
+
+		lines[n_lines] = strdup(trim(info));
+		if (lines[n_lines - 1] == NULL) {
+			log_error("Could not get '%s' Bluetooth info: Out of memory", iface_name);
+			ret = 1;
+			n_lines--;
+			goto error;
+		}
+
+		n_lines++;
+		info = strtok(NULL, "\n");
+	} while (info != NULL);
+
+	if (n_lines < 4) {
+		log_error("Could not get '%s' Bluetooth info", iface_name);
+		ret = 1;
+		goto error;
+	}
+
+	/* MAC address */
+	info = parse_bt_info(lines[i++], "[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}", 0, "MAC");
+	if(info == NULL) {
+		ret = 1;
+		goto error;
+	}
+	sscanf(info,
+		"%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:",
+		&bt_info->mac_addr[0], &bt_info->mac_addr[1],
+		&bt_info->mac_addr[2], &bt_info->mac_addr[3],
+		&bt_info->mac_addr[4], &bt_info->mac_addr[5]);
+	free(info);
+
+	/* Status */
+	info = parse_bt_info(lines[i++], "(UP) .*", 1, "status");
+	if(info == NULL) {
+		ret = 1;
+		goto error;
+	}
+	if (strcmp(info, "UP") == 0)
+		bt_info->enabled = CCAPI_TRUE;
+	else
+		bt_info->enabled = CCAPI_FALSE;
+	free(info);
+
+	/* RX bytes */
+	info = parse_bt_info(lines[i++], "RX bytes:([0-9]+)", 1, "RX bytes");
+	if(info == NULL) {
+		ret = 1;
+		goto error;
+	}
+	bt_info->stats.rx_bytes = strtoull(info, NULL, 10);
+	free(info);
+
+	/* TX bytes */
+	info = parse_bt_info(lines[i], "TX bytes:([0-9]+)", 1, "TX bytes");
+	if(info == NULL) {
+		ret = 1;
+		goto error;
+	}
+	bt_info->stats.tx_bytes = strtoull(info, NULL, 10);
+	free(info);
+
+	goto done;
+
+error:
+	/* Init to default values */
+	memset(bt_info->mac_addr, 0, ARRAY_SIZE(bt_info->mac_addr));
+	bt_info->enabled = CCAPI_FALSE;
+	bt_info->stats.rx_bytes = 0;
+	bt_info->stats.tx_bytes = 0;
+
+done:
+	for (i = 0; i < n_lines; i++)
+		free(lines[i]);
+
+	free(lines);
+	free(resp);
+
+	return ret;
 }
 
 /**
@@ -677,4 +798,97 @@ static int compare_iface(const char *n1, const char *n2)
 
 done:
 	return retvalue;
+}
+
+/**
+ * exec_bt_cmd() - Execute the provided command and gets the response.
+ *
+ * @cmd_fmt:		Command format to execute.
+ * @iface_name: 	Name of the Bluetooth interface.
+ * @info_name: 		Name of the information to get.
+ * @resp: 		Buffer for the response.
+ *
+ * Response may contain an error string or the result of the command. It must
+ * be freed.
+ *
+ * Return: 0 on success, 1 otherwise.
+ */
+static int exec_bt_cmd(const char *cmd_fmt, const char *iface_name, const char *info_name, char **resp)
+{
+	char *cmd = NULL;
+	int ret = 0;
+	size_t len;
+
+	len = snprintf(NULL, 0, cmd_fmt, iface_name);
+	cmd = calloc(len + 1, sizeof(char));
+	if (cmd == NULL) {
+		log_error("Cannot get '%s' Bluetooth information: Out of memory", iface_name);
+		return 1;
+	}
+
+	sprintf(cmd, cmd_fmt, iface_name);
+
+	if (execute_cmd(cmd, resp, 2) != 0) {
+		if (resp != NULL) {
+			log_error("Error getting '%s' Bluetooth %s: %s", iface_name, info_name, *resp);
+			free(*resp);
+			*resp = NULL;
+		} else {
+			log_error("Error getting '%s' Bluetooth MAC: No %s", iface_name, info_name);
+		}
+		ret = 1;
+	} else if (strlen(*resp) > 0) {
+		(*resp)[strlen(*resp) - 1] = '\0';  /* Remove the last line feed */
+	}
+
+	free(cmd);
+
+	return ret;
+}
+
+/**
+ * parse_bt_info() - Parses the given line to get information based on a regex.
+ *
+ * @line:	The string to look in.
+ * @pattern:	Pattern buffer.
+ * @grp_idx:	Group where the search information is.
+ * @i_name:	Name of the information to parse.
+ *
+ * Return: The requested information.
+ */
+static char *parse_bt_info(const char *line, const char *pattern, int grp_idx, const char* i_name)
+{
+	regex_t regex;
+	regmatch_t grp[grp_idx + 1];
+	char *result = NULL;
+	int status;
+
+	status = regcomp(&regex, pattern, REG_EXTENDED);
+	if (status != 0) {
+		log_error("Could not get Bluetooth %s: Unable to compile regular expression (%d)", i_name, status);
+		goto done;
+	}
+
+	if (regexec(&regex, line, (size_t)grp_idx + 1, grp, 0) != 0) {
+		log_error("Could not get Bluetooth %s: No matches", i_name);
+		goto done;
+	}
+
+	if (grp[grp_idx].rm_so == -1) {
+		log_error("Could not get Bluetooth %s", i_name);
+		goto done;
+	}
+
+	result = calloc(grp[grp_idx].rm_eo - grp[grp_idx].rm_so + 1, sizeof(char));
+	if (result == NULL) {
+		log_error("Could not get Bluetooth %s: Out of memory", i_name);
+		goto done;
+	}
+
+	strncpy(result, line + grp[grp_idx].rm_so, grp[grp_idx].rm_eo - grp[grp_idx].rm_so);
+
+done: 
+	regfree(&regex);
+
+	return result;
 }

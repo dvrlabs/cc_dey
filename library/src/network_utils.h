@@ -75,9 +75,22 @@ typedef struct {
 	ccapi_bool_t enabled;
 } iface_info_t;
 
+typedef struct {
+	unsigned long long rx_bytes;
+	unsigned long long tx_bytes;
+} bt_stats_t;
+
+typedef struct {
+	char name[IFNAMSIZ];
+	ccapi_bool_t enabled;
+	uint8_t mac_addr[MAC_ADDRESS_GROUPS];
+	bt_stats_t stats;
+} bt_info_t;
+
 int get_main_iface_info(const char *url, iface_info_t *info);
 int get_iface_info(const char *iface_name, iface_info_t *info);
 int get_net_stats(const char *iface_name, net_stats_t *net_stats);
 uint8_t *get_primary_mac_address(uint8_t * const mac_addr);
+int get_bt_info(const char *iface_name, bt_info_t *bt_info);
 
 #endif
