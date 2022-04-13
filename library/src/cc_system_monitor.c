@@ -98,19 +98,20 @@ typedef struct {
 static void *system_monitor_threaded(void *cc_cfg);
 static void system_monitor_loop(const cc_cfg_t *const cc_cfg);
 static ccapi_dp_error_t init_system_monitor(void);
-static ccapi_dp_error_t init_iface_streams(struct if_nameindex *iface);
+static ccapi_dp_error_t init_iface_streams(const char *const iface_name, net_stream_list_t *stream_list);
 static ccapi_dp_error_t init_net_streams(void);
 static void add_system_samples(void);
 static void add_net_samples(ccapi_timestamp_t timestamp);
+static void add_bt_samples(ccapi_timestamp_t timestamp);
 static ccapi_timestamp_t *get_timestamp(void);
-static long get_free_memory(void);
-static long get_used_memory(void);
+static unsigned long get_free_memory(void);
+static unsigned long get_used_memory(void);
 static double get_cpu_load(void);
 static double get_cpu_temp(void);
 static unsigned long get_cpu_freq(void);
 static unsigned long get_uptime(void);
 static int get_n_ifaces(void);
-static void free_net_stream_list(void);
+static void free_stream_list(net_stream_list_t *stream_list);
 static void free_timestamp(ccapi_timestamp_t *timestamp);
 
 /*------------------------------------------------------------------------------
@@ -152,6 +153,9 @@ static pthread_t dp_thread;
 static ccapi_dp_collection_handle_t dp_collection;
 static unsigned long long last_work = 0, last_total = 0;
 static net_stream_list_t net_stream_list = {
+	.n_streams = 0
+};
+static net_stream_list_t bt_stream_list = {
 	.n_streams = 0
 };
 static stream_t net_stream_formats[] = {
@@ -284,7 +288,8 @@ void stop_system_monitor(void)
 		pthread_join(dp_thread, NULL);
 	}
 
-	free_net_stream_list();
+	free_stream_list(&net_stream_list);
+	free_stream_list(&bt_stream_list);
 	ccapi_dp_destroy_collection(dp_collection);
 
 	log_sm_info("%s", "Stop monitoring the system");
@@ -331,7 +336,7 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 	log_sm_info("%s", "Start monitoring the system");
 
 	while (!stop_requested) {
-		uint32_t n_samples_to_send = (ARRAY_SIZE(sys_streams) + net_stream_list.n_streams) * cc_cfg->sys_mon_num_samples_upload;;
+		uint32_t n_samples_to_send = (ARRAY_SIZE(sys_streams) + net_stream_list.n_streams + bt_stream_list.n_streams) * cc_cfg->sys_mon_num_samples_upload;;
 		long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
 		uint32_t count = 0;
 		long loop;
@@ -406,7 +411,24 @@ static ccapi_dp_error_t init_system_monitor(void)
 		}
 	}
 
-	return init_net_streams();
+	dp_error = init_net_streams();
+	if (dp_error != CCAPI_DP_ERROR_NONE)
+		return dp_error;
+
+	bt_stream_list.streams = calloc(1 * ARRAY_SIZE(net_stream_formats), sizeof(stream_t));
+	if (bt_stream_list.streams == NULL) {
+		log_sm_error("Cannot get Bluetooth interfaces: %s", "Out of memory");
+		free_stream_list(&net_stream_list);
+		return CCAPI_DP_ERROR_INSUFFICIENT_MEMORY;
+	}
+
+	dp_error = init_iface_streams("hci0", &bt_stream_list);
+	if (dp_error != CCAPI_DP_ERROR_NONE) {
+		free_stream_list(&net_stream_list);
+		free_stream_list(&bt_stream_list);
+	}
+
+	return dp_error;
 }
 
 /*
@@ -436,7 +458,7 @@ static ccapi_dp_error_t init_net_streams(void)
 
 	if_name_idx = if_nameindex();
 	for (iface = if_name_idx; iface->if_index != 0 || iface->if_name != NULL; iface++) {
-		dp_error = init_iface_streams(iface);
+		dp_error = init_iface_streams(iface->if_name, &net_stream_list);
 		if (dp_error != CCAPI_DP_ERROR_NONE)
 			goto error;
 	}
@@ -445,7 +467,7 @@ static ccapi_dp_error_t init_net_streams(void)
 
 error:
 	if (dp_error != CCAPI_DP_ERROR_NONE)
-		free_net_stream_list();
+		free_stream_list(&net_stream_list);
 
 	if_freenameindex(if_name_idx);
 
@@ -455,31 +477,34 @@ error:
 /*
  * init_iface_streams() - Add to collection the given interface data point streams
  *
+ * @iface_name:		Name of the interface to init.
+ * @stream_list:	Structure to initialize.
+ *
  * Return: Error code after the addition to the collection.
  *
  * The return value will always be 'CCAPI_DP_ERROR_NONE' unless there is any
  * problem creating the collection.
  */
-static ccapi_dp_error_t init_iface_streams(struct if_nameindex *iface)
+static ccapi_dp_error_t init_iface_streams(const char *const iface_name, net_stream_list_t *stream_list)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(net_stream_formats); i++) {
 		stream_t stream_format = net_stream_formats[i];
-		stream_t *stream = &net_stream_list.streams[net_stream_list.n_streams];
-		size_t path_len = snprintf(NULL, 0, stream_format.path, iface->if_name);
+		stream_t *stream = &stream_list->streams[stream_list->n_streams];
+		size_t path_len = snprintf(NULL, 0, stream_format.path, iface_name);
 		ccapi_dp_error_t dp_error;
 
-		net_stream_list.n_streams++;
+		stream_list->n_streams++;
 
-		stream->name = strdup(iface->if_name);
+		stream->name = strdup(iface_name);
 		stream->path = calloc(path_len + 1, sizeof(char));
 		if (stream->name == NULL || stream->path == NULL) {
 			log_sm_error("Cannot get network interfaces: %s", "Out of memory");
 			return CCAPI_DP_ERROR_INSUFFICIENT_MEMORY;
 		}
 
-		sprintf(stream->path, stream_format.path, iface->if_name);
+		sprintf(stream->path, stream_format.path, iface_name);
 
 		stream->format = stream_format.format;
 		stream->units = stream_format.units;
@@ -508,11 +533,11 @@ static void add_system_samples(void)
 	unsigned int i;
 	ccapi_timestamp_t *timestamp = get_timestamp();
 	unsigned long free_mem = get_free_memory();
-	long used_mem = get_used_memory();
+	unsigned long used_mem = get_used_memory();
 	double load = get_cpu_load();
 	double temp =  get_cpu_temp();
-	long freq = get_cpu_freq();
-	long uptime = get_uptime();
+	unsigned long freq = get_cpu_freq();
+	unsigned long uptime = get_uptime();
 
 	for (i = 0; i < sizeof(sys_streams) / sizeof(sys_streams[0]); i++) {
 		stream_t stream = sys_streams[i];
@@ -552,6 +577,8 @@ static void add_system_samples(void)
 	}
 
 	add_net_samples(*timestamp);
+
+	add_bt_samples(*timestamp);
 
 	free_timestamp(timestamp);
 }
@@ -610,6 +637,57 @@ static void add_net_samples(ccapi_timestamp_t timestamp)
 }
 
 /*
+ * add_bt_samples() - Add Bluetooth interface RX and TX bytes values to the
+ *                    data point collection
+ *
+ * @timestamp: The timestamp for the samples.
+ */
+static void add_bt_samples(ccapi_timestamp_t timestamp)
+{
+	bt_info_t bt_info;
+	char *iface_name = NULL;
+	int i;
+
+	for (i = 0; i < bt_stream_list.n_streams; i++) {
+		char desc[50] = {0};
+		unsigned long long value = 0;
+		ccapi_dp_error_t dp_error;
+		stream_t stream = bt_stream_list.streams[i];
+
+		if (iface_name == NULL || strcmp(iface_name, stream.name) != 0) {
+			iface_name = stream.name;
+			get_bt_info(iface_name, &bt_info);
+		}
+
+		switch(stream.type) {
+			case STREAM_STATE:
+				value = bt_info.enabled;
+				strcpy(desc, " status");
+				break;
+			case STREAM_RX_BYTES:
+				value = bt_info.stats.rx_bytes;
+				strcpy(desc, " RX bytes");
+				break;
+			case STREAM_TX_BYTES:
+				value = bt_info.stats.tx_bytes;
+				strcpy(desc, " TX bytes");
+				break;
+			default:
+				/* Should not occur */
+				strcpy(desc, "");
+				break;
+		}
+
+		dp_error = ccapi_dp_add(dp_collection, stream.path, value, &timestamp);
+
+		if (dp_error != CCAPI_DP_ERROR_NONE)
+			log_sm_error("Cannot add %s%s value, %d", stream.name, desc, dp_error);
+		else
+			log_sm_debug("%s%s = %llu %s", stream.name, desc, value, stream.units);
+	}
+}
+
+/*
  * get_timestamp() - Get the current timestamp of the system
  *
  * Return: The timestamp of the system.
@@ -647,7 +725,7 @@ static ccapi_timestamp_t *get_timestamp(void)
  *
  * Return: The free memory of the system in kB.
  */
-static long get_free_memory(void)
+static unsigned long get_free_memory(void)
 {
 	struct sysinfo info;
 
@@ -664,7 +742,7 @@ static long get_free_memory(void)
  *
  * Return: The used memory of the system in kB, -1 if error.
  */
-static long get_used_memory(void)
+static unsigned long get_used_memory(void)
 {
 	struct sysinfo info;
 
@@ -820,20 +898,22 @@ static int get_n_ifaces(void)
 }
 
 /*
- * free_net_stream_list() - Free the stream list
+ * free_stream_list() - Free the stream list
+ *
+ * @stream_list:	The list to free.
  */
-static void free_net_stream_list(void)
+static void free_stream_list(net_stream_list_t *stream_list)
 {
 	int i;
 
-	for (i = 0; i < net_stream_list.n_streams; i++) {
-		free(net_stream_list.streams[i].name);
-		free(net_stream_list.streams[i].path);
+	for (i = 0; i < stream_list->n_streams; i++) {
+		free(stream_list->streams[i].name);
+		free(stream_list->streams[i].path);
 	}
 
-	free(net_stream_list.streams);
+	free(stream_list->streams);
 
-	net_stream_list.n_streams = 0;
+	stream_list->n_streams = 0;
 }
 
 /*
