@@ -25,22 +25,11 @@
 /* Wi-Fi constants */
 #define SSID_SIZE			32
 
-/* CLI commands */
-#define WIFI_CMD				"wpa_cli -i"
-#define WIFI_PING_CMD			"wpa_cli ping"
-#define SSID_FIELD				"ssid"
-#define GET_NETWORK_CMD			"get_network"
-#define STATUS_SSID_CMD			"status | grep -E \"^ssid\" | cut -f 2 -d ="
-#define STATUS_WPA_STATE_CMD	"status | grep wpa_state | cut -f 2 -d ="
-#define GET_CURRENT_NETWORK_CMD	"list_networks | grep -E \"^[0-9]+\" | grep -E -v \"\\[DISABLED\\]$\" | cut -f 1"
-
-#define WPA_SUPPLICANT_FILE		"/etc/wpa_supplicant.conf"
-
 /* WPA states */
-#define WPA_UNKNOWN_STRING			"UNKNOWN"
+#define WPA_UNKNOWN_STRING		"UNKNOWN"
 #define WPA_DISCONNECTED_STRING		"DISCONNECTED"
-#define WPA_INACTIVE_STRING			"INACTIVE"
-#define WPA_SCANNING_STRING			"SCANNING"
+#define WPA_INACTIVE_STRING		"INACTIVE"
+#define WPA_SCANNING_STRING		"SCANNING"
 #define WPA_AUTHENTICATING_STRING	"AUTHENTICATING"
 #define WPA_ASSOCIATING_STRING		"ASSOCIATING"
 #define WPA_ASSOCIATED_STRING		"ASSOCIATED"

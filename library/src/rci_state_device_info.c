@@ -18,9 +18,11 @@
  */
 
 #include <stdio.h>
-#include "rci_state_device_info.h"
+
 #include "cc_logging.h"
 #include "file_utils.h"
+#include "rci_state_device_info.h"
+#include "services_util.h"
 
 #define STRING_MAX_LENGTH		256
 #define PARAM_LENGTH			25
@@ -45,7 +47,6 @@
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
-static int get_cmd_output(const char *cmd, char *out);
 static int read_dey_version(char *version);
 
 typedef struct {
@@ -108,12 +109,26 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kernel_ve
 		ccapi_rci_info_t * const info, char const * * const value)
 {
 	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
+	char *resp = NULL;
 
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (get_cmd_output(KERNEL_VERSION_CMD, device_info->kernel_version_state) != 0)
+	if (execute_cmd(KERNEL_VERSION_CMD, &resp, 2) != 0 || resp == NULL) {
+		if (resp != NULL)
+			log_error("Error getting kernel version: %s", resp);
+		else
+			log_error("%s", "Error getting kernel version");
 		snprintf(device_info->kernel_version_state, STRING_MAX_LENGTH, "%s", STRING_NA);
+	} else {
+		if (strlen(resp) > 0)
+			resp[strlen(resp) - 1] = '\0';  /* Remove the last line feed */
+
+		snprintf(device_info->kernel_version_state, STRING_MAX_LENGTH, "%s", resp);
+	}
+
+	free(resp);
+
 	*value = device_info->kernel_version_state;
 
 	return ret;
@@ -163,17 +178,25 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kinetis_g
 		ccapi_rci_info_t * const info, char const * * const value)
 {
 	ccapi_state_device_information_error_id_t ret = CCAPI_STATE_DEVICE_INFORMATION_ERROR_NONE;
-	char mca_addr[PARAM_LENGTH];
 	char str[STRING_MAX_LENGTH + PARAM_LENGTH];
 	char fw_version[PARAM_LENGTH] = STRING_NA;
 	char hw_version[PARAM_LENGTH] = STRING_NA;
+	char *mca_addr = NULL;
 
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	if (get_cmd_output(GET_MCA_ADDR_CMD, mca_addr)) {
-		log_error("%s: can't get MCA sys path", __func__);
+
+	if (execute_cmd(GET_MCA_ADDR_CMD, &mca_addr, 2) != 0 || mca_addr == NULL) {
+		if (mca_addr != NULL)
+			log_error("Error getting MCA MAC address: %s", mca_addr);
+		else
+			log_error("%s", "Error getting MCA MAC address");
 		goto done;
 	}
+
+	if (strlen(mca_addr) > 0)
+		mca_addr[strlen(mca_addr) - 1] = '\0';  /* Remove the last line feed */
+
 	sprintf(str, "%s/%s/%s", MCA_SYS_BASEPATH, mca_addr, MCA_FW_VERSION_FILE);
 	read_file_line(str, fw_version, PARAM_LENGTH);
 	sprintf(str, "%s/%s/%s", MCA_SYS_BASEPATH, mca_addr, MCA_HW_VERSION_FILE);
@@ -183,45 +206,9 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kinetis_g
 	*value = device_info->kinetis_state;
 
 done:
+	free(mca_addr);
+
 	return ret;
-}
-
-/**
- * get_cmd_output() - Execute the given command
- *
- * @cmd:		Command to be executed.
- * @out:		Output of the command execution.
- *
- * Return: 0 if success, error code otherwise.
- */
-static int get_cmd_output(const char *cmd, char *out)
-{
-	FILE *in;
-	char line[STRING_MAX_LENGTH] = {0};
-	int error = 0;
-
-	in = popen(cmd, "r");
-	if (!in) {
-		error = -1;
-		log_error("%s: popen", __func__);
-		goto done;
-	}
-
-	if (fgets(line, sizeof(line), in) != NULL) {
-		strcpy(out, line);
-		/* remove new line char */
-		if (out[strlen(out)-1] == '\n')
-			out[strlen(out)-1] = 0;
-	}
-	error = pclose(in);
-	if (error < 0) {
-		log_error("%s: pclose", __func__);
-	} else if (WIFEXITED(error)) {
-		error = WEXITSTATUS(error) ? -1 : WEXITSTATUS(error);
-	}
-
-done:
-	return error;
 }
 
 /**

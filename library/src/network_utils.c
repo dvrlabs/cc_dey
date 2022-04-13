@@ -26,6 +26,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <regex.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -47,11 +48,14 @@
 #define DNS_ENTRY							"nameserver"
 #define PATH_PROCNET_DEV					"/proc/net/dev"
 
+#define CMD_GET_GATEWAY	"route -n | grep %s | grep 'UG[ \t]' | awk '{print $2}'"
+#define CMD_IS_DHCP	"nmcli conn show %s | grep \"ipv[4|6].method\" | grep auto"
+
 static ccapi_bool_t interface_exists(const char *iface_name);
 static int get_dns(uint8_t *dnsaddr1, uint8_t *dnsaddr2);
 static int get_gateway(const char *iface_name, uint8_t *gateway);
 static int get_mac_address(const char *iface_name, uint8_t *mac_address);
-static ccapi_bool_t is_dhcp(const char *iface_name);
+static bool is_dhcp(const char *iface_name);
 static char *get_iface_name(char *buffer, char *name);
 static int fill_stats_fields(char *iface_line, net_stats_t *net_stats);
 static int compare_iface(const char *n1, const char *n2);
@@ -436,34 +440,47 @@ static int get_dns(uint8_t *dnsaddr1, uint8_t *dnsaddr2)
  * @iface_name:	Name of the network interface to retrieve its gateway address
  * @gateway:	Pointer to store the gateway address.
  *
- * Return: 0 on success, -1 otherwise.
+ * Return: 0 on success, 1 otherwise.
  */
 static int get_gateway(const char *iface_name, uint8_t *gateway)
 {
-	char cmd[64] = {0};
-	char line[255] = {0};
 	struct in_addr iaddr;
-	FILE *fp;
+	char *cmd = NULL, *resp = NULL;
+	int len, ret = 1;
 
-	/* Get the gateway addresses from command execution */
-	sprintf(cmd, "route -n | grep %s | grep 'UG[ \t]' | awk '{print $2}'", iface_name);
-	fp = popen(cmd, "r");
-	if (fp == NULL) {
-		log_error("%s: couldn't execute command '%s'\n", __func__, cmd);
-		return -1;
+	len = snprintf(NULL, 0, CMD_GET_GATEWAY, iface_name);
+	cmd = calloc(len + 1, sizeof(char));
+	if (cmd == NULL) {
+		log_error("Error getting '%s' gateway: Out of memory", iface_name);
+		goto done;
 	}
-	if (fgets(line, sizeof(line) - 1, fp) == NULL) {
-		pclose(fp);
-		return -1;
+
+	sprintf(cmd, CMD_GET_GATEWAY, iface_name);
+
+	if (execute_cmd(cmd, &resp, 2) != 0 || resp == NULL) {
+		if (resp != NULL)
+			log_error("Error getting '%s' gateway: %s", iface_name, resp);
+		else
+			log_error("Error getting '%s' gateway", iface_name);
+		goto done;
 	}
-	pclose(fp);
-	if (!inet_aton(line, &iaddr)) {
-		log_error("%s: couldn't convert '%s' into a valid IP\n", __func__, line);
-		return -1;
+
+	if (strlen(resp) > 0)
+		resp[strlen(resp) - 1] = '\0';  /* Remove the last line feed */
+
+	if (!inet_aton(resp, &iaddr)) {
+		log_error("Error getting '%s' gateway: Invalid IP\n", iface_name);
+		goto done;
 	}
+
 	memcpy(gateway, &iaddr, IPV4_GROUPS);
+	ret = 0;
 
-	return 0;
+done:
+	free(cmd);
+	free(resp);
+
+	return ret;
 }
 
 /**
@@ -471,31 +488,41 @@ static int get_gateway(const char *iface_name, uint8_t *gateway)
  *
  * @iface_name:	Name of the network interface to retrieve its DHCP status
  *
- * Return: CCAPI_TRUE if interface uses DHCP, CCAPI_FALSE otherwise.
+ * Return: true if interface uses DHCP, false otherwise.
  */
-static ccapi_bool_t is_dhcp(const char *iface_name)
+static bool is_dhcp(const char *iface_name)
 {
-	char cmd[64] = {0};
-	char line[255] = {0};
-	FILE *fp;
+	char *cmd = NULL, *resp = NULL;
+	int len;
+	bool ret = false;
 
 	if (strcmp(iface_name, "lo") == 0)
-		return CCAPI_FALSE;
+		return false;
 
-	/* Use NetworkManager to obtain the given interface method */
-	sprintf(cmd, "nmcli conn show %s | grep \"ipv[4|6].method\" | grep auto", iface_name);
-	fp = popen(cmd, "r");
-	if (fp == NULL) {
-		log_error("%s: couldn't execute command '%s'\n", __func__, cmd);
-		return CCAPI_FALSE;
+	len = snprintf(NULL, 0, CMD_IS_DHCP, iface_name);
+	cmd = calloc(len + 1, sizeof(char));
+	if (cmd == NULL) {
+		log_error("Error checking '%s' DHCP: Out of memory", iface_name);
+		goto done;
 	}
-	if (fgets(line, sizeof(line) - 1, fp) == NULL) {
-		pclose(fp);
-		return CCAPI_FALSE;
-	}
-	pclose(fp);
 
-	return CCAPI_TRUE;
+	sprintf(cmd, CMD_IS_DHCP, iface_name);
+
+	if (execute_cmd(cmd, &resp, 2) != 0) {
+		if (resp != NULL)
+			log_error("Error checking '%s' DHCP: %s", iface_name, resp);
+		else
+			log_error("Error checking '%s' DHCP", iface_name);
+		goto done;
+	}
+
+	ret = true;
+
+done:
+	free(cmd);
+	free(resp);
+
+	return ret;
 }
 
 /**
