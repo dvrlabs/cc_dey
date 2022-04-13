@@ -44,6 +44,7 @@
 
 #define FORMAT_INFO_TOTAL_MEM	"\"total_mem\": %ld,"
 #define FORMAT_INFO_IFACE		"\"%s\": {\"mac\": \"" MAC_FORMAT "\",\"ip\": \"" IP_FORMAT "\"},"
+#define FORMAT_INFO_BT_MAC		"\"bt-mac\": \"" MAC_FORMAT "\","
 
 /**
  * log_dr_debug() - Log the given message as debug
@@ -758,6 +759,29 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 		}
 
 		sprintf(response, "{" FORMAT_INFO_TOTAL_MEM, s_info.totalram / 1024);
+	}
+
+	{
+		bt_info_t bt_info;
+		char *tmp = NULL;
+		uint8_t *mac = NULL;
+
+		get_bt_info("hci0", &bt_info);
+		mac = bt_info.mac_addr;
+
+		len = snprintf(NULL, 0, FORMAT_INFO_BT_MAC, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+		tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
+		if (tmp == NULL) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			free(response);
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+
+		response = tmp;
+
+		sprintf(response + strlen(response), FORMAT_INFO_BT_MAC,
+						mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	}
 
 	{
