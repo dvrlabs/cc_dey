@@ -294,7 +294,28 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 			}
 			/* Target for *.swu files. */
 			case CC_FW_TARGET_SWU: {
-				if (cc_cfg->dualboot == CCAPI_FALSE) {
+				if (cc_cfg->dualboot) {
+					char cmd[CMD_BUFSIZE] = {0};
+					char line[LINE_BUFSIZE] = {0};
+					FILE *fp;
+
+					log_fw_debug("We will start the %s script at path %s", FW_UPDATE_CMD, fw_downloaded_path);
+					sprintf(cmd, "%s %s", FW_UPDATE_CMD, fw_downloaded_path);
+					/* Free buffer */
+					free(fw_downloaded_path);
+					/* Open process to execute update command */
+					fp = popen(cmd, "r");
+					if (fp == NULL){
+						log_fw_error("Couldn't execute dualboot installation cmd %s", cmd);
+					} else {
+						/* Read script output till finished */
+						while (fgets(line, LINE_BUFSIZE, fp) != NULL) {
+							log_fw_debug("swupdate: %s", line);
+						}
+						/* close the process */
+						pclose(fp);
+					}
+				} else {
 					if (update_firmware(fw_downloaded_path)) {
 						log_fw_error(
 								"Error updating firmware using package '%s' for target '%d'",
@@ -362,26 +383,7 @@ void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_reset, ccap
 	*system_reset = CCAPI_FALSE;
 
 	if (cc_cfg->dualboot) {
-		char cmd[CMD_BUFSIZE] = {0};
-		char line[LINE_BUFSIZE] = {0};
-		FILE *fp;
-
-		log_fw_debug("We will start the %s script at path %s", FW_UPDATE_CMD, fw_downloaded_path);
-		sprintf(cmd, "%s %s", FW_UPDATE_CMD, fw_downloaded_path);
-		/* Free buffer */
-		free(fw_downloaded_path);
-		/* Open process to execute update command */
-		fp = popen(cmd, "r");
-		if (fp == NULL){
-			log_fw_error("Couldn't execute dualboot installation cmd %s", cmd);
-		} else {
-			/* Read script output till finished */
-			while (fgets(line, LINE_BUFSIZE, fp) != NULL) {
-				log_fw_debug("swupdate: %s", line);
-			}
-			/* close the process */
-			pclose(fp);
-		}
+		log_fw_debug("%s", "Dualboot mode does not reboot the system");
 		return;
 	}
 
