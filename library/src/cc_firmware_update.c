@@ -671,7 +671,7 @@ static int get_fragments(firmware_info_t *fw_info)
 		}
 
 		if (access(fragment->path, F_OK) != 0) {
-			log_fw_error("Missing fragment number '%d'", i);
+			log_fw_error("Missing fragment number '%d' ('%s')", i, fragment->path);
 			goto error;
 		}
 	}
@@ -931,8 +931,8 @@ static char* get_fragment_file_name(const char *name, int index)
 	char *fragment_name = NULL;
 	int len;
 
-	len = snprintf(NULL, 0, "%d", index);
-	index_str = calloc(len + 1, sizeof(char));
+	len = snprintf(NULL, 0, "%d", index) + 1;
+	index_str = calloc(len, sizeof(char));
 	if (!index_str)
 		goto exit;
 	snprintf(index_str, len, "%d", index);
