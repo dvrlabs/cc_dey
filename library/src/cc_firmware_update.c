@@ -54,6 +54,12 @@
 #define CMD_BUFSIZE				255
 #define FW_UPDATE_CMD				"firmware-update-dual.sh"
 
+#if defined(__GNUC__) && __GNUC__ >= 7
+ #define FALL_THROUGH __attribute__ ((fallthrough));
+#else
+ #define FALL_THROUGH /* fall through */
+#endif /* __GNUC__ >= 7 */
+
 /*------------------------------------------------------------------------------
                  D A T A    T Y P E S    D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
@@ -143,7 +149,7 @@ typedef struct {
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 extern int crc32file(char const *const name, uint32_t *const crc);
-static int update_manifest_firmware(const char* manifest_path, int target);
+static int generate_manifest_firmware(const char* manifest_path, int target);
 static void *reboot_threaded(void *reboot_timeout);
 static int parse_manifest(const char *const manifest_path, firmware_info_t *fw_info);
 static int get_fw_path(firmware_info_t *fw_info);
@@ -275,6 +281,17 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 		log_fw_info("Starting firmware update process (target '%d')", target);
 
 		switch(target) {
+			/* Target for manifest.txt files. */
+			case CC_FW_TARGET_MANIFEST: {
+				if (generate_manifest_firmware(fw_downloaded_path, target) != 0) {
+					log_fw_error(
+							"Error generating firmware package from '%s' for target '%d'",
+							fw_downloaded_path, target);
+					error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+					break;
+				}
+				FALL_THROUGH
+			}
 			/* Target for *.swu files. */
 			case CC_FW_TARGET_SWU: {
 				if (cc_cfg->dualboot == CCAPI_FALSE) {
@@ -284,16 +301,6 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 								fw_downloaded_path, target);
 						error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 					}
-				}
-				break;
-			}
-			/* Target for manifest.txt files. */
-			case CC_FW_TARGET_MANIFEST: {
-				if (update_manifest_firmware(fw_downloaded_path, target) != 0) {
-					log_fw_error(
-							"Error updating firmware using package '%s' for target '%d'",
-							fw_downloaded_path, target);
-					error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 				}
 				break;
 			}
@@ -401,7 +408,7 @@ error:
 }
 
 /*
- * update_manifest_firmware() - Update firmware via manifest
+ * generate_manifest_firmware() - Generate firmware package via manifest
  *
  * @manifest_path:	Absolute path to the downloaded manifest file.
  * @target:			Target number.
@@ -419,11 +426,11 @@ error:
  * 				   'manifest.txt' file.
  * 				d. Calculate the package CRC32 and compare with the specified
  * 				   in the 'manifest.txt' file.
- * 		5. Update the firmware using the generated package.
+ * 		5. Return generated package path.
  *
  * Return: 0 on success, -1 otherwise.
  */
-static int update_manifest_firmware(const char *manifest_path, int target)
+static int generate_manifest_firmware(const char *manifest_path, int target)
 {
 	size_t available_space;
 	firmware_info_t fw_info = {0};
@@ -473,19 +480,10 @@ static int update_manifest_firmware(const char *manifest_path, int target)
 		goto done;
 	}
 
-	/* Update firmware process. */
-	if (cc_cfg->dualboot) {
-		log_fw_debug("Update firmware process will start now at %s", fw_info.file_path);
-		/* store the full installation path */
-		strcpy(fw_downloaded_path, fw_info.file_path);
-	} else {
-		if (update_firmware(fw_info.file_path)) {
-			log_fw_error(
-					"Error updating firmware using package '%s' for target '%d'",
-					fw_info.file_path, target);
-			error = -1;
-		}
-	}
+	/* Save firmware package path */
+
+	log_fw_debug("Image was assembly in '%s'", fw_info.file_path);
+	strcpy(fw_downloaded_path, fw_info.file_path);
 
 done:
 	free_fw_info(&fw_info);
