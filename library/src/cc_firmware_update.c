@@ -57,6 +57,11 @@
 /*------------------------------------------------------------------------------
                  D A T A    T Y P E S    D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+typedef enum {
+	CC_FW_TARGET_SWU,
+	CC_FW_TARGET_MANIFEST
+} cc_fw_target_t;
+
 /*
  * struct fw_manifest_t - Firmware manifest type
  *
@@ -271,7 +276,7 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 
 		switch(target) {
 			/* Target for *.swu files. */
-			case 0: {
+			case CC_FW_TARGET_SWU: {
 				if (cc_cfg->dualboot == CCAPI_FALSE) {
 					if (update_firmware(fw_downloaded_path)) {
 						log_fw_error(
@@ -283,7 +288,7 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 				break;
 			}
 			/* Target for manifest.txt files. */
-			case 1: {
+			case CC_FW_TARGET_MANIFEST: {
 				if (update_manifest_firmware(fw_downloaded_path, target) != 0) {
 					log_fw_error(
 							"Error updating firmware using package '%s' for target '%d'",
