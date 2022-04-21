@@ -50,7 +50,7 @@ static int create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg, ccap
 static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg);
 static ccapi_tcp_start_error_t initialize_tcp_transport(const cc_cfg_t *const cc_cfg);
 static void free_ccapi_start_struct(ccapi_start_t *ccapi_start);
-static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs);
+static int setup_virtual_dirs(const vdir_t *const vdirs, int n_vdirs);
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause);
 static void *reconnect_threaded(void *unused);
 static bool retry_connection(void);
@@ -69,6 +69,7 @@ extern ccapi_rci_service_t rci_service;
 extern connector_remote_config_data_t rci_internal_data;
 extern ccapi_receive_service_t receive_service;
 extern ccapi_streaming_cli_service_t streaming_cli_service;
+
 static volatile cc_status_t connection_status = CC_STATUS_DISCONNECTED;
 static pthread_t reconnect_thread;
 static bool reconnect_thread_valid;
@@ -154,7 +155,7 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	if (register_cc_device_requests() != CCAPI_RECEIVE_ERROR_NONE)
 		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
 
-	if (add_virtual_directories(cc_cfg->vdirs, cc_cfg->n_vdirs) != 0)
+	if (setup_virtual_dirs(cc_cfg->vdirs, cc_cfg->n_vdirs) != 0)
 		return CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY;
 
 	return CC_INIT_ERROR_NONE;
@@ -520,28 +521,37 @@ static void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
 }
 
 /**
- * add_virtual_directories() - Add defined virtual directories
+ * setup_virtual_dirs() - Add defined virtual directories
  *
  * @vdirs:	List of virtual directories
  * @n_vdirs:	Number of elements in the list
  *
  * Return:	0 on success, 1 otherwise.
  */
-static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
+static int setup_virtual_dirs(const vdir_t *const vdirs, int n_vdirs)
 {
 	int error = 0;
 	int i;
 
 	for (i = 0; i < n_vdirs; i++) {
-		ccapi_fs_error_t add_dir_error;
 		const vdir_t *v_dir = vdirs + i;
+		ccapi_fs_error_t fs_error = ccapi_fs_add_virtual_dir(v_dir->name, v_dir->path);
 
-		log_info("New virtual directory %s (%s)", v_dir->name, v_dir->path);
-		add_dir_error = ccapi_fs_add_virtual_dir(v_dir->name, v_dir->path);
-		if (add_dir_error != CCAPI_FS_ERROR_NONE) {
-			error = -1;
-			log_error("Error adding virtual directory %s (%s), error %d",
-					v_dir->name, v_dir->path, add_dir_error);
+		switch (fs_error) {
+			case CCAPI_FS_ERROR_NONE:
+				log_info("New virtual directory '%s' (%s)", v_dir->name, v_dir->path);
+				break;
+			case CCAPI_FS_ERROR_ALREADY_MAPPED:
+				log_debug("Virtual directory '%s' (%s) already mapped", v_dir->name, v_dir->path);
+				break;
+			case CCAPI_FS_ERROR_INVALID_PATH:
+			case CCAPI_FS_ERROR_NOT_A_DIR:
+				log_warning("Error adding virtual directory '%s' (%s) does not exist or is not a directory (%d)", v_dir->name, v_dir->path, fs_error);
+				break;
+			default:
+				error = 1;
+				log_error("Error adding virtual directory '%s' (%s), error %d", v_dir->name, v_dir->path, fs_error);
+				break;
 		}
 	}
 

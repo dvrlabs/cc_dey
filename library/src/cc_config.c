@@ -29,6 +29,7 @@
 #include "ccapi/ccapi.h"
 #include "cc_config.h"
 #include "cc_logging.h"
+#include "file_utils.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -124,8 +125,6 @@ static int cfg_check_string_length(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uin
 static int cfg_check_fw_download_path(cfg_t *cfg, cfg_opt_t *opt);
 static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg);
 static int get_log_level(void);
-static int file_exists(const char *const filename);
-static int file_readable(const char *const filename);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -963,33 +962,25 @@ static int check_vendor_id(unsigned long value)
  */
 static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg)
 {
-	vdir_t *vdirs = NULL;
-	int vdirs_num;
-	int i;
-
+	unsigned int i;
 	cfg_t *virtual_dir_cfg = cfg_getsec(cfg, GROUP_VIRTUAL_DIRS);
 
-	vdirs_num = cfg_size(virtual_dir_cfg, GROUP_VIRTUAL_DIR);
+	cc_cfg->n_vdirs = cfg_size(virtual_dir_cfg, GROUP_VIRTUAL_DIR);
 
-	vdirs = malloc(sizeof(vdir_t) * vdirs_num);
-	if (vdirs == NULL) {
+	cc_cfg->vdirs = calloc(cc_cfg->n_vdirs, sizeof(*cc_cfg->vdirs));
+	if (cc_cfg->vdirs == NULL) {
 		log_info("%s", "Cannot initialize virtual directories");
 		cc_cfg->n_vdirs = 0;
-		cc_cfg->vdirs = NULL;
 
 		return;
 	}
 
-	for (i = 0; i < vdirs_num; i++) {
-		vdir_t vdir;
+	for (i = 0; i < cc_cfg->n_vdirs; i++) {
 		cfg_t *vdir_cfg = cfg_getnsec(virtual_dir_cfg, GROUP_VIRTUAL_DIR, i);
 
-		vdir.name = cfg_getstr(vdir_cfg, SETTING_NAME);
-		vdir.path = cfg_getstr(vdir_cfg, SETTING_PATH);
-		vdirs[i] = vdir;
+		cc_cfg->vdirs[i].name = cfg_getstr(vdir_cfg, SETTING_NAME);
+		cc_cfg->vdirs[i].path = cfg_getstr(vdir_cfg, SETTING_PATH);
 	}
-	cc_cfg->n_vdirs = vdirs_num;
-	cc_cfg->vdirs = vdirs;
 }
 
 /*
@@ -1009,28 +1000,4 @@ static int get_log_level(void)
 		return LOG_LEVEL_INFO;
 
 	return LOG_LEVEL_ERROR;
-}
-
-/**
- * file_exists() - Check that the file with the given name exists
- *
- * @filename:	Full path of the file to check if it exists.
- *
- * Return: 1 if the file exits, 0 if it does not exist.
- */
-static int file_exists(const char *const filename)
-{
-	return access(filename, F_OK) == 0;
-}
-
-/**
- * file_readable() - Check that the file with the given name can be read
- *
- * @filename:	Full path of the file to check if it is readable.
- *
- * Return: 1 if the file is readable, 0 if it cannot be read.
- */
-static int file_readable(const char *const filename)
-{
-	return access(filename, R_OK) == 0;
 }
