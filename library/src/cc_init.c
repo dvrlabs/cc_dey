@@ -38,8 +38,6 @@
 
 #define CC_CONFIG_FILE		"/etc/cc.conf"
 
-#define FW_SWU_CHUNK_SIZE	128 * 1024 /* 128KB, CC6UL flash sector size */
-
 #define CONNECT_TIMEOUT		30
 
 #define MAX_INC_TIME		5
@@ -67,9 +65,9 @@ static int is_zero_array(const uint8_t *array, size_t size);
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
 ------------------------------------------------------------------------------*/
-extern ccapi_rci_data_t const ccapi_rci_data;
+extern ccapi_rci_service_t rci_service;
 extern connector_remote_config_data_t rci_internal_data;
-static ccapi_rci_service_t rci_service;
+extern ccapi_receive_service_t receive_service;
 extern ccapi_streaming_cli_service_t streaming_cli_service;
 static volatile cc_status_t connection_status = CC_STATUS_DISCONNECTED;
 static pthread_t reconnect_thread;
@@ -408,10 +406,8 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	start->status = NULL;
 	if (get_device_id_from_mac(start->device_id, get_primary_mac_address(mac_address)) != 0) {
 		log_error("Error initilizing Cloud connection: %s", "Cannot calculate Device ID");
-		free_ccapi_start_struct(start);
-		return NULL;
+		goto error;
 	}
-
 
 	/* Initialize CLI service. */
 	start->service.cli = NULL;
@@ -420,22 +416,13 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	start->service.streaming_cli = &streaming_cli_service,
 
 	/* Initialize RCI service. */
-	rci_service.rci_data = &ccapi_rci_data;
 	start->service.rci = &rci_service;
 	rci_internal_data.firmware_target_zero_version = fw_string_to_int(cc_cfg->fw_version);
 	rci_internal_data.vendor_id = cc_cfg->vendor_id;
 	rci_internal_data.device_type = cc_cfg->device_type;
 
 	/* Initialize device request service. */
-	start->service.receive = calloc(1, sizeof(*start->service.receive));
-	if (start->service.receive == NULL) {
-		log_error("Error initilizing Cloud connection: %s", "Out of memory");
-		free_ccapi_start_struct(start);
-		return NULL;
-	}
-	start->service.receive->accept = receive_default_accept_cb;
-	start->service.receive->data = receive_default_data_cb;
-	start->service.receive->status = receive_default_status_cb;
+	start->service.receive = &receive_service;
 
 	/* Initialize short messaging. */
 	start->service.sm = NULL;
@@ -445,8 +432,7 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 		ccapi_filesystem_service_t *fs_service = calloc(1, sizeof(*fs_service));
 		if (fs_service == NULL) {
 			log_error("%s", "Cannot allocate memory to register File system service");
-			free_ccapi_start_struct(start);
-			return NULL;
+			goto error;
 		}
 		fs_service->access = NULL;
 		fs_service->changed = NULL;
@@ -454,58 +440,14 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	}
 
 	/* Initialize firmware service. */
-	if (cc_cfg->fw_version != NULL) {
-		uint8_t fw_version[4];
-		uint8_t n_targets = 2;
-		ccapi_firmware_target_t *fw_list = NULL;
-		ccapi_fw_service_t *fw_service = NULL;
-
-		if (sscanf(cc_cfg->fw_version, "%hhu.%hhu.%hhu.%hhu", &fw_version[0],
-				&fw_version[1], &fw_version[2], &fw_version[3]) != 4) {
-			log_error("Error initilizing Cloud connection: Bad firmware_version string '%s', firmware update disabled",
-					cc_cfg->fw_version);
-			return start;
-		}
-
-		fw_list = calloc(n_targets, sizeof(*fw_list));
-		fw_service = calloc(1, sizeof(*fw_service));
-		if (fw_list == NULL || fw_service == NULL) {
-			log_error("Error initilizing Cloud connection: %s", "Out of memory");
-			free(fw_list);
-			free_ccapi_start_struct(start);
-			return NULL;
-		}
-
-		fw_list[0].chunk_size = FW_SWU_CHUNK_SIZE;
-		fw_list[0].description = "System";
-		fw_list[0].filespec = ".*\\.[sS][wW][uU]";
-		fw_list[0].maximum_size = 0;
-		fw_list[0].version.major = fw_version[0];
-		fw_list[0].version.minor = fw_version[1];
-		fw_list[0].version.revision = fw_version[2];
-		fw_list[0].version.build = fw_version[3];
-
-		fw_list[1].chunk_size = 0;
-		fw_list[1].description = "Update manifest";
-		fw_list[1].filespec = "[mM][aA][nN][iI][fF][eE][sS][tT]\\.[tT][xX][tT]";
-		fw_list[1].maximum_size = 0;
-		fw_list[1].version.major = fw_version[0];
-		fw_list[1].version.minor = fw_version[1];
-		fw_list[1].version.revision = fw_version[2];
-		fw_list[1].version.build = fw_version[3];
-
-		fw_service->target.count = n_targets;
-		fw_service->target.item = fw_list;
-
-		fw_service->callback.request = app_fw_request_cb;
-		fw_service->callback.data = app_fw_data_cb;
-		fw_service->callback.reset = app_fw_reset_cb;
-		fw_service->callback.cancel = app_fw_cancel_cb;
-
-		start->service.firmware = fw_service;
-	}
+	if (init_fw_service(cc_cfg->fw_version, &start->service.firmware) != 0)
+		goto error;
 
 	return start;
+
+error:
+	free_ccapi_start_struct(start);
+	return NULL;
 }
 
 /*
@@ -566,15 +508,15 @@ static int create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg, ccap
  */
 static void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
 {
-	if (ccapi_start != NULL) {
-		if (ccapi_start->service.firmware != NULL)
-			free(ccapi_start->service.firmware->target.item);
+	if (ccapi_start == NULL)
+		return;
 
-		free(ccapi_start->service.firmware);
-		free(ccapi_start->service.file_system);
-		free(ccapi_start->service.receive);
-		free(ccapi_start);
-	}
+	if (ccapi_start->service.firmware != NULL)
+		free(ccapi_start->service.firmware->target.item);
+
+	free(ccapi_start->service.firmware);
+	free(ccapi_start->service.file_system);
+	free(ccapi_start);
 }
 
 /**

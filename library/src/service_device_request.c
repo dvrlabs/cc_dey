@@ -73,8 +73,6 @@
 #define log_dr_error(format, ...)									\
 	log_error("%s " format, DEVICE_REQUEST_TAG, __VA_ARGS__)
 
-ccapi_receive_service_t receive_service = { NULL, NULL, NULL };
-
 typedef struct {
 	uint16_t port;
 	char *target;
@@ -608,7 +606,7 @@ out:
  * Return: CCAPI_FALSE if the device request is not accepted,
  *         CCAPI_TRUE otherswise.
  */
-ccapi_bool_t receive_default_accept_cb(char const *const target,
+static ccapi_bool_t receive_default_accept_cb(char const *const target,
 		ccapi_transport_t const transport)
 {
 	ccapi_bool_t accept_target = CCAPI_TRUE;
@@ -647,7 +645,7 @@ ccapi_bool_t receive_default_accept_cb(char const *const target,
  * Logs information about the received request and sends an answer to Device
  * Cloud indicating that the device request with that target is not registered.
  */
-ccapi_receive_error_t receive_default_data_cb(char const *const target,
+static ccapi_receive_error_t receive_default_data_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
@@ -706,7 +704,7 @@ ccapi_receive_error_t receive_default_data_cb(char const *const target,
  *
  * Cleans and frees the response buffer.
  */
-void receive_default_status_cb(char const *const target,
+static void receive_default_status_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t *const response_buffer_info,
 		ccapi_receive_error_t receive_error)
@@ -864,3 +862,9 @@ ccapi_receive_error_t register_cc_device_requests(void)
 
 	return error;
 }
+
+ccapi_receive_service_t receive_service = {
+	.accept = receive_default_accept_cb,
+	.data = receive_default_data_cb,
+	.status = receive_default_status_cb
+};

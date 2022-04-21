@@ -29,10 +29,6 @@ int handle_unregister_device_request(int fd);
 int import_devicerequests(const char *file_path);
 int dump_devicerequests(const char *file_path);
 
-ccapi_bool_t receive_default_accept_cb(char const *const target, ccapi_transport_t const transport);
-ccapi_receive_error_t receive_default_data_cb(char const *const target, ccapi_transport_t const transport, ccapi_buffer_info_t const *const request_buffer_info, ccapi_buffer_info_t *const response_buffer_info);
-void receive_default_status_cb(char const *const target, ccapi_transport_t const transport, ccapi_buffer_info_t *const response_buffer_info, ccapi_receive_error_t receive_error);
-
 ccapi_receive_error_t register_builtin_requests(void);
 ccapi_receive_error_t register_cc_device_requests(void);
 

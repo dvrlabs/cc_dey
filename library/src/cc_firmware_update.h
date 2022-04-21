@@ -22,9 +22,6 @@
 
 #include "ccapi/ccapi.h"
 
-ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target, char const * const filename, size_t const total_size);
-ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset, void const * const data, size_t size, ccapi_bool_t last_chunk);
-void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t cancel_reason);
-void app_fw_reset_cb(unsigned int const target, ccapi_bool_t * system_reset, ccapi_firmware_target_version_t * version);
+int init_fw_service(const char * const fw_version, ccapi_fw_service_t **fw_service);
 
 #endif /* CC_FIRMWARE_UPDATE_H_ */

@@ -351,7 +351,7 @@ static unsigned int set_and_transform_element(ccapi_rci_info_t * const info, cca
 }
 
 extern connector_remote_config_data_t const rci_internal_data;
-ccapi_rci_data_t const ccapi_rci_data =
+static ccapi_rci_data_t const ccapi_rci_data =
 {
 	.callback.start_session = rci_session_start_cb,
 	.callback.end_session = rci_session_end_cb,
@@ -381,4 +381,8 @@ ccapi_rci_data_t const ccapi_rci_data =
 	.callback.reboot = rci_reboot_cb,
 
 	.rci_desc = &rci_internal_data
+};
+
+ccapi_rci_service_t rci_service = {
+	.rci_data = &ccapi_rci_data
 };

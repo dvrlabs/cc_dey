@@ -35,8 +35,6 @@
 
 #define UNUSED_PARAMETER(a) (void)(a)
 
-extern ccapi_rci_data_t const ccapi_rci_data;
-
 typedef enum {
 	CCAPI_GLOBAL_ERROR_NONE,
 	CCAPI_GLOBAL_ERROR_BAD_COMMAND, /* PROTOCOL DEFINED */
