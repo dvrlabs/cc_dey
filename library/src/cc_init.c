@@ -84,18 +84,16 @@ cc_cfg_t *cc_cfg = NULL;
 /*
  * init_cloud_connection() - Initialize Cloud connection
  *
- * @config_file:	Absolute path of the configuration file to use. NULL to use
- * 					the default one (/etc/cc.conf).
+ * @config_file:	Absolute path of the configuration file to use. NULL to
+ * 			use the default one (/etc/cc.conf).
  *
  * Return:	0 if Cloud connection is successfully initialized, error code
- *			otherwise.
+ *		otherwise.
  */
 cc_init_error_t init_cloud_connection(const char *config_file)
 {
 	int log_options = LOG_CONS | LOG_NDELAY | LOG_PID;
 	ccapi_start_error_t ccapi_error;
-	ccapi_receive_error_t reg_builtin_error;
-	int error;
 
 	stop_requested = false;
 
@@ -106,8 +104,7 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 		return CC_INIT_ERROR_INSUFFICIENT_MEMORY;
 	}
 
-	error = parse_configuration(config_file ? config_file : CC_CONFIG_FILE, cc_cfg);
-	if (error != 0)
+	if (parse_configuration(config_file ? config_file : CC_CONFIG_FILE, cc_cfg) != 0)
 		return CC_INIT_ERROR_PARSE_CONFIGURATION;
 
 	closelog();
@@ -118,54 +115,49 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	initial_reconnection = true;
 
 	ccapi_error = initialize_ccapi(cc_cfg);
-	if (ccapi_error != CCAPI_START_ERROR_NONE) {
-		switch(ccapi_error) {
-			case CCAPI_START_ERROR_NONE:
-				return CC_INIT_ERROR_NONE;
-			case CCAPI_START_ERROR_NULL_PARAMETER:
-				return CC_INIT_CCAPI_START_ERROR_NULL_PARAMETER;
-			case CCAPI_START_ERROR_INVALID_VENDORID:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_VENDORID;
-			case CCAPI_START_ERROR_INVALID_DEVICEID:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_DEVICEID;
-			case CCAPI_START_ERROR_INVALID_URL:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_URL;
-			case CCAPI_START_ERROR_INVALID_DEVICETYPE:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_DEVICETYPE;
-			case CCAPI_START_ERROR_INVALID_CLI_REQUEST_CALLBACK:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_CLI_REQUEST_CALLBACK;
-			case CCAPI_START_ERROR_INVALID_RCI_REQUEST_CALLBACK:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_RCI_REQUEST_CALLBACK;
-			case CCAPI_START_ERROR_INVALID_FIRMWARE_INFO:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_FIRMWARE_INFO;
-			case CCAPI_START_ERROR_INVALID_FIRMWARE_DATA_CALLBACK:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_FIRMWARE_DATA_CALLBACK;
-			case CCAPI_START_ERROR_INVALID_SM_ENCRYPTION_CALLBACK:
-				return CC_INIT_CCAPI_START_ERROR_INVALID_SM_ENCRYPTION_CALLBACK;
-			case CCAPI_START_ERROR_INSUFFICIENT_MEMORY:
-				return CC_INIT_CCAPI_START_ERROR_INSUFFICIENT_MEMORY;
-			case CCAPI_START_ERROR_THREAD_FAILED:
-				return CC_INIT_CCAPI_START_ERROR_THREAD_FAILED;
-			case CCAPI_START_ERROR_LOCK_FAILED:
-				return CC_INIT_CCAPI_START_ERROR_LOCK_FAILED;
-			case CCAPI_START_ERROR_ALREADY_STARTED:
-				return CC_INIT_CCAPI_START_ERROR_ALREADY_STARTED;
-			default:
-				return CC_INIT_ERROR_UNKOWN;
-		}
+	switch(ccapi_error) {
+		case CCAPI_START_ERROR_NONE:
+			break;
+		case CCAPI_START_ERROR_NULL_PARAMETER:
+			return CC_INIT_CCAPI_START_ERROR_NULL_PARAMETER;
+		case CCAPI_START_ERROR_INVALID_VENDORID:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_VENDORID;
+		case CCAPI_START_ERROR_INVALID_DEVICEID:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_DEVICEID;
+		case CCAPI_START_ERROR_INVALID_URL:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_URL;
+		case CCAPI_START_ERROR_INVALID_DEVICETYPE:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_DEVICETYPE;
+		case CCAPI_START_ERROR_INVALID_CLI_REQUEST_CALLBACK:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_CLI_REQUEST_CALLBACK;
+		case CCAPI_START_ERROR_INVALID_RCI_REQUEST_CALLBACK:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_RCI_REQUEST_CALLBACK;
+		case CCAPI_START_ERROR_INVALID_FIRMWARE_INFO:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_FIRMWARE_INFO;
+		case CCAPI_START_ERROR_INVALID_FIRMWARE_DATA_CALLBACK:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_FIRMWARE_DATA_CALLBACK;
+		case CCAPI_START_ERROR_INVALID_SM_ENCRYPTION_CALLBACK:
+			return CC_INIT_CCAPI_START_ERROR_INVALID_SM_ENCRYPTION_CALLBACK;
+		case CCAPI_START_ERROR_INSUFFICIENT_MEMORY:
+			return CC_INIT_CCAPI_START_ERROR_INSUFFICIENT_MEMORY;
+		case CCAPI_START_ERROR_THREAD_FAILED:
+			return CC_INIT_CCAPI_START_ERROR_THREAD_FAILED;
+		case CCAPI_START_ERROR_LOCK_FAILED:
+			return CC_INIT_CCAPI_START_ERROR_LOCK_FAILED;
+		case CCAPI_START_ERROR_ALREADY_STARTED:
+			return CC_INIT_CCAPI_START_ERROR_ALREADY_STARTED;
+		default:
+			return CC_INIT_ERROR_UNKOWN;
 	}
 
-	error = add_virtual_directories(cc_cfg->vdirs, cc_cfg->n_vdirs);
-	if (error != 0)
+	if (register_builtin_requests() != CCAPI_RECEIVE_ERROR_NONE)
+		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
+
+	if (register_cc_device_requests() != CCAPI_RECEIVE_ERROR_NONE)
+		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
+
+	if (add_virtual_directories(cc_cfg->vdirs, cc_cfg->n_vdirs) != 0)
 		return CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY;
-
-	reg_builtin_error = register_builtin_requests();
-	if (reg_builtin_error != CCAPI_RECEIVE_ERROR_NONE)
-		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
-
-	reg_builtin_error = register_cc_device_requests();
-	if (reg_builtin_error != CCAPI_RECEIVE_ERROR_NONE)
-		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
 
 	return CC_INIT_ERROR_NONE;
 }
@@ -173,7 +165,7 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 /*
  * get_client_cert_path() - Return the client certificate path in the config file.
  *
- * Return: Path file or NULL if error.
+ * Return:	Path file or NULL if error.
  */
 char *get_client_cert_path(void)
 {
@@ -190,7 +182,6 @@ char *get_client_cert_path(void)
 cc_start_error_t start_cloud_connection(void)
 {
 	ccapi_tcp_start_error_t tcp_start_error;
-	cc_sys_mon_error_t sys_mon_error;
 	struct sigaction orig_action;
 	int ret;
 
@@ -208,38 +199,36 @@ cc_start_error_t start_cloud_connection(void)
 	if (!ret)
 		sigaction(SIGINT, &orig_action, NULL);
 
-	if (tcp_start_error != CCAPI_TCP_START_ERROR_NONE) {
+	if (tcp_start_error != CCAPI_TCP_START_ERROR_NONE)
 		log_error("Error initializing TCP transport: error %d", tcp_start_error);
-		switch(tcp_start_error) {
-			case CCAPI_TCP_START_ERROR_NONE:
-				return CC_START_ERROR_NONE;
-			case CCAPI_TCP_START_ERROR_ALREADY_STARTED:
-				return CC_START_CCAPI_TCP_START_ERROR_ALREADY_STARTED;
-			case CCAPI_TCP_START_ERROR_CCAPI_STOPPED:
-				return CC_START_CCAPI_TCP_START_ERROR_CCAPI_STOPPED;
-			case CCAPI_TCP_START_ERROR_NULL_POINTER:
-				return CC_START_CCAPI_TCP_START_ERROR_NULL_POINTER;
-			case CCAPI_TCP_START_ERROR_INSUFFICIENT_MEMORY:
-				return CC_START_CCAPI_TCP_START_ERROR_INSUFFICIENT_MEMORY;
-			case CCAPI_TCP_START_ERROR_KEEPALIVES:
-				return CC_START_CCAPI_TCP_START_ERROR_KEEPALIVES;
-			case CCAPI_TCP_START_ERROR_IP:
-				return CC_START_CCAPI_TCP_START_ERROR_IP;
-			case CCAPI_TCP_START_ERROR_INVALID_MAC:
-				return CC_START_CCAPI_TCP_START_ERROR_INVALID_MAC;
-			case CCAPI_TCP_START_ERROR_PHONE:
-				return CC_START_CCAPI_TCP_START_ERROR_PHONE;
-			case CCAPI_TCP_START_ERROR_INIT:
-				return CC_START_CCAPI_TCP_START_ERROR_INIT;
-			case CCAPI_TCP_START_ERROR_TIMEOUT:
-				return CC_START_CCAPI_TCP_START_ERROR_TIMEOUT;
-			default:
-				return CC_START_ERROR_NOT_INITIALIZE;
-		}
+	switch(tcp_start_error) {
+		case CCAPI_TCP_START_ERROR_NONE:
+			break;
+		case CCAPI_TCP_START_ERROR_ALREADY_STARTED:
+			return CC_START_CCAPI_TCP_START_ERROR_ALREADY_STARTED;
+		case CCAPI_TCP_START_ERROR_CCAPI_STOPPED:
+			return CC_START_CCAPI_TCP_START_ERROR_CCAPI_STOPPED;
+		case CCAPI_TCP_START_ERROR_NULL_POINTER:
+			return CC_START_CCAPI_TCP_START_ERROR_NULL_POINTER;
+		case CCAPI_TCP_START_ERROR_INSUFFICIENT_MEMORY:
+			return CC_START_CCAPI_TCP_START_ERROR_INSUFFICIENT_MEMORY;
+		case CCAPI_TCP_START_ERROR_KEEPALIVES:
+			return CC_START_CCAPI_TCP_START_ERROR_KEEPALIVES;
+		case CCAPI_TCP_START_ERROR_IP:
+			return CC_START_CCAPI_TCP_START_ERROR_IP;
+		case CCAPI_TCP_START_ERROR_INVALID_MAC:
+			return CC_START_CCAPI_TCP_START_ERROR_INVALID_MAC;
+		case CCAPI_TCP_START_ERROR_PHONE:
+			return CC_START_CCAPI_TCP_START_ERROR_PHONE;
+		case CCAPI_TCP_START_ERROR_INIT:
+			return CC_START_CCAPI_TCP_START_ERROR_INIT;
+		case CCAPI_TCP_START_ERROR_TIMEOUT:
+			return CC_START_CCAPI_TCP_START_ERROR_TIMEOUT;
+		default:
+			return CC_START_ERROR_NOT_INITIALIZE;
 	}
 
-	sys_mon_error = start_system_monitor(cc_cfg);
-	if (sys_mon_error != CC_SYS_MON_ERROR_NONE)
+	if (start_system_monitor(cc_cfg) != CC_SYS_MON_ERROR_NONE)
 		return CC_START_ERROR_SYSTEM_MONITOR;
 
 	start_listening_for_local_requests();
@@ -329,23 +318,22 @@ static void set_cloud_connection_status(cc_status_t status)
  * initialize_ccapi() - Initialize CCAPI layer
  *
  * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the settings parsed
- *			from the configuration file are stored.
+ *		from the configuration file are stored.
  *
  * Return:	CCAPI_START_ERROR_NONE on success, any other ccapi_start_error_t
- * 			otherwise.
+ * 		otherwise.
  */
 static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg)
 {
-	ccapi_start_t *start_st = NULL;
 	ccapi_start_error_t error;
+	ccapi_start_t *start_st = create_ccapi_start_struct(cc_cfg);
 
-	start_st = create_ccapi_start_struct(cc_cfg);
 	if (start_st == NULL)
 		return CCAPI_START_ERROR_NULL_PARAMETER;
 
 	error = ccapi_start(start_st);
 	if (error != CCAPI_START_ERROR_NONE)
-		log_debug("ccapi_start() error %d", error);
+		log_debug("Error initilizing Cloud connection: %d", error);
 
 	free_ccapi_start_struct(start_st);
 
@@ -356,10 +344,10 @@ static ccapi_start_error_t initialize_ccapi(const cc_cfg_t *const cc_cfg)
  * initialize_tcp_transport() - Start TCP transport
  *
  * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the settings parsed
- * 			from the configuration file are stored.
+ * 		from the configuration file are stored.
  *
- * Return: CCAPI_TCP_START_ERROR_NONE on success, any other
- *         ccapi_tcp_start_error_t otherwise.
+ * Return:	CCAPI_TCP_START_ERROR_NONE on success, any other
+ * 		capi_tcp_start_error_t otherwise.
  */
 static ccapi_tcp_start_error_t initialize_tcp_transport(
 		const cc_cfg_t *const cc_cfg)
@@ -399,36 +387,31 @@ static ccapi_tcp_start_error_t initialize_tcp_transport(
  * create_ccapi_start_struct() - Create a ccapi_start_t struct from the given config
  *
  * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
- * 			settings parsed from the configuration file are stored.
+ * 		settings parsed from the configuration file are stored.
  *
  * Return:	The created ccapi_start_t struct with the data read from the
- * 			configuration file.
+ * 		configuration file.
  */
 static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 {
-	ccapi_receive_service_t *dreq_service = NULL;
 	uint8_t mac_address[6];
+	ccapi_start_t *start = calloc(1, sizeof(*start));
 
-	ccapi_start_t *start = malloc(sizeof *start);
 	if (start == NULL) {
-		log_error("%s", "Cannot allocate memory to start CCAPI");
-		return start;
+		log_error("Error initilizing Cloud connection: %s", "Out of memory");
+		return NULL;
 	}
 
 	start->device_cloud_url = cc_cfg->url;
 	start->device_type = cc_cfg->device_type;
-	start->service.file_system = NULL;
-	start->service.firmware = NULL;
-	start->service.receive = NULL;
 	start->vendor_id = cc_cfg->vendor_id;
+	start->status = NULL;
 	if (get_device_id_from_mac(start->device_id, get_primary_mac_address(mac_address)) != 0) {
-		log_error("%s", "Cannot calculate Device ID");
+		log_error("Error initilizing Cloud connection: %s", "Cannot calculate Device ID");
 		free_ccapi_start_struct(start);
-		start = NULL;
-		return start;
+		return NULL;
 	}
 
-	start->status = NULL;
 
 	/* Initialize CLI service. */
 	start->service.cli = NULL;
@@ -444,29 +427,26 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 	rci_internal_data.device_type = cc_cfg->device_type;
 
 	/* Initialize device request service. */
-	dreq_service = malloc(sizeof *dreq_service);
-	if (dreq_service == NULL) {
-		log_error("%s", "Cannot allocate memory to register Data service");
+	start->service.receive = calloc(1, sizeof(*start->service.receive));
+	if (start->service.receive == NULL) {
+		log_error("Error initilizing Cloud connection: %s", "Out of memory");
 		free_ccapi_start_struct(start);
-		start = NULL;
-		return start;
+		return NULL;
 	}
-	dreq_service->accept = receive_default_accept_cb;
-	dreq_service->data = receive_default_data_cb;
-	dreq_service->status = receive_default_status_cb;
-	start->service.receive = dreq_service;
+	start->service.receive->accept = receive_default_accept_cb;
+	start->service.receive->data = receive_default_data_cb;
+	start->service.receive->status = receive_default_status_cb;
 
 	/* Initialize short messaging. */
 	start->service.sm = NULL;
 
 	/* Initialize file system service. */
 	if (cc_cfg->services & FS_SERVICE) {
-		ccapi_filesystem_service_t *fs_service = malloc(sizeof *fs_service);
+		ccapi_filesystem_service_t *fs_service = calloc(1, sizeof(*fs_service));
 		if (fs_service == NULL) {
 			log_error("%s", "Cannot allocate memory to register File system service");
 			free_ccapi_start_struct(start);
-			start = NULL;
-			return start;
+			return NULL;
 		}
 		fs_service->access = NULL;
 		fs_service->changed = NULL;
@@ -475,67 +455,54 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
 
 	/* Initialize firmware service. */
 	if (cc_cfg->fw_version != NULL) {
-		unsigned int fw_version_major;
-		unsigned int fw_version_minor;
-		unsigned int fw_version_revision;
-		unsigned int fw_version_build;
-		int error;
+		uint8_t fw_version[4];
+		uint8_t n_targets = 2;
+		ccapi_firmware_target_t *fw_list = NULL;
+		ccapi_fw_service_t *fw_service = NULL;
 
-		error = sscanf(cc_cfg->fw_version, "%u.%u.%u.%u", &fw_version_major,
-				&fw_version_minor, &fw_version_revision, &fw_version_build);
-		if (error != 4) {
-			log_error("Bad firmware_version string '%s', firmware update disabled",
+		if (sscanf(cc_cfg->fw_version, "%hhu.%hhu.%hhu.%hhu", &fw_version[0],
+				&fw_version[1], &fw_version[2], &fw_version[3]) != 4) {
+			log_error("Error initilizing Cloud connection: Bad firmware_version string '%s', firmware update disabled",
 					cc_cfg->fw_version);
-		} else {
-			uint8_t n_targets = 2;
-			ccapi_firmware_target_t *fw_list = NULL;
-			ccapi_fw_service_t *fw_service = NULL;
-
-			fw_list = malloc(n_targets * sizeof *fw_list);
-			if (fw_list == NULL) {
-				log_error("%s", "Cannot allocate memory to register firmware targets");
-				free_ccapi_start_struct(start);
-				start = NULL;
-				return start;
-			}
-
-			fw_service = malloc(sizeof *fw_service);
-			if (fw_service == NULL) {
-				log_error("%s", "Cannot allocate memory to register Firmware service");
-				free(fw_list);
-				free_ccapi_start_struct(start);
-				start = NULL;
-				return start;
-			}
-
-			fw_list[0].chunk_size = FW_SWU_CHUNK_SIZE;
-			fw_list[0].description = "System";
-			fw_list[0].filespec = ".*\\.[sS][wW][uU]";
-			fw_list[0].maximum_size = 0;
-			fw_list[0].version.major = (uint8_t) fw_version_major;
-			fw_list[0].version.minor = (uint8_t) fw_version_minor;
-			fw_list[0].version.revision = (uint8_t) fw_version_revision;
-			fw_list[0].version.build = (uint8_t) fw_version_build;
-
-			fw_list[1].chunk_size = 0;
-			fw_list[1].description = "Update manifest";
-			fw_list[1].filespec = "[mM][aA][nN][iI][fF][eE][sS][tT]\\.[tT][xX][tT]";
-			fw_list[1].maximum_size = 0;
-			fw_list[1].version.major = (uint8_t) fw_version_major;
-			fw_list[1].version.minor = (uint8_t) fw_version_minor;
-			fw_list[1].version.revision = (uint8_t) fw_version_revision;
-			fw_list[1].version.build = (uint8_t) fw_version_build;
-
-			fw_service->target.count = n_targets;
-			fw_service->target.item = fw_list;
-
-			fw_service->callback.request = app_fw_request_cb;
-			fw_service->callback.data = app_fw_data_cb;
-			fw_service->callback.reset = app_fw_reset_cb;
-			fw_service->callback.cancel = app_fw_cancel_cb;
-
-			start->service.firmware = fw_service;
+			return start;
 		}
+
+		fw_list = calloc(n_targets, sizeof(*fw_list));
+		fw_service = calloc(1, sizeof(*fw_service));
+		if (fw_list == NULL || fw_service == NULL) {
+			log_error("Error initilizing Cloud connection: %s", "Out of memory");
+			free(fw_list);
+			free_ccapi_start_struct(start);
+			return NULL;
+		}
+
+		fw_list[0].chunk_size = FW_SWU_CHUNK_SIZE;
+		fw_list[0].description = "System";
+		fw_list[0].filespec = ".*\\.[sS][wW][uU]";
+		fw_list[0].maximum_size = 0;
+		fw_list[0].version.major = fw_version[0];
+		fw_list[0].version.minor = fw_version[1];
+		fw_list[0].version.revision = fw_version[2];
+		fw_list[0].version.build = fw_version[3];
+
+		fw_list[1].chunk_size = 0;
+		fw_list[1].description = "Update manifest";
+		fw_list[1].filespec = "[mM][aA][nN][iI][fF][eE][sS][tT]\\.[tT][xX][tT]";
+		fw_list[1].maximum_size = 0;
+		fw_list[1].version.major = fw_version[0];
+		fw_list[1].version.minor = fw_version[1];
+		fw_list[1].version.revision = fw_version[2];
+		fw_list[1].version.build = fw_version[3];
+
+		fw_service->target.count = n_targets;
+		fw_service->target.item = fw_list;
+
+		fw_service->callback.request = app_fw_request_cb;
+		fw_service->callback.data = app_fw_data_cb;
+		fw_service->callback.reset = app_fw_reset_cb;
+		fw_service->callback.cancel = app_fw_cancel_cb;
+
+		start->service.firmware = fw_service;
 	}
 
 	return start;
@@ -545,12 +512,12 @@ static ccapi_start_t *create_ccapi_start_struct(const cc_cfg_t *const cc_cfg)
  * create_ccapi_tcp_start_info_struct() - Generate a ccapi_tcp_info_t struct
  *
  * @cc_cfg:	Connector configuration struct (cc_cfg_t) where the
- * 			settings parsed from the configuration file are stored.
+ * 		settings parsed from the configuration file are stored.
  *
  * @tcp_info:	A ccapi_start_t struct to fill with the read data from the
- *				configuration file.
+ *		configuration file.
  *
- * Return: 0 on success, 1 otherwise.
+ * Return:	0 on success, 1 otherwise.
  */
 static int create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg, ccapi_tcp_info_t *tcp_info)
 {
@@ -613,10 +580,10 @@ static void free_ccapi_start_struct(ccapi_start_t *ccapi_start)
 /**
  * add_virtual_directories() - Add defined virtual directories
  *
- * @vdirs:		List of virtual directories
+ * @vdirs:	List of virtual directories
  * @n_vdirs:	Number of elements in the list
  *
- * Return: 0 on success, -1 otherwise.
+ * Return:	0 on success, 1 otherwise.
  */
 static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
 {
@@ -643,9 +610,9 @@ static int add_virtual_directories(const vdir_t *const vdirs, int n_vdirs)
  * tcp_close_cb() - Callback to tell if Cloud Connector should reconnect
  *
  * @cause:	Reason of the disconnection (disconnection, redirection, missing
- * 			keep alive, or any other data error).
+ * 		keep alive, or any other data error).
  *
- * Return: CCAPI_TRUE if Cloud Connector should reconnect, CCAPI_FALSE otherwise.
+ * Return:	CCAPI_TRUE if Cloud Connector should reconnect, CCAPI_FALSE otherwise.
  */
 static ccapi_bool_t tcp_reconnect_cb(ccapi_tcp_close_cause_t cause)
 {
@@ -750,7 +717,7 @@ static bool retry_connection(void)
 /*
  * setup_signal_handler() - Setup process signals
  *
- * Return: 0 on success, 1 otherwise.
+ * Return:	0 on success, 1 otherwise.
  */
 static int setup_signal_handler(struct sigaction *orig_action)
 {
@@ -775,7 +742,7 @@ static int setup_signal_handler(struct sigaction *orig_action)
 /**
  * signal_handler() - Manage signal received.
  *
- * @signum: Received signal.
+ * @signum:	Received signal.
  */
 static void signal_handler(int signum)
 {
@@ -789,7 +756,7 @@ static void signal_handler(int signum)
  * @device_id:	Pointer to store the generated Device ID.
  * @mac_addr:	MAC address to generate the Device ID.
  *
- * Return: 0 on success, -1 otherwise.
+ * Return:	0 on success, -1 otherwise.
  */
 static int get_device_id_from_mac(uint8_t *const device_id, const uint8_t *const mac_addr)
 {
@@ -845,7 +812,7 @@ static int get_device_id_from_mac(uint8_t *const device_id, const uint8_t *const
  * This function calculates the reconnect time based on the configured value,
  * and adding a random value between 0 and MAX_INC_TIME.
  *
- * Returns: The calculated time.
+ * Returns:	The calculated time.
  */
 static int calculate_reconnect_time(void)
 {
@@ -864,16 +831,15 @@ static int calculate_reconnect_time(void)
  *
  * @fw_wstring:		Firmware version string
  *
- * Return: The firmware version as a uint32_t
+ * Return:	The firmware version as a uint32_t
  */
 static uint32_t fw_string_to_int(const char *fw_string)
 {
 	unsigned int fw_version[4] = {0};
 	uint32_t fw_int = 0;
-	int num_parts;
-
-	num_parts = sscanf(fw_string, "%u.%u.%u.%u", &fw_version[0],
+	int num_parts = sscanf(fw_string, "%u.%u.%u.%u", &fw_version[0],
 			&fw_version[1], &fw_version[2], &fw_version[3]);
+
 	if (num_parts == 0 || num_parts > 4)
 		fw_int = 0;
 	else
@@ -891,7 +857,7 @@ static uint32_t fw_string_to_int(const char *fw_string)
  * @array:		Array to be checked
  * @size:		Size of the array in bytes
  *
- * Return: 1 if the array is all zeros, 0 otherwise.
+ * Return:	1 if the array is all zeros, 0 otherwise.
  */
 static int is_zero_array(const uint8_t *array, size_t size)
 {
