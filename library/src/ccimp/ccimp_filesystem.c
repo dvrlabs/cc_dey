@@ -20,6 +20,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <openssl/evp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,10 +114,21 @@ static int app_convert_file_open_mode(int const oflag)
 ccimp_status_t ccimp_fs_file_open(ccimp_fs_file_open_t *const file_open_data)
 {
 	int const oflag = app_convert_file_open_mode(file_open_data->flags);
-	int const fd = open(file_open_data->path, oflag,
-			S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
-	/* 0664 = Owner RW + Group RW + Others R */
+	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH; /* 0664 = Owner RW + Group RW + Others R */
+	int fd;
+	char * tmp = strdupa(file_open_data->path);
 
+	if(tmp == NULL) {
+		file_open_data->errnum = errno;
+		return CCIMP_STATUS_ERROR;
+	}
+
+	if (oflag & CCIMP_FILE_O_CREAT && mkpath(dirname(tmp), mode) == -1) {
+		file_open_data->errnum = errno;
+		return CCIMP_STATUS_ERROR;
+	}
+
+	fd = open(file_open_data->path, oflag | O_CLOEXEC, mode);
 	if (fd < 0) {
 		file_open_data->errnum = errno;
 		return CCIMP_STATUS_ERROR;

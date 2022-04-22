@@ -17,10 +17,15 @@
  * ===========================================================================
  */
 
+#include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <zlib.h>
 
@@ -61,6 +66,61 @@ int file_readable(const char * const filename)
 int file_writable(const char * const filename)
 {
 	return access(filename, W_OK) == 0;
+}
+
+/**
+ * mkpath() - Create a directory and its parents if they do not exist
+ *
+ * @dir:	Full path of the directory to create.
+ * @mode:	Permissions to use.
+ *
+ * Return: 0 if success, -1 otherwise.
+ */
+int mkpath(char *dir, mode_t mode)
+{
+	struct stat sb;
+	char *p = NULL;
+	char tmp[PATH_MAX + 2]; /* path + last separator + null */
+	size_t len = 0;
+
+	if (dir == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	len = strlen(dir);
+	if(len == 0 || len > PATH_MAX) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (len == 1 && dir[0] == '/')
+		return 0;
+
+	strncpy(tmp, dir, len);
+	tmp[len] = 0;
+	if (tmp[len - 1] != '/') {
+		tmp[len] = '/';
+		tmp[len + 1] = 0;
+	}
+
+	for (p = tmp; *p; p++) {
+		if (*p != '/')
+			continue;
+		*p = 0;
+		if (strlen(tmp) > 0) {
+			if (stat(tmp, &sb) != 0) {
+				if (mkdir(tmp, mode) < 0)
+					return -1;
+			} else if (!S_ISDIR(sb.st_mode)) {
+				errno = EROFS;
+				return -1;
+			}
+		}
+		*p = '/';
+	}
+
+	return 0;
 }
 
 /**
