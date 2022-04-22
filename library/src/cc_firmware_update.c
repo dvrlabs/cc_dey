@@ -30,6 +30,7 @@
 #include "cc_config.h"
 #include "cc_firmware_update.h"
 #include "cc_logging.h"
+#include "file_utils.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -143,8 +144,6 @@ typedef struct {
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-extern int crc32file(char const *const name, uint32_t *const crc);
-
 static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target, char const * const filename, size_t const total_size);
 static ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset, void const * const data, size_t size, ccapi_bool_t last_chunk);
 static void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t cancel_reason);

@@ -17,10 +17,12 @@
  * ===========================================================================
  */
 
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include "cc_logging.h"
 #include "file_utils.h"
@@ -162,4 +164,30 @@ done:
 	va_end(args);
 
 	return error;
+}
+
+/**
+ * crc32file() - Calculate the CRC32 hash of a file
+ *
+ * @path:	Full path of the file to calculate its CRC32 hash.
+ * @crc:	CRC32 hash calculated.
+ *
+ * Returns: 0 if success, -1 otherwise.
+ */
+int crc32file(char const *const path, uint32_t *crc)
+{
+	Bytef buff[1024];
+	ssize_t read_bytes;
+	int fd = open(path, O_RDONLY | O_CLOEXEC);
+
+	if (fd == -1)
+		return -1;
+
+	*crc = 0;
+	while ((read_bytes = read(fd, buff, sizeof buff)) > 0)
+		*crc = crc32(*crc, buff, read_bytes);
+
+	close (fd);
+
+	return read_bytes == 0 ? 0 : -1;
 }

@@ -20,7 +20,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <openssl/md5.h>
+#include <openssl/evp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,23 +31,24 @@
 
 #include "cc_logging.h"
 #include "ccimp/ccimp_filesystem.h"
+#include "file_utils.h"
 
 /*------------------------------------------------------------------------------
 							 D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 #define MIN_VALUE(a, b)			((a) < (b) ? (a) : (b))
-#define APP_MD5_BUFFER_SIZE 	1024
+#define APP_HASH_BUFFER_SIZE	1024
 
 #define ERROR_SESSION			"Session error %d"
 
 /*------------------------------------------------------------------------------
 					F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
-static ccimp_status_t app_calc_md5(char const *const path,
-		uint8_t *hash_value, size_t const hash_value_len);
+static ccimp_status_t app_calc_md(char const *const path,
+		uint8_t *hash_value, size_t const hash_value_len,
+		EVP_MD const * const hash_value_type);
 static ccimp_status_t app_calc_crc32(char const *const path,
 		uint8_t *hash_value, size_t const hash_value_len);
-extern int crc32file(char const *const name, uint32_t *const crc);
 
 /*------------------------------------------------------------------------------
 						 G L O B A L  V A R I A B L E S
@@ -55,9 +56,9 @@ extern int crc32file(char const *const name, uint32_t *const crc);
 /**
  * struct dir_data_t - Struct used as handle typedef for directory operations
  *
- * @dirp:		The directory stream object.
+ * @dirp:	The directory stream object.
  * @dir_entry:	dirent structure representing a directory entry. It includes
- * 				the name of the directory.
+ * 		the name of the directory.
  *
  */
 typedef struct
@@ -72,7 +73,7 @@ typedef struct
 /**
  * app_convert_file_open_mode() - Get the open mode based on the given flags
  *
- * @oflag:		Value of the open mode flags to be translated.
+ * @oflag:	Value of the open mode flags to be translated.
  *
  * Returns: The file open mode based on the given flags.
  */
@@ -99,8 +100,8 @@ static int app_convert_file_open_mode(int const oflag)
 /**
  * ccimp_fs_file_open() - Open a file for the specified path
  *
- * @file_open_data:		ccimp_fs_file_open_t struct containing the information
- * 						of the file to open.
+ * @file_open_data:	ccimp_fs_file_open_t struct containing the information
+ * 			of the file to open.
  *
  * The path of the file is always absolute and it is open with the permissions
  * and behavior specified by the flags (read/write/seek and
@@ -128,8 +129,8 @@ ccimp_status_t ccimp_fs_file_open(ccimp_fs_file_open_t *const file_open_data)
 /**
  * ccimp_fs_file_read() - Read data from a file
  *
- * @file_read_data:		ccimp_fs_file_read_t struct containing the data read
- * 						information, including the file handle.
+ * @file_read_data:	ccimp_fs_file_read_t struct containing the data read
+ * 			information, including the file handle.
  *
  * Data read is stored in buffer up to the maximum bytes_available. The amount
  * of bytes read is specified in the bytes_used field.
@@ -160,7 +161,7 @@ ccimp_status_t ccimp_fs_file_read(ccimp_fs_file_read_t *const file_read_data)
  * ccimp_fs_file_write() - Write data to a file
  *
  * @file_write_data:	ccimp_fs_file_write_t struct containing information
- * 						about the data to write, including the file handle.
+ * 			about the data to write, including the file handle.
  *
  * The function writes up to bytes_available bytes from buffer into the handle
  * and specifies in bytes_used how many bytes were actually written.
@@ -192,7 +193,7 @@ ccimp_status_t ccimp_fs_file_write(ccimp_fs_file_write_t \
  * ccimp_fs_file_close() - Close a file
  *
  * @file_close_data:	ccimp_fs_file_close_t struct containing information
- * 						about the file to close, including the file handle.
+ * 			about the file to close, including the file handle.
  *
  * This function closes the handle created by ccimp_fs_file_open().
  *
@@ -215,8 +216,8 @@ ccimp_status_t ccimp_fs_file_close(ccimp_fs_file_close_t \
 /**
  * ccimp_fs_file_seek() - Set the offset for an open file
  *
- * @file_seek_data:		ccimp_fs_file_seek_t containing information about the
- * 						file to set its offset, including the file handle.
+ * @file_seek_data:	ccimp_fs_file_seek_t containing information about the
+ * 			file to set its offset, including the file handle.
  *
  * Depending on the origin (current, set, or end) the function sets the file
  * offset to the requested_offset and returns the actual one in
@@ -257,8 +258,8 @@ ccimp_status_t ccimp_fs_file_seek(ccimp_fs_file_seek_t *const file_seek_data)
  * ccimp_fs_file_truncate() - Truncate an open file to the specified length
  *
  * @file_truncate_data:		ccimp_fs_file_truncate_t struct containing
- * 							information about the file to truncate, including
- * 							the file handle.
+ * 				information about the file to truncate, including
+ * 				the file handle.
  *
  * Returns: The status of the operation.
  */
@@ -281,7 +282,7 @@ ccimp_status_t ccimp_fs_file_truncate(ccimp_fs_file_truncate_t \
  * ccimp_fs_file_remove() - Delete an existing file from the file system
  *
  * @file_remove_data:	ccimp_fs_file_remove_t struct containing the full path
- * 						of the file to remove.
+ * 			of the file to remove.
  *
  * The ccimp_fs_file_remove_t contains the full path of the file instead of its
  * handle because the file must be closed.
@@ -310,7 +311,7 @@ ccimp_status_t ccimp_fs_file_remove(ccimp_fs_file_remove_t \
  * ccimp_fs_dir_open() - Open a directory in order to list its contents
  *
  * @dir_open_data:	ccimp_fs_dir_open_t struct containing information about
- * 					the folder to open.
+ * 			the folder to open.
  *
  * The directory handle is returned inside the struct.
  *
@@ -320,10 +321,15 @@ ccimp_status_t ccimp_fs_dir_open(ccimp_fs_dir_open_t *const dir_open_data)
 {
 	ccimp_status_t status = CCIMP_STATUS_OK;
 	DIR *dirp;
+	char *path = realpath(dir_open_data->path, NULL);
+	if (path == NULL) {
+		dir_open_data->errnum = errno;
+		return CCIMP_STATUS_ERROR;
+	}
 
-	dirp = opendir(dir_open_data->path);
+	dirp = opendir(path);
 	if (dirp != NULL) {
-		dir_data_t *dir_data = malloc(sizeof *dir_data);
+		dir_data_t *dir_data = calloc(1, sizeof(*dir_data));
 		if (dir_data != NULL) {
 			dir_open_data->handle = dir_data;
 			dir_data->dirp = dirp;
@@ -337,6 +343,8 @@ ccimp_status_t ccimp_fs_dir_open(ccimp_fs_dir_open_t *const dir_open_data)
 		status = CCIMP_STATUS_ERROR;
 	}
 
+	free(path);
+
 	return status;
 }
 
@@ -344,7 +352,7 @@ ccimp_status_t ccimp_fs_dir_open(ccimp_fs_dir_open_t *const dir_open_data)
  * ccimp_fs_dir_read_entry() - Get the list of elements from a directory
  *
  * @dir_read_data:	ccimp_fs_dir_read_entry_t struct containing the directory
- * 					to get its list of elements.
+ * 			to get its list of elements.
  *
  * Once a directory is open, CCAPI calls this method to get the list of
  * elements (files or directories) that are inside it. Using the handle, the
@@ -372,6 +380,7 @@ ccimp_status_t ccimp_fs_dir_read_entry(ccimp_fs_dir_read_entry_t \
 	} else {
 		/* Valid entry, copy the name. */
 		size_t name_len = strlen(p_dirent->d_name);
+
 		if (name_len < dir_read_data->bytes_available) {
 			memcpy(dir_read_data->entry_name, p_dirent->d_name, name_len + 1);
 		} else {
@@ -387,7 +396,7 @@ ccimp_status_t ccimp_fs_dir_read_entry(ccimp_fs_dir_read_entry_t \
  * ccimp_fs_dir_entry_status() - Fill information about an entry of a directory
  *
  * @dir_entry_status_data:	ccimp_fs_dir_entry_status_t struct where
- * 							information about the entry element is saved.
+ * 				information about the entry element is saved.
  *
  * This method is called for each entry found by ccimp_fs_dir_read_entry() to
  * learn more about the element. The information saved in dir_entry_status_data
@@ -410,7 +419,7 @@ ccimp_status_t ccimp_fs_dir_entry_status(ccimp_fs_dir_entry_status_t \
 	int const result = stat(dir_entry_status_data->path, &statbuf);
 
 	if (result != 0) {
-		dir_entry_status_data->status.type  = CCIMP_FS_DIR_ENTRY_UNKNOWN;
+		dir_entry_status_data->status.type = CCIMP_FS_DIR_ENTRY_UNKNOWN;
 		dir_entry_status_data->status.file_size = 0;
 		dir_entry_status_data->status.last_modified = 0;
 		dir_entry_status_data->errnum = errno;
@@ -426,7 +435,7 @@ ccimp_status_t ccimp_fs_dir_entry_status(ccimp_fs_dir_entry_status_t \
 		dir_entry_status_data->status.file_size = \
 				(ccimp_file_offset_t)statbuf.st_size;
 	} else {
-		dir_entry_status_data->status.type  = CCIMP_FS_DIR_ENTRY_UNKNOWN;
+		dir_entry_status_data->status.type = CCIMP_FS_DIR_ENTRY_UNKNOWN;
 	}
 
 	return CCIMP_STATUS_OK;
@@ -435,8 +444,8 @@ ccimp_status_t ccimp_fs_dir_entry_status(ccimp_fs_dir_entry_status_t \
 /**
  * ccimp_fs_dir_close() - Close a directory after listing all its contents
  *
- * @dir_close_data:		ccimp_fs_dir_close_t struct containing the information
- * 						of the directory to close.
+ * @dir_close_data:	ccimp_fs_dir_close_t struct containing the information
+ * 			of the directory to close.
  *
  * This function is called when a directory has completely been listed. Closes
  * any open handle and frees any resources that ccimp_fs_dir_open() has
@@ -458,10 +467,10 @@ ccimp_status_t ccimp_fs_dir_close(ccimp_fs_dir_close_t *const dir_close_data)
  * ccimp_fs_hash_alg() - Set the hash algorithm to be used
  *
  * @hash_status_data:	ccimp_fs_get_hash_alg_t struct containing the hash
- * 						information
+ * 			information.
  *
  * CCAPI calls this function to get the hash algorithm that should be used.
- * It can be MD5 Sum or CRC32, or none if the device does not support it.
+ * It can be MD5, SHA512 or CRC32, or none if the device does not support it.
  *
  * Returns: The status of the operation.
  */
@@ -469,30 +478,36 @@ ccimp_status_t ccimp_fs_hash_alg(ccimp_fs_get_hash_alg_t \
 		*const hash_status_data)
 {
 	switch (hash_status_data->hash_alg.requested) {
-		case CCIMP_FS_HASH_NONE:
 		case CCIMP_FS_HASH_SHA3_512:
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
 			hash_status_data->hash_alg.actual = CCIMP_FS_HASH_NONE;
 			break;
 #endif
+		case CCIMP_FS_HASH_NONE:
 		case CCIMP_FS_HASH_SHA512:
 		case CCIMP_FS_HASH_MD5:
 		case CCIMP_FS_HASH_CRC32:
 			hash_status_data->hash_alg.actual = hash_status_data->hash_alg.requested;
 			break;
 		case CCIMP_FS_HASH_BEST:
-			hash_status_data->hash_alg.actual = CCIMP_FS_HASH_MD5;
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+			hash_status_data->hash_alg.actual = CCIMP_FS_HASH_SHA512;
+#else
+			hash_status_data->hash_alg.actual = CCIMP_FS_HASH_SHA3_512;
+#endif
 			break;
 	}
 
 	return CCIMP_STATUS_OK;
+
+
 }
 
 /**
  * ccimp_fs_hash_file() - Call the proper hash calculation method for a file
  *
- * @file_hash_data:		ccimp_fs_hash_file_t struct containing the hash
- * 						information of a file.
+ * @file_hash_data:	ccimp_fs_hash_file_t struct containing the hash
+ * 			information of a file.
  *
  * When Remote Manager asks for a hash (md5sum or crc32) of a file, CCAPI calls
  * this method, which will execute the corresponding hash calculation process.
@@ -510,12 +525,20 @@ ccimp_status_t ccimp_fs_hash_file(ccimp_fs_hash_file_t *const file_hash_data)
 					file_hash_data->hash_value, file_hash_data->bytes_requested);
 			break;
 		case CCIMP_FS_HASH_MD5:
-			status = app_calc_md5(file_hash_data->path,
-					file_hash_data->hash_value, file_hash_data->bytes_requested);
+			status = app_calc_md(file_hash_data->path, file_hash_data->hash_value,
+					file_hash_data->bytes_requested, EVP_md5());
 			break;
-		case CCIMP_FS_HASH_NONE:
-		case CCIMP_FS_HASH_SHA3_512:
 		case CCIMP_FS_HASH_SHA512:
+			status = app_calc_md(file_hash_data->path, file_hash_data->hash_value,
+					file_hash_data->bytes_requested, EVP_sha512());
+			break;
+		case CCIMP_FS_HASH_SHA3_512:
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+			status = app_calc_md(file_hash_data->path, file_hash_data->hash_value,
+					file_hash_data->bytes_requested, EVP_sha3_512());
+			break;
+#endif
+		case CCIMP_FS_HASH_NONE:
 		case CCIMP_FS_HASH_BEST:
 			break;
 	}
@@ -527,7 +550,7 @@ ccimp_status_t ccimp_fs_hash_file(ccimp_fs_hash_file_t *const file_hash_data)
  * ccimp_fs_error_desc() - Parse the errnum into a readable string
  *
  * @error_desc_data:	ccimp_fs_error_desc_t struct containing the errnum to
- * 						parse, the error_string and the error_status to be set.
+ * 			parse, the error_string and the error_status to be set.
  *
  * This function is called when any of the file, directory or hash operations
  * functions return CCIMP_STATUS_ERROR.
@@ -589,7 +612,7 @@ ccimp_status_t ccimp_fs_error_desc(ccimp_fs_error_desc_t \
  * ccimp_fs_session_error() - Print the session error
  *
  * @session_error_data:		ccimp_fs_session_error_t struct containing the
- * 							session error data.
+ * 				session error data.
  *
  * This function is called if an error is found while handling a file system
  * session, which might be caused by network communication problems, session
@@ -607,23 +630,25 @@ ccimp_status_t ccimp_fs_session_error(ccimp_fs_session_error_t \
 	return CCIMP_STATUS_OK;
 }
 
-/**
- * app_calc_md5() - Calculate the MD5 hash of a file
+ /**
+ * app_calc_md() - Calculate the hash of a file
  *
- * @path:				Full path of the file to calculate its MD5 hash.
- * @hash_value:			MD5 hash that has been calculated.
- * @hash_value_len:		Length of the hash.
+ * @path:		Full path of the file to calculate its hash.
+ * @hash_value:		Hash that has been calculated.
+ * @hash_value_len:	Length of the hash
+ * @hash_value_type:	Type of the hash.
  *
  * Returns: The status of the operation.
  */
-static ccimp_status_t app_calc_md5(char const *const path,
-		uint8_t *const hash_value, size_t const hash_value_len)
+static ccimp_status_t app_calc_md(char const *const path,
+		uint8_t *const hash_value, size_t const hash_value_len,
+		EVP_MD const * const hash_value_type)
 {
 	int ret;
-	char buf[APP_MD5_BUFFER_SIZE];
-	ccapi_bool_t done = CCAPI_FALSE;
+	char buf[APP_HASH_BUFFER_SIZE];
+	ccapi_bool_t finished = CCAPI_FALSE;
 	ccimp_status_t status;
-	MD5_CTX md5;
+	EVP_MD_CTX * ctx = NULL;
 	int const fd = open(path, O_RDONLY);
 
 	if (fd == -1) {
@@ -632,40 +657,52 @@ static ccimp_status_t app_calc_md5(char const *const path,
 		return CCIMP_STATUS_OK;
 	}
 
-	assert(fd > 0);
-
-	MD5_Init(&md5);
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+	ctx = EVP_MD_CTX_create();
+#else
+	ctx = EVP_MD_CTX_new();
+#endif
+	if (ctx == NULL || (EVP_DigestInit_ex(ctx, hash_value_type, NULL) == 0)) {
+		goto error;
+	}
 
 	do {
 		ret = read(fd, buf, sizeof buf);
+		if (ret > 0) {
+			if (EVP_DigestUpdate(ctx, buf, ret) != 1) {
+				finished = CCAPI_TRUE;
+				ret = -1;
+			}
+		} else if (ret == 0 || (ret == -1 && errno != EAGAIN)) {
+			finished = CCAPI_TRUE;
+		}
+	} while (finished == CCAPI_FALSE);
 
-		if (ret > 0)
-			MD5_Update(&md5, buf, ret);
-		else if (ret == 0)
-			done = CCAPI_TRUE;
-		else if (ret == -1 && errno != EAGAIN)
-			done = CCAPI_TRUE;
-	} while (!done);
-
-	close (fd);
-
-	if (ret == 0) {
-		MD5_Final(hash_value, &md5);
+	if (ret == 0 && EVP_DigestFinal_ex(ctx, hash_value, NULL) == 1) {
 		status = CCIMP_STATUS_OK;
-	} else {
-		memset(hash_value, 0, hash_value_len);
-		status = CCIMP_STATUS_ERROR;
+		goto done;
 	}
 
+error:
+	memset(hash_value, 0, hash_value_len);
+	status = CCIMP_STATUS_ERROR;
+
+done:
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+	EVP_MD_CTX_destroy(ctx);
+#else
+	EVP_MD_CTX_free(ctx);
+#endif
+	close(fd);
 	return status;
 }
 
 /**
  * app_calc_crc32() - Calculate the CRC32 hash of a file
  *
- * @path:				Full path of the file to calculate its CRC32 hash
- * @hash_value:			CRC32 hash that has been calculated
- * @hash_value_len:		Length of the hash
+ * @path:		Full path of the file to calculate its CRC32 hash.
+ * @hash_value:		CRC32 hash that has been calculated.
+ * @hash_value_len:	Length of the hash.
  *
  * Returns: The status of the operation.
  */
@@ -681,7 +718,7 @@ static ccimp_status_t app_calc_crc32(char const *const path,
 
 	for (i = 0; i < hash_value_len; i++) {
 		uint32_t const mask = 0xFF000000 >> (8 * i);
-		uint8_t const shift =  8 * (hash_value_len - (i + 1));
+		uint8_t const shift = 8 * (hash_value_len - (i + 1));
 
 		hash_value[i] = (crc32 & mask) >> shift;
 	}
