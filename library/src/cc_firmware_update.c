@@ -54,12 +54,6 @@
 #define CMD_BUFSIZE				255
 #define FW_UPDATE_CMD				"firmware-update-dual.sh"
 
-#if defined(__GNUC__) && __GNUC__ >= 7
- #define FALL_THROUGH __attribute__ ((fallthrough));
-#else
- #define FALL_THROUGH /* fall through */
-#endif /* __GNUC__ >= 7 */
-
 /*------------------------------------------------------------------------------
                  D A T A    T Y P E S    D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
@@ -149,6 +143,7 @@ typedef struct {
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
 extern int crc32file(char const *const name, uint32_t *const crc);
+static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int target);
 static int generate_manifest_firmware(const char* manifest_path, int target);
 static void *reboot_threaded(void *reboot_timeout);
 static int parse_manifest(const char *const manifest_path, firmware_info_t *fw_info);
@@ -290,47 +285,19 @@ ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 					error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 					break;
 				}
-				FALL_THROUGH
+				error = process_swu_package(fw_downloaded_path, target);
+				break;
 			}
 			/* Target for *.swu files. */
 			case CC_FW_TARGET_SWU: {
-				if (cc_cfg->dualboot) {
-					char cmd[CMD_BUFSIZE] = {0};
-					char line[LINE_BUFSIZE] = {0};
-					FILE *fp;
-
-					log_fw_debug("We will start the %s script at path %s", FW_UPDATE_CMD, fw_downloaded_path);
-					sprintf(cmd, "%s %s", FW_UPDATE_CMD, fw_downloaded_path);
-					/* Free buffer */
-					free(fw_downloaded_path);
-					/* Open process to execute update command */
-					fp = popen(cmd, "r");
-					if (fp == NULL){
-						log_fw_error("Couldn't execute dualboot installation cmd %s", cmd);
-					} else {
-						/* Read script output till finished */
-						while (fgets(line, LINE_BUFSIZE, fp) != NULL) {
-							log_fw_debug("swupdate: %s", line);
-						}
-						/* close the process */
-						pclose(fp);
-					}
-				} else {
-					if (update_firmware(fw_downloaded_path)) {
-						log_fw_error(
-								"Error updating firmware using package '%s' for target '%d'",
-								fw_downloaded_path, target);
-						error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
-					}
-				}
+				error = process_swu_package(fw_downloaded_path, target);
 				break;
 			}
 			default:
 				error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 		}
 
-		if (cc_cfg->dualboot == CCAPI_FALSE)
-			free(fw_downloaded_path);
+		free(fw_downloaded_path);
 	}
 
 	return error;
@@ -407,6 +374,53 @@ error:
 		if (reboot_recovery(REBOOT_TIMEOUT))
 			log_fw_error("%s", "Error rebooting in recovery mode");
 	}
+}
+
+/*
+ * process_swu_package() - Perform the installation of the SWU software package
+ *
+ * @swu_path:		Absolute path to the downloaded SWU file.
+ * @target:		Target number.
+ */
+static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int target)
+{
+	ccapi_fw_data_error_t error = CCAPI_FW_DATA_ERROR_NONE;
+
+	if (cc_cfg->dualboot) {
+		char cmd[CMD_BUFSIZE] = {0};
+		char line[LINE_BUFSIZE] = {0};
+		FILE *fp;
+
+		log_fw_debug("We will start the %s script at path %s", FW_UPDATE_CMD, swu_path);
+		sprintf(cmd, "%s %s", FW_UPDATE_CMD, swu_path);
+		/* Open process to execute update command */
+		fp = popen(cmd, "r");
+		if (fp == NULL){
+			log_fw_error("Couldn't execute dualboot installation cmd %s", cmd);
+		} else {
+			/* Read script output till finished */
+			while (fgets(line, LINE_BUFSIZE, fp) != NULL) {
+				log_fw_debug("swupdate: %s", line);
+				if(strstr(line, "There was an error performing the update")) {
+					log_fw_error(
+						"Error updating firmware using package '%s' for target '%d'",
+						swu_path, target);
+					error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+				}
+			}
+			/* close the process */
+			pclose(fp);
+		}
+	} else {
+		if (update_firmware(swu_path)) {
+			log_fw_error(
+					"Error updating firmware using package '%s' for target '%d'",
+					swu_path, target);
+			error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+		}
+	}
+
+	return error;
 }
 
 /*
