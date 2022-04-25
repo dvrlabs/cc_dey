@@ -927,28 +927,13 @@ static char* concatenate_path(const char *directory, const char *file)
  */
 static char* get_fragment_file_name(const char *name, int index)
 {
-	char *index_str = NULL;
-	char *fragment_name = NULL;
-	int len;
+	int len = snprintf(NULL, 0, "%s%d"FRAGMENT_EXT, name, index);
+	char *fragment_name = calloc(len + 1, sizeof(char));
 
-	len = snprintf(NULL, 0, "%d", index) + 1;
-	index_str = calloc(len, sizeof(char));
-	if (!index_str)
-		goto exit;
-	snprintf(index_str, len, "%d", index);
-
-	len = strlen(name) + len + strlen(FRAGMENT_EXT) + 1;
-
-	fragment_name = calloc(len, sizeof(char));
 	if (!fragment_name)
-		goto exit;
+		return NULL;
 
-	strcpy(fragment_name, name);
-	strcat(fragment_name, index_str);
-	strcat(fragment_name, FRAGMENT_EXT);
-
-exit:
-	free(index_str);
+	sprintf(fragment_name, "%s%d"FRAGMENT_EXT, name, index);
 
 	return fragment_name;
 }
