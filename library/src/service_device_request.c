@@ -29,6 +29,7 @@
 #include "cc_config.h"
 #include "cc_logging.h"
 #include "ccapi/ccapi.h"
+#include "file_utils.h"
 #include "network_utils.h"
 #include "services_util.h"
 #include "service_device_request.h"
@@ -42,6 +43,9 @@
 
 #define MAX_RESPONSE_SIZE		512
 
+#define EMMC_SIZE_FILE			"/sys/class/mmc_host/mmc0/mmc0:0001/block/mmcblk0/size"
+
+#define FORMAT_INFO_TOTAL_ST	"\"total_st\": %ld,"
 #define FORMAT_INFO_TOTAL_MEM	"\"total_mem\": %ld,"
 #define FORMAT_INFO_IFACE		"\"%s\": {\"mac\": \"" MAC_FORMAT "\",\"ip\": \"" IP_FORMAT "\"},"
 #define FORMAT_INFO_BT_MAC		"\"bt-mac\": \"" MAC_FORMAT "\","
@@ -740,15 +744,20 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 
 	{
-		struct sysinfo s_info;
-		long total_mem = -1;
+		char data[MAX_RESPONSE_SIZE] = {0};
+		long total_st = 0;
 
-		if (sysinfo(&s_info) != 0)
-			log_dr_error("Error getting total memory: %s (%d)", strerror(errno), errno);
-		else
-			total_mem = s_info.totalram / 1024;
+		/* TODO: Check the file for the CC6UL */
+		if (!file_readable(EMMC_SIZE_FILE))
+			log_dr_error("%s", "Error getting storage size: File not readable");
+		else if (read_file(EMMC_SIZE_FILE, data, MAX_RESPONSE_SIZE) <= 0)
+			log_dr_error("%s", "Error getting storage size");
+		else if (sscanf(data, "%ld", &total_st) < 1)
+			log_dr_error("%s", "Error getting storage size");
 
-		len = snprintf(NULL, 0, "{" FORMAT_INFO_TOTAL_MEM, total_mem);
+		total_st = total_st * 512 / 1024; /* kB */
+
+		len = snprintf(NULL, 0, "{" FORMAT_INFO_TOTAL_ST, total_st);
 
 		response = calloc(len + 1, sizeof(char));
 		if (response == NULL) {
@@ -756,7 +765,30 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 
-		sprintf(response, "{" FORMAT_INFO_TOTAL_MEM, s_info.totalram / 1024);
+		sprintf(response, "{" FORMAT_INFO_TOTAL_ST, total_st);
+	}
+
+	{
+		struct sysinfo s_info;
+		long total_mem = -1;
+		char *tmp = NULL;
+
+		if (sysinfo(&s_info) != 0)
+			log_dr_error("Error getting total memory: %s (%d)", strerror(errno), errno);
+		else
+			total_mem = s_info.totalram / 1024;
+
+		len = snprintf(NULL, 0, FORMAT_INFO_TOTAL_MEM, total_mem);
+
+		tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
+		if (response == NULL) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+
+		response = tmp;
+
+		sprintf(response + strlen(response), FORMAT_INFO_TOTAL_MEM, total_mem);
 	}
 
 	{
