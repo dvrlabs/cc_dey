@@ -569,7 +569,8 @@ static void add_system_samples(void)
 				break;
 			default:
 				/* Should not occur */
-				break;
+				log_sm_error("Cannot add %s value, unknown stream (%d)", stream.name, stream.type);
+				continue;
 		}
 
 		if (dp_error != CCAPI_DP_ERROR_NONE)

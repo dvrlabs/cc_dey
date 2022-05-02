@@ -843,7 +843,7 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 	response_buffer_info->buffer = response;
 	response_buffer_info->length = strlen(response);
 
-	log_dr_debug("%s: response: %s (len: %lu)", __func__,
+	log_dr_debug("%s: response: %s (len: %zu)", __func__,
 		(char *)response_buffer_info->buffer, response_buffer_info->length);
 
 	return CCAPI_RECEIVE_ERROR_NONE;
