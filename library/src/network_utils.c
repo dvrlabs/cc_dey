@@ -363,7 +363,7 @@ int get_bt_info(const char *iface_name, bt_info_t *bt_info)
 		lines = tmp;
 
 		lines[n_lines] = strdup(trim(info));
-		if (lines[n_lines - 1] == NULL) {
+		if (lines[n_lines] == NULL) {
 			log_error("Could not get '%s' Bluetooth info: Out of memory", iface_name);
 			ret = 1;
 			n_lines--;
