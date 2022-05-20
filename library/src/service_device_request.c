@@ -44,9 +44,11 @@
 #define MAX_RESPONSE_SIZE		512
 
 #define EMMC_SIZE_FILE			"/sys/class/mmc_host/mmc0/mmc0:0001/block/mmcblk0/size"
+#define RESOLUTION_FILE			"/sys/class/graphics/fb0/modes"
 
 #define FORMAT_INFO_TOTAL_ST	"\"total_st\": %ld,"
 #define FORMAT_INFO_TOTAL_MEM	"\"total_mem\": %ld,"
+#define FORMAT_INFO_RESOLUTION	"\"resolution\": \"%s\","
 #define FORMAT_INFO_IFACE		"\"%s\": {\"mac\": \"" MAC_FORMAT "\",\"ip\": \"" IP_FORMAT "\"},"
 #define FORMAT_INFO_BT_MAC		"\"bt-mac\": \"" MAC_FORMAT "\","
 
@@ -789,6 +791,31 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 		response = tmp;
 
 		sprintf(response + strlen(response), FORMAT_INFO_TOTAL_MEM, total_mem);
+	}
+
+	{
+		char data[MAX_RESPONSE_SIZE] = {0};
+		char resolution[MAX_RESPONSE_SIZE] = {0};
+		char *tmp = NULL;
+
+		if (!file_readable(RESOLUTION_FILE))
+			log_dr_error("%s", "Error getting video resolution: File not readable");
+		else if (read_file(RESOLUTION_FILE, data, MAX_RESPONSE_SIZE) <= 0)
+			log_dr_error("%s", "Error getting video resolution");
+		else if (sscanf(data, "U:%s", resolution) < 1)
+			log_dr_error("%s", "Error getting video resolution");
+
+		len = snprintf(NULL, 0, FORMAT_INFO_RESOLUTION, resolution);
+
+		tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
+		if (response == NULL) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+
+		response = tmp;
+
+		sprintf(response + strlen(response), FORMAT_INFO_RESOLUTION, resolution);
 	}
 
 	{
