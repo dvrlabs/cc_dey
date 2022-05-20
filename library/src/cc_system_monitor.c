@@ -104,8 +104,8 @@ static void add_system_samples(void);
 static void add_net_samples(ccapi_timestamp_t timestamp);
 static void add_bt_samples(ccapi_timestamp_t timestamp);
 static ccapi_timestamp_t *get_timestamp(void);
-static unsigned long get_free_memory(void);
-static unsigned long get_used_memory(void);
+static double get_free_memory(void);
+static double get_used_memory(void);
 static double get_cpu_load(void);
 static double get_cpu_temp(void);
 static unsigned long get_cpu_freq(void);
@@ -186,14 +186,14 @@ static stream_t sys_streams[] = {
 		.name = "free memory",
 		.path = DATA_STREAM_FREE_MEMORY,
 		.units = DATA_STREAM_MEMORY_UNITS,
-		.format = "int32 ts_iso",
+		.format = "double ts_iso",
 		.type = STREAM_FREE_MEM
 	},
 	{
 		.name = "used memory",
 		.path = DATA_STREAM_USED_MEMORY,
 		.units = DATA_STREAM_MEMORY_UNITS,
-		.format = "int32 ts_iso",
+		.format = "double ts_iso",
 		.type = STREAM_USED_MEM
 	},
 	{
@@ -532,8 +532,8 @@ static void add_system_samples(void)
 	ccapi_dp_error_t dp_error;
 	unsigned int i;
 	ccapi_timestamp_t *timestamp = get_timestamp();
-	unsigned long free_mem = get_free_memory();
-	unsigned long used_mem = get_used_memory();
+	double free_mem = get_free_memory();
+	double used_mem = get_used_memory();
 	double load = get_cpu_load();
 	double temp =  get_cpu_temp();
 	unsigned long freq = get_cpu_freq();
@@ -545,11 +545,11 @@ static void add_system_samples(void)
 		switch(stream.type) {
 			case STREAM_FREE_MEM:
 				dp_error = ccapi_dp_add(dp_collection, stream.path, free_mem, timestamp);
-				log_sm_debug("%s = %lu %s", stream.name, free_mem, stream.units);
+				log_sm_debug("%s = %f %s", stream.name, free_mem, stream.units);
 				break;
 			case STREAM_USED_MEM:
 				dp_error = ccapi_dp_add(dp_collection, stream.path, used_mem, timestamp);
-				log_sm_debug("%s = %lu %s", stream.name, used_mem, stream.units);
+				log_sm_debug("%s = %f %s", stream.name, used_mem, stream.units);
 				break;
 			case STREAM_CPU_LOAD:
 				dp_error = ccapi_dp_add(dp_collection, stream.path, load, timestamp);
@@ -724,9 +724,9 @@ static ccapi_timestamp_t *get_timestamp(void)
 /*
  * get_free_memory() - Get the free memory of the system
  *
- * Return: The free memory of the system in kB.
+ * Return: The free memory of the system in kB, -1 if error.
  */
-static unsigned long get_free_memory(void)
+static double get_free_memory(void)
 {
 	struct sysinfo info;
 
@@ -743,7 +743,7 @@ static unsigned long get_free_memory(void)
  *
  * Return: The used memory of the system in kB, -1 if error.
  */
-static unsigned long get_used_memory(void)
+static double get_used_memory(void)
 {
 	struct sysinfo info;
 
