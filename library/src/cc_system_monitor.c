@@ -163,7 +163,7 @@ static stream_t net_stream_formats[] = {
 		.name = "state",
 		.path = DATA_STREAM_NET_STATE,
 		.units = DATA_STREAM_STATE_UNITS,
-		.format = "int32 ts_iso",
+		.format = "int64 ts_iso",
 		.type = STREAM_STATE
 	},
 	{
