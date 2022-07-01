@@ -44,6 +44,7 @@
 #define MAX_RESPONSE_SIZE		512
 
 #define EMMC_SIZE_FILE			"/sys/class/mmc_host/mmc0/mmc0:0001/block/mmcblk0/size"
+#define NAND_SIZE_FILE			"/proc/mtd"
 #define RESOLUTION_FILE			"/sys/class/graphics/fb0/modes"
 
 #define FORMAT_INFO_TOTAL_ST	"\"total_st\": %ld,"
@@ -603,6 +604,71 @@ out:
 }
 
 /**
+ * get_emmc_size() - Returns the total eMMC storage size.
+ *
+ * Return: total size read.
+ */
+long get_emmc_size(void)
+{
+	char data[MAX_RESPONSE_SIZE] = {0};
+	long total_size = 0;
+
+	if (read_file(EMMC_SIZE_FILE, data, MAX_RESPONSE_SIZE) <= 0)
+		log_dr_error("%s", "Error getting storage size: Could not read file");
+	if (sscanf(data, "%ld", &total_size) < 1)
+		log_dr_error("%s", "Error getting storage size: Invalid file contents");
+
+	return total_size * 512 / 1024; /* kB */
+}
+
+/**
+ * get_nand_size() - Returns the total NAND storage size.
+ *
+ * Return: total size read.
+ */
+long get_nand_size(void)
+{
+	char buffer[MAX_RESPONSE_SIZE] = {0};
+	long total_size = 0;
+	FILE *fd;
+
+	fd = fopen(NAND_SIZE_FILE, "r");
+	if (!fd) {
+		log_dr_error("%s", "Error getting storage size: Could not open file");
+		return total_size;
+	}
+	/* Ignore first line */
+	if (fgets(buffer, sizeof(buffer), fd) == NULL) {
+		log_dr_error("%s", "Error getting storage size: Could not read file");
+		fclose(fd);
+		return total_size;
+	}
+	/* Start reading line by line */
+	while (fgets(buffer, sizeof(buffer), fd)) {
+		char partition_id[20] = {'\0'};
+		char partition_name[20] = {'\0'};
+		char size_hex[20] = {'\0'};
+		char erase_size_hex[20] = {'\0'};
+		unsigned long size;
+
+		sscanf(buffer,
+			"%s %s %s %s",
+			partition_id,
+			size_hex,
+			erase_size_hex,
+			partition_name);
+
+		size = strtol(size_hex, NULL, 16);
+		total_size = total_size + size;
+	}
+	if (ferror(fd))
+		log_dr_error("%s", "Error getting storage size: File read error");
+	fclose(fd);
+
+	return total_size / 1024; /* kB */
+}
+
+/**
  * receive_default_accept_cb() - Default accept callback for non registered
  *                               device requests
  *
@@ -746,18 +812,14 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 
 	{
-		char data[MAX_RESPONSE_SIZE] = {0};
 		long total_st = 0;
 
-		/* TODO: Check the file for the CC6UL */
-		if (!file_readable(EMMC_SIZE_FILE))
+		if (file_readable(NAND_SIZE_FILE))
+			total_st = get_nand_size();
+		else if (file_readable(EMMC_SIZE_FILE))
+			total_st = get_emmc_size();
+		else
 			log_dr_error("%s", "Error getting storage size: File not readable");
-		else if (read_file(EMMC_SIZE_FILE, data, MAX_RESPONSE_SIZE) <= 0)
-			log_dr_error("%s", "Error getting storage size");
-		else if (sscanf(data, "%ld", &total_st) < 1)
-			log_dr_error("%s", "Error getting storage size");
-
-		total_st = total_st * 512 / 1024; /* kB */
 
 		len = snprintf(NULL, 0, "{" FORMAT_INFO_TOTAL_ST, total_st);
 
