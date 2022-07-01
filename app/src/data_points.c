@@ -202,14 +202,15 @@ static ccapi_dp_error_t init_monitor(ccapi_dp_collection_handle_t *dp_collection
 /*
  * get_user_button() - Retrieves the user button GPIO
  *
- * Return: The user button GPIO.
+ * Return: The user button GPIO, NULL on error.
  */
 static gpio_t *get_user_button(void)
 {
 	if (cb_data.button != NULL)
 		return cb_data.button;
-
 	cb_data.button = ldx_gpio_request_by_alias(USER_BUTTON_ALIAS, GPIO_IRQ_EDGE_BOTH, REQUEST_SHARED);
+	if (cb_data.button == NULL)
+		return NULL;
 	ldx_gpio_set_active_mode(cb_data.button, GPIO_ACTIVE_HIGH);
 
 	return cb_data.button;
