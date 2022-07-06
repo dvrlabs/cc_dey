@@ -529,6 +529,15 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 		goto error;
 	}
 
+#if (OPENSSL_VERSION_NUMBER > 0x30000000L)
+	/*
+	* We need to relax what ciphers are allowed with openssl-3.0 so
+	* that we do not break RM. In the near future they will support
+	* only modern ciphers and we can remove this.
+	*/
+	SSL_CTX_set_security_level(ssl_ptr->ctx, 0);
+#endif
+
 #ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
 	char *key_filename = get_client_cert_path();
 
