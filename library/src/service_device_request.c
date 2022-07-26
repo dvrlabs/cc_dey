@@ -43,10 +43,11 @@
 
 #define MAX_RESPONSE_SIZE		512
 
-#define EMMC_SIZE_FILE			"/sys/class/mmc_host/mmc0/mmc0:0001/block/mmcblk0/size"
-#define NAND_SIZE_FILE			"/proc/mtd"
-#define RESOLUTION_FILE			"/sys/class/graphics/fb0/modes"
-#define RESOLUTION_FILE_CCMP	"/sys/class/drm/card0/card0-DPI-1/modes"
+#define EMMC_SIZE_FILE				"/sys/class/mmc_host/mmc0/mmc0:0001/block/mmcblk0/size"
+#define NAND_SIZE_FILE				"/proc/mtd"
+#define RESOLUTION_FILE				"/sys/class/graphics/fb0/modes"
+#define RESOLUTION_FILE_CCMP		"/sys/class/drm/card0/card0-DPI-1/modes"
+#define RESOLUTION_FILE_CCMP_HDMI	"/sys/class/drm/card0/card0-HDMI-A-1/modes"
 
 #define FORMAT_INFO_TOTAL_ST	"\"total_st\": %ld,"
 #define FORMAT_INFO_TOTAL_MEM	"\"total_mem\": %ld,"
@@ -866,13 +867,17 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 			resolution_file = RESOLUTION_FILE;
 		else if (file_readable(RESOLUTION_FILE_CCMP))
 			resolution_file = RESOLUTION_FILE_CCMP;
+		else if (file_readable(RESOLUTION_FILE_CCMP_HDMI))
+			resolution_file = RESOLUTION_FILE_CCMP_HDMI;
 
 		if (!file_readable(resolution_file))
 			log_dr_error("%s", "Error getting video resolution: File not readable");
 		else if (read_file(resolution_file, data, MAX_RESPONSE_SIZE) <= 0)
 			log_dr_error("%s", "Error getting video resolution");
-		else if (sscanf(data, "U:%s", resolution) < 1)
-			log_dr_error("%s", "Error getting video resolution");
+		else if (sscanf(data, "U:%s", resolution) < 1) {
+			if (sscanf(data, "%s", resolution) < 1)
+				log_dr_error("%s", "Error getting video resolution");
+		}
 
 		len = snprintf(NULL, 0, FORMAT_INFO_RESOLUTION, resolution);
 
