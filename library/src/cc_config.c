@@ -70,6 +70,7 @@
 
 #define SETTING_FW_DOWNLOAD_PATH	"firmware_download_path"
 
+#define SETTING_SYS_MON_METRICS		"system_monitor_metrics"
 #define SETTING_SYS_MON_SAMPLE_RATE	"system_monitor_sample_rate"
 #define SETTING_SYS_MON_SAMPLE_RATE_MIN		1
 #define SETTING_SYS_MON_SAMPLE_RATE_MAX		365 * 24 * 60 * 60UL /* A year */
@@ -97,6 +98,8 @@
 #define LOG_LEVEL_INFO_STR			"info"
 #define LOG_LEVEL_DEBUG_STR			"debug"
 
+#define ALL_METRICS			"*"
+
 /*------------------------------------------------------------------------------
                     F U N C T I O N  D E C L A R A T I O N S
 ------------------------------------------------------------------------------*/
@@ -116,6 +119,7 @@ static int cfg_check_float_range(cfg_t *cfg, cfg_opt_t *opt, float min, float ma
 static int cfg_check_wait_times(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_sys_mon_sample_rate(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_sys_mon_upload_size(cfg_t *cfg, cfg_opt_t *opt);
+static int cfg_check_sys_mon_metrics(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_latitude(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_longitude(cfg_t *cfg, cfg_opt_t *opt);
 static int cfg_check_description(cfg_t *cfg, cfg_opt_t *opt);
@@ -125,6 +129,7 @@ static int cfg_check_string_length(cfg_t *cfg, cfg_opt_t *opt, uint16_t min, uin
 static int cfg_check_fw_download_path(cfg_t *cfg, cfg_opt_t *opt);
 static void get_virtual_directories(cfg_t *const cfg, cc_cfg_t *const cc_cfg);
 static int get_log_level(void);
+static void get_sys_mon_metrics(cfg_t *const cfg, cc_cfg_t *const cc_cfg);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -211,6 +216,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			CFG_BOOL	(ENABLE_SYSTEM_MONITOR,		cfg_true,	CFGF_NONE),
 			CFG_INT		(SETTING_SYS_MON_SAMPLE_RATE,	5,		CFGF_NONE),
 			CFG_INT		(SETTING_SYS_MON_UPLOAD_SIZE,	10,		CFGF_NONE),
+			CFG_STR_LIST(SETTING_SYS_MON_METRICS,	"{*}",		CFGF_NONE),
 
 			/* Static location settings */
 			CFG_BOOL	(SETTING_USE_STATIC_LOCATION,	cfg_true,	CFGF_NONE),
@@ -255,6 +261,7 @@ int parse_configuration(const char *const filename, cc_cfg_t *cc_cfg)
 			cfg_check_sys_mon_sample_rate);
 	cfg_set_validate_func(cfg, SETTING_SYS_MON_UPLOAD_SIZE,
 			cfg_check_sys_mon_upload_size);
+	cfg_set_validate_func(cfg, SETTING_SYS_MON_METRICS, cfg_check_sys_mon_metrics);
 	cfg_set_validate_func(cfg, SETTING_LATITUDE, cfg_check_latitude);
 	cfg_set_validate_func(cfg, SETTING_LONGITUDE, cfg_check_longitude);
 
@@ -321,6 +328,11 @@ void free_configuration(cc_cfg_t *cc_cfg)
 
 		free(cc_cfg->fw_download_path);
 		cc_cfg->fw_download_path = NULL;
+
+		for (i = 0; i < cc_cfg->n_sys_mon_metrics; i++) {
+			free(cc_cfg->sys_mon_metrics[i]);
+		}
+		free(cc_cfg->sys_mon_metrics);
 
 		free(cc_cfg);
 		cc_cfg = NULL;
@@ -448,6 +460,7 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
 	/* Fill system monitor settings. */
 	cc_cfg->sys_mon_sample_rate = cfg_getint(cfg, SETTING_SYS_MON_SAMPLE_RATE);
 	cc_cfg->sys_mon_num_samples_upload = cfg_getint(cfg, SETTING_SYS_MON_UPLOAD_SIZE);
+	get_sys_mon_metrics(cfg, cc_cfg);
 
 	/* Fill static location settings. */
 	cc_cfg->use_static_location = (ccapi_bool_t) cfg_getbool(cfg, SETTING_USE_STATIC_LOCATION);
@@ -472,6 +485,7 @@ static int fill_connector_config(cc_cfg_t *cc_cfg)
  */
 static int set_connector_config(cc_cfg_t *cc_cfg)
 {
+	unsigned int i;
 	char vid_str[11]; /* "0x" + 8 chars + '\0' */
 
 	/* Set general settings. */
@@ -504,6 +518,9 @@ static int set_connector_config(cc_cfg_t *cc_cfg)
 	/* Fill system monitor settings. */
 	cfg_setint(cfg, SETTING_SYS_MON_SAMPLE_RATE, cc_cfg->sys_mon_sample_rate);
 	cfg_setint(cfg, SETTING_SYS_MON_UPLOAD_SIZE, cc_cfg->sys_mon_num_samples_upload);
+	for (i = 0; i < cc_cfg->n_sys_mon_metrics; i++) {
+		cfg_setnstr(cfg, SETTING_SYS_MON_METRICS, cc_cfg->sys_mon_metrics[i], i);
+	}
 
 	/* Fill static location settings. */
 	cfg_setbool(cfg, SETTING_USE_STATIC_LOCATION, (cfg_bool_t) cc_cfg->use_static_location);
@@ -768,6 +785,24 @@ static int cfg_check_sys_mon_upload_size(cfg_t *cfg, cfg_opt_t *opt)
 }
 
 /*
+ * cfg_check_sys_mon_metrics() - Check system monitor metrics list
+ *
+ * @cfg:	The section where the option is defined.
+ * @opt:	The option to check.
+ *
+ * @Return: 0 on success, any other value otherwise.
+ */
+static int cfg_check_sys_mon_metrics(cfg_t *cfg, cfg_opt_t *opt)
+{
+	if (cfg_opt_size(opt) < 1) {
+		cfg_error(cfg, "Invalid %s: list cannot be empty", opt->name);
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
  * cfg_check_latitude() - Check latitude value is between -90.0 and 90.0
  *
  * @cfg:	The section where the option is defined.
@@ -1000,4 +1035,37 @@ static int get_log_level(void)
 		return LOG_LEVEL_INFO;
 
 	return LOG_LEVEL_ERROR;
+}
+
+/*
+ * get_sys_mon_metrics() - Get the list of system monitor metrics
+ *
+ * @cfg:	Configuration struct from config file to read the system monitor metrics
+ * @cc_cfg:	Cloud Connector configuration to store the system monitor metrics
+ */
+static void get_sys_mon_metrics(cfg_t *const cfg, cc_cfg_t *const cc_cfg)
+{
+	unsigned int i;
+
+	cc_cfg->n_sys_mon_metrics = cfg_size(cfg, SETTING_SYS_MON_METRICS);
+	cc_cfg->sys_mon_metrics = calloc(cc_cfg->n_sys_mon_metrics, sizeof(*cc_cfg->sys_mon_metrics));
+	if (cc_cfg->sys_mon_metrics == NULL) {
+		log_info("%s", "Cannot initialize system monitor metrics");
+		cc_cfg->n_sys_mon_metrics = 0;
+
+		return;
+	}
+
+	for (i = 0; i < cc_cfg->n_sys_mon_metrics; i++) {
+		cc_cfg->sys_mon_metrics[i] = strdup(cfg_getnstr(cfg, SETTING_SYS_MON_METRICS, i));
+		if (cc_cfg->sys_mon_metrics[i] == NULL) {
+			log_info("%s", "Cannot initialize system monitor metric");
+			cc_cfg->n_sys_mon_metrics = i;
+
+			return;
+		}
+		if (strcmp(ALL_METRICS, cc_cfg->sys_mon_metrics[i]) == 0) {
+			cc_cfg->sys_mon_all_metrics = true;
+		}
+	}
 }

@@ -72,6 +72,9 @@ typedef struct {
  * @fw_download_path			Absolute path to download firmware files
  * @sys_mon_sample_rate:		Frequency at which gather system information
  * @sys_mon_num_samples_upload:	Number of samples of each channel to gather before uploading
+ * @sys_mon_metrics:			List of metrics and interfaces to measure and upload to Remote Manager
+ * @n_sys_mon_metrics:			Number of system monitor metrics and interfaces to measure
+ * @sys_mon_all_metrics:		Whether all system monitor metrics should be measured or not
  * @use_static_location			If true, use static location as GPS value
  * @latitude					Latitude value for static location
  * @longitude					Longitude value for static location
@@ -107,6 +110,9 @@ typedef struct {
 
 	uint32_t sys_mon_sample_rate;
 	uint32_t sys_mon_num_samples_upload;
+	char **sys_mon_metrics;
+	unsigned int n_sys_mon_metrics;
+	ccapi_bool_t sys_mon_all_metrics;
 
 	ccapi_bool_t use_static_location;
 	float latitude;
