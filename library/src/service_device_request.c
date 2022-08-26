@@ -19,6 +19,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <json-c/json_object.h>
 #include <libdigiapix/bluetooth.h>
 #include <libdigiapix/network.h>
 #include <malloc.h>
@@ -48,12 +49,6 @@
 #define RESOLUTION_FILE				"/sys/class/graphics/fb0/modes"
 #define RESOLUTION_FILE_CCMP		"/sys/class/drm/card0/card0-DPI-1/modes"
 #define RESOLUTION_FILE_CCMP_HDMI	"/sys/class/drm/card0/card0-HDMI-A-1/modes"
-
-#define FORMAT_INFO_TOTAL_ST	"\"total_st\": %ld,"
-#define FORMAT_INFO_TOTAL_MEM	"\"total_mem\": %ld,"
-#define FORMAT_INFO_RESOLUTION	"\"resolution\": \"%s\","
-#define FORMAT_INFO_IFACE		"\"%s\": {\"mac\": \"" MAC_FORMAT "\",\"ip\": \"" IP_FORMAT "\"},"
-#define FORMAT_INFO_BT_MAC		"\"bt-mac\": \"" MAC_FORMAT "\","
 
 /**
  * log_dr_debug() - Log the given message as debug
@@ -245,7 +240,7 @@ static ccapi_receive_error_t device_request(const char *target,
 
 out:
 	if (ret)
-		/* An error ocurred, send empty response to DRM */
+		/* An error occurred, send empty response to DRM */
 		response_buffer_info->length = 0;
 
 	if (sock_fd >= 0)
@@ -610,7 +605,7 @@ out:
  *
  * Return: total size read.
  */
-long get_emmc_size(void)
+static long get_emmc_size(void)
 {
 	char data[MAX_RESPONSE_SIZE] = {0};
 	long total_size = 0;
@@ -628,7 +623,7 @@ long get_emmc_size(void)
  *
  * Return: total size read.
  */
-long get_nand_size(void)
+static long get_nand_size(void)
 {
 	char buffer[MAX_RESPONSE_SIZE] = {0};
 	long total_size = 0;
@@ -678,7 +673,7 @@ long get_nand_size(void)
  * @transport:	Communication transport used by the device request.
  *
  * Return: CCAPI_FALSE if the device request is not accepted,
- *         CCAPI_TRUE otherswise.
+ *         CCAPI_TRUE otherwise.
  */
 static ccapi_bool_t receive_default_accept_cb(char const *const target,
 		ccapi_transport_t const transport)
@@ -806,12 +801,49 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
 {
+	json_object *root = NULL;
 	char *response = NULL;
-	size_t len;
+	ccapi_receive_error_t status = CCAPI_RECEIVE_ERROR_NONE;
 
 	UNUSED_ARGUMENT(request_buffer_info);
 
 	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+
+	/*
+		target "device_info"
+
+		Request: -
+
+		Response:
+		{
+			"total_st": 0,
+			"total_mem": 2002120,
+			"resolution": "1920x1080p-0",
+			"bt-mac": "00:40:9d:7d:1b:8f",
+			"lo": {
+				"mac": "00:00:00:00:00:00",
+				"ip": "127.0.0.1"
+			},
+			"eth0": {
+				"mac": "00:40:9d:ee:b6:96",
+				"ip": "192.168.1.44"
+			},
+			"can0": {
+				"mac": "00:00:00:00:00:00",
+				"ip": "0.0.0.0"
+			},
+			"wlan0": {
+				"mac": "00:40:9d:dd:bd:13",
+				"ip": "0.0.0.0"
+			}
+		}
+	*/
+
+	root = json_object_new_object();
+	if (!root) {
+		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+	}
 
 	{
 		long total_st = 0;
@@ -824,44 +856,32 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 		else
 			log_dr_error("%s", "Error getting storage size: File not readable");
 
-		len = snprintf(NULL, 0, "{" FORMAT_INFO_TOTAL_ST, total_st);
-
-		response = calloc(len + 1, sizeof(char));
-		if (response == NULL) {
+		if (json_object_object_add(root, "total_st", json_object_new_int64(total_st)) < 0) {
 			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			goto done;
 		}
-
-		sprintf(response, "{" FORMAT_INFO_TOTAL_ST, total_st);
 	}
 
 	{
 		struct sysinfo s_info;
 		long total_mem = -1;
-		char *tmp = NULL;
 
 		if (sysinfo(&s_info) != 0)
 			log_dr_error("Error getting total memory: %s (%d)", strerror(errno), errno);
 		else
 			total_mem = s_info.totalram / 1024;
 
-		len = snprintf(NULL, 0, FORMAT_INFO_TOTAL_MEM, total_mem);
-
-		tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
-		if (response == NULL) {
+		if (json_object_object_add(root, "total_mem", json_object_new_int64(total_mem)) < 0) {
 			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			goto done;
 		}
-
-		response = tmp;
-
-		sprintf(response + strlen(response), FORMAT_INFO_TOTAL_MEM, total_mem);
 	}
 
 	{
 		char data[MAX_RESPONSE_SIZE] = {0};
 		char resolution[MAX_RESPONSE_SIZE] = {0};
-		char *tmp = NULL;
 		char *resolution_file = "";
 
 		if (file_readable(RESOLUTION_FILE))
@@ -880,41 +900,29 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 				log_dr_error("%s", "Error getting video resolution");
 		}
 
-		len = snprintf(NULL, 0, FORMAT_INFO_RESOLUTION, resolution);
-
-		tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
-		if (response == NULL) {
+		if (json_object_object_add(root, "resolution", json_object_new_string(resolution)) < 0) {
 			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			goto done;
 		}
-
-		response = tmp;
-
-		sprintf(response + strlen(response), FORMAT_INFO_RESOLUTION, resolution);
 	}
 
 	{
 		bt_state_t bt_state;
-		char *tmp = NULL;
 		uint8_t *mac = NULL;
+		char mac_str[18];
 
 		ldx_bt_get_state(0, &bt_state);
 		mac = bt_state.mac;
 
-		len = snprintf(NULL, 0, FORMAT_INFO_BT_MAC,
-				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-		tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
-		if (tmp == NULL) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			free(response);
-			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-		}
-
-		response = tmp;
-
-		sprintf(response + strlen(response), FORMAT_INFO_BT_MAC,
+		snprintf(mac_str, sizeof(mac_str), MAC_FORMAT,
 			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+		if (json_object_object_add(root, "bt-mac", json_object_new_string(mac_str)) < 0) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			goto done;
+		}
 	}
 
 	{
@@ -925,42 +933,58 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 
 		for (i = 0; i < list_ifaces.n_ifaces; i++) {
 			net_state_t net_state;
-			char *tmp = NULL;
 			uint8_t *mac = NULL, *ip = NULL;
+			char mac_str[MAC_STRING_LENGTH], ip_str[IP_STRING_LENGTH];
+			json_object *iface_item = json_object_new_object();
 
 			ldx_net_get_iface_state(list_ifaces.names[i], &net_state);
 			mac = net_state.mac;
 			ip = net_state.ipv4;
 
-			len = snprintf(NULL, 0, FORMAT_INFO_IFACE, list_ifaces.names[i],
-				/* mac */ mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-				/* ip */ ip[0], ip[1], ip[2], ip[3]);
-
-			/* Expand the available memory with realloc */
-			tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
-			if (tmp == NULL) {
+			if (!iface_item || json_object_object_add(root, list_ifaces.names[i], iface_item) < 0) {
 				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-				free(response);
-				return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+				if (iface_item)
+					json_object_put(iface_item);
+				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+				goto done;
+			}
+			
+			snprintf(mac_str, sizeof(mac_str), MAC_FORMAT,
+				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+			snprintf(ip_str, sizeof(ip_str), IP_FORMAT,
+				ip[0], ip[1], ip[2], ip[3]);
+		
+			if (json_object_object_add(iface_item, "mac", json_object_new_string(mac_str)) < 0) {
+				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+				goto done;
 			}
 
-			response = tmp;
-
-			sprintf(response + strlen(response), FORMAT_INFO_IFACE,
-					list_ifaces.names[i],
-					/* mac */ mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					/* ip */ ip[0], ip[1], ip[2], ip[3]);
+			if (json_object_object_add(iface_item, "ip", json_object_new_string(ip_str)) < 0) {
+				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+				goto done;
+			}
 		}
 	}
 
-	response[strlen(response) - 1] = '}'; /* Remove last comma */
+	response = strdup(json_object_to_json_string(root));
+	if (response == NULL) {
+		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+		status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		goto done;
+	}
+
 	response_buffer_info->buffer = response;
 	response_buffer_info->length = strlen(response);
 
 	log_dr_debug("%s: response: %s (len: %zu)", __func__,
 		(char *)response_buffer_info->buffer, response_buffer_info->length);
 
-	return CCAPI_RECEIVE_ERROR_NONE;
+done:
+	json_object_put(root);
+
+	return status;
 }
 
 /*

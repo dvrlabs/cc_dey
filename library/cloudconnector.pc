@@ -7,7 +7,7 @@ Name: cloudconnector
 Description: Cloud Connector library
 Version:1.0
 
-Requires.private: libconfuse openssl recovery zlib
+Requires.private: json-c libconfuse openssl recovery zlib
 Libs: -L${libdir} -lcloudconnector -lswupdate
 Libs.private: -lpthread -lutil
 Cflags: -I${includedir}/cloudconnector -I${includedir}
