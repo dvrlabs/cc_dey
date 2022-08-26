@@ -816,10 +816,11 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 	{
 		long total_st = 0;
 
-		if (file_readable(NAND_SIZE_FILE))
-			total_st = get_nand_size();
-		else if (file_readable(EMMC_SIZE_FILE))
+		/* Check first emmc, because '/proc/mtd' may exists although empty */
+		if (file_readable(EMMC_SIZE_FILE))
 			total_st = get_emmc_size();
+		else if (file_readable(NAND_SIZE_FILE))
+			total_st = get_nand_size();
 		else
 			log_dr_error("%s", "Error getting storage size: File not readable");
 
