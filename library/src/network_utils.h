@@ -20,9 +20,8 @@
 #ifndef network_utils_h
 #define network_utils_h
 
-#include <net/if.h>
+#include <libdigiapix/network.h>
 #include <stdint.h>
-#include <sys/ioctl.h>
 
 #define MAX_DNS_ADDRESSES	2
 #define IPV4_GROUPS			4
@@ -33,64 +32,7 @@
 #define MAC_STRING_LENGTH	(3 * MAC_ADDRESS_GROUPS)
 #define MAC_FORMAT			"%02x:%02x:%02x:%02x:%02x:%02x"
 
-typedef struct {
-	unsigned long long rx_bytes;
-	unsigned long long rx_packets;
-	unsigned long rx_errors;
-	unsigned long rx_dropped;
-	unsigned long rx_multicast;
-	unsigned long rx_compressed;
-
-	unsigned long long tx_bytes;
-	unsigned long long tx_packets;
-	unsigned long tx_errors;
-	unsigned long tx_dropped;
-	unsigned long tx_compressed;
-	unsigned long collisions;
-
-	/* rx errors */
-	unsigned long rx_length_errors;
-	unsigned long rx_over_errors;
-	unsigned long rx_crc_errors;
-	unsigned long rx_frame_errors;
-	unsigned long rx_fifo_errors;
-	unsigned long rx_missed_errors;
-	/* tx errors */
-	unsigned long tx_aborted_errors;
-	unsigned long tx_carrier_errors;
-	unsigned long tx_fifo_errors;
-	unsigned long tx_heartbeat_errors;
-	unsigned long tx_window_errors;
-} net_stats_t;
-
-typedef struct {
-	uint8_t ipv4_addr[IPV4_GROUPS];
-	uint8_t mac_addr[MAC_ADDRESS_GROUPS];
-	char name[IFNAMSIZ];
-	uint8_t gateway[IPV4_GROUPS];
-	uint8_t submask[IPV4_GROUPS];
-	uint8_t dnsaddr1[IPV4_GROUPS];
-	uint8_t dnsaddr2[IPV4_GROUPS];
-	ccapi_bool_t dhcp;
-	ccapi_bool_t enabled;
-} iface_info_t;
-
-typedef struct {
-	unsigned long long rx_bytes;
-	unsigned long long tx_bytes;
-} bt_stats_t;
-
-typedef struct {
-	char name[IFNAMSIZ];
-	ccapi_bool_t enabled;
-	uint8_t mac_addr[MAC_ADDRESS_GROUPS];
-	bt_stats_t stats;
-} bt_info_t;
-
-int get_main_iface_info(const char *url, iface_info_t *info);
-int get_iface_info(const char *iface_name, iface_info_t *info);
-int get_net_stats(const char *iface_name, net_stats_t *net_stats);
+int get_main_iface_info(const char *url, net_state_t *net_state);
 uint8_t *get_primary_mac_address(uint8_t * const mac_addr);
-int get_bt_info(const char *iface_name, bt_info_t *bt_info);
 
 #endif

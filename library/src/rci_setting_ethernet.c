@@ -17,7 +17,9 @@
  * ===========================================================================
  */
 
+#include <libdigiapix/network.h>
 #include <stdio.h>
+
 #include "rci_setting_ethernet.h"
 #include "cc_logging.h"
 #include "network_utils.h"
@@ -25,7 +27,7 @@
 static const char * eth_iface_name[] = { "eth0", "eth1" };
 
 typedef struct {
-	iface_info_t info;
+	net_state_t info;
 	char ipaddr_buff[IP_STRING_LENGTH];
 	char submask_buff[IP_STRING_LENGTH];
 	char dns1_buff[IP_STRING_LENGTH];
@@ -58,7 +60,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_start(
 		goto done;
 	}
 
-	if (get_iface_info(eth_iface_name[iface_index], &(eth_iface_info->info)) != 0)
+	if (ldx_net_get_iface_state(eth_iface_name[iface_index], &(eth_iface_info->info)) != 0)
 		log_error("%s: get_iface_info failed", __func__);
 
 done:
@@ -94,7 +96,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_enabled_get(
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	*value = eth_iface_info->info.enabled ? CCAPI_ON : CCAPI_OFF;
+	*value = eth_iface_info->info.status == NET_STATUS_CONNECTED ? CCAPI_ON : CCAPI_OFF;
 
 	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
@@ -110,9 +112,9 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_conn_type_get(
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 #if (defined RCI_ENUMS_AS_STRINGS)
-	*value = (eth_iface_info->info.dhcp == CCAPI_TRUE ? "DHCP" : "static");
+	*value = (eth_iface_info->info.is_dhcp == NET_ENABLED ? "DHCP" : "static");
 #else
-	*value = (eth_iface_info->info.dhcp == CCAPI_TRUE ? CCAPI_SETTING_ETHERNET_CONN_TYPE_DHCP : CCAPI_SETTING_ETHERNET_CONN_TYPE_STATIC);
+	*value = (eth_iface_info->info.is_dhcp == NET_ENABLED ? CCAPI_SETTING_ETHERNET_CONN_TYPE_DHCP : CCAPI_SETTING_ETHERNET_CONN_TYPE_STATIC);
 #endif /* RCI_ENUMS_AS_STRINGS */
 	return CCAPI_SETTING_ETHERNET_ERROR_NONE;
 }
@@ -122,7 +124,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_ipaddr_get(
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const ip = eth_iface_info->info.ipv4_addr;
+	uint8_t const * const ip = eth_iface_info->info.ipv4;
 
 	snprintf(eth_iface_info->ipaddr_buff, IP_STRING_LENGTH, IP_FORMAT,
 			ip[0], ip[1], ip[2], ip[3]);
@@ -136,7 +138,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_netmask_get(
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const netmask = eth_iface_info->info.submask;
+	uint8_t const * const netmask = eth_iface_info->info.netmask;
 
 	snprintf(eth_iface_info->submask_buff, IP_STRING_LENGTH, IP_FORMAT,
 			netmask[0], netmask[1], netmask[2], netmask[3]);
@@ -150,7 +152,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_dns1_get(
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const dns1 = eth_iface_info->info.dnsaddr1;
+	uint8_t const * const dns1 = eth_iface_info->info.dns1;
 
 	snprintf(eth_iface_info->dns1_buff, IP_STRING_LENGTH, IP_FORMAT,
 			dns1[0], dns1[1], dns1[2], dns1[3]);
@@ -164,7 +166,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_dns2_get(
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const dns2 = eth_iface_info->info.dnsaddr2;
+	uint8_t const * const dns2 = eth_iface_info->info.dns2;
 
 	snprintf(eth_iface_info->dns2_buff, IP_STRING_LENGTH, IP_FORMAT,
 			dns2[0], dns2[1], dns2[2], dns2[3]);
@@ -192,7 +194,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_mac_addr_get(
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const mac = eth_iface_info->info.mac_addr;
+	uint8_t const * const mac = eth_iface_info->info.mac;
 
 	snprintf(eth_iface_info->mac_addr_buff, MAC_STRING_LENGTH, MAC_FORMAT,
 				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);

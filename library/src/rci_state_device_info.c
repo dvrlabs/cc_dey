@@ -17,12 +17,12 @@
  * ===========================================================================
  */
 
+#include <libdigiapix/process.h>
 #include <stdio.h>
 
 #include "cc_logging.h"
 #include "file_utils.h"
 #include "rci_state_device_info.h"
-#include "services_util.h"
 
 #define STRING_MAX_LENGTH		256
 #define PARAM_LENGTH			25
@@ -114,7 +114,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kernel_ve
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (execute_cmd(KERNEL_VERSION_CMD, &resp, 2) != 0 || resp == NULL) {
+	if (ldx_process_execute_cmd(KERNEL_VERSION_CMD, &resp, 2) != 0 || resp == NULL) {
 		if (resp != NULL)
 			log_error("Error getting kernel version: %s", resp);
 		else
@@ -186,7 +186,7 @@ ccapi_state_device_information_error_id_t rci_state_device_information_kinetis_g
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (execute_cmd(GET_MCA_ADDR_CMD, &mca_addr, 2) != 0 || mca_addr == NULL) {
+	if (ldx_process_execute_cmd(GET_MCA_ADDR_CMD, &mca_addr, 2) != 0 || mca_addr == NULL) {
 		if (mca_addr != NULL)
 			log_error("Error getting MCA MAC address: %s", mca_addr);
 		else

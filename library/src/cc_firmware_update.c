@@ -19,6 +19,7 @@
 
 #include <confuse.h>
 #include <errno.h>
+#include <libdigiapix/process.h>
 #include <miniunz/unzip.h>
 #include <pthread.h>
 #include <recovery.h>
@@ -32,7 +33,6 @@
 #include "cc_firmware_update.h"
 #include "cc_logging.h"
 #include "file_utils.h"
-#include "services_util.h"
 #include "string_utils.h"
 
 /* Swupdate support */
@@ -389,7 +389,7 @@ static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 		/* Prepare request structure */
 		swupdate_prepare_req(&req);
 
-		if (execute_cmd(PRINTENV_ACTIVE_SYSTEM_CMD, &resp, 2) != 0 || resp == NULL) {
+		if (ldx_process_execute_cmd(PRINTENV_ACTIVE_SYSTEM_CMD, &resp, 2) != 0 || resp == NULL) {
 			if (resp != NULL)
 				log_error("Error getting active system: %s", resp);
 			else
@@ -624,7 +624,7 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 			log_fw_debug("On the fly update finished. Now we will reboot the system (%d)", otf_update_successful);
 
 			/* Swap the active system partition */
-			if (execute_cmd("on-the-fly-swap-partition.sh", &resp, 2) != 0) {
+			if (ldx_process_execute_cmd("on-the-fly-swap-partition.sh", &resp, 2) != 0) {
 				if (resp != NULL)
 					log_error("Error swapping active system: %s", resp);
 				else

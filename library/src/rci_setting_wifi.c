@@ -17,15 +17,17 @@
  * ===========================================================================
  */
 
+#include <libdigiapix/wifi.h>
 #include <stdio.h>
+
 #include "rci_setting_wifi.h"
 #include "cc_logging.h"
-#include "wifi.h"
+#include "network_utils.h"
 
 #define INTERFACE_NAME		"wlan0"
 
 typedef struct {
-	wifi_info_t info;
+	wifi_state_t info;
 	char ipaddr_buff[IP_STRING_LENGTH];
 	char submask_buff[IP_STRING_LENGTH];
 	char dns1_buff[IP_STRING_LENGTH];
@@ -49,7 +51,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_start(ccapi_rci_info_t * const in
 		goto done;
 	}
 
-	if (get_wifi_info(INTERFACE_NAME, &(wifi_iface_info->info)) != 0)
+	if (ldx_wifi_get_iface_state(INTERFACE_NAME, &(wifi_iface_info->info)) != 0)
 		log_error("%s: get_iface_info failed", __func__);
 
 done:
@@ -82,7 +84,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_enabled_get(ccapi_rci_info_t * co
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	*value = wifi_iface_info->info.iface_info.enabled ? CCAPI_ON : CCAPI_OFF;
+	*value = wifi_iface_info->info.net_state.status == NET_STATUS_CONNECTED ? CCAPI_ON : CCAPI_OFF;
 
 	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
@@ -102,38 +104,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_wpa_status_get(ccapi_rci_info_t *
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	switch (wifi_iface_info->info.wpa_state) {
-	case WPA_DISCONNECTED:
-		*value = WPA_DISCONNECTED_STRING;
-		break;
-	case WPA_INACTIVE:
-		*value = WPA_INACTIVE_STRING;
-		break;
-	case WPA_SCANNING:
-		*value = WPA_SCANNING_STRING;
-		break;
-	case WPA_AUTHENTICATING:
-		*value = WPA_AUTHENTICATING_STRING;
-		break;
-	case WPA_ASSOCIATING:
-		*value = WPA_ASSOCIATING_STRING;
-		break;
-	case WPA_ASSOCIATED:
-		*value = WPA_ASSOCIATED_STRING;
-		break;
-	case WPA_4WAY_HANDSHAKE:
-		*value = WPA_4WAY_HANDSHAKE_STRING;
-		break;
-	case WPA_GROUP_HANDSHAKE:
-		*value = WPA_GROUP_HANDSHAKE_STRING;
-		break;
-	case WPA_COMPLETED:
-		*value = WPA_WPA_COMPLETED_STRING;
-		break;
-	default:
-		*value = WPA_UNKNOWN_STRING;
-		break;
-	}
+	*value = "UNKNOWN";
 
 	return CCAPI_SETTING_WIFI_ERROR_NONE;
 }
@@ -148,9 +119,9 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_conn_type_get(ccapi_rci_info_t * 
 	log_debug("    Called '%s'", __func__);
 
 #if (defined RCI_ENUMS_AS_STRINGS)
-	*value = (wifi_iface_info->info.iface_info.dhcp == CCAPI_TRUE ? "DHCP" : "static");
+	*value = (wifi_iface_info->info.net_state.is_dhcp == NET_ENABLED ? "DHCP" : "static");
 #else
-	*value = (wifi_iface_info->info.iface_info.dhcp == CCAPI_TRUE ? CCAPI_SETTING_WIFI_CONN_TYPE_DHCP : CCAPI_SETTING_WIFI_CONN_TYPE_STATIC);
+	*value = (wifi_iface_info->info.net_state.is_dhcp == NET_ENABLED ? CCAPI_SETTING_WIFI_CONN_TYPE_DHCP : CCAPI_SETTING_WIFI_CONN_TYPE_STATIC);
 #endif /* RCI_ENUMS_AS_STRINGS */
 
 	return CCAPI_SETTING_WIFI_ERROR_NONE;
@@ -160,7 +131,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_ipaddr_get(ccapi_rci_info_t * con
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const ip = wifi_iface_info->info.iface_info.ipv4_addr;
+	uint8_t const * const ip = wifi_iface_info->info.net_state.ipv4;
 
 	snprintf(wifi_iface_info->ipaddr_buff, IP_STRING_LENGTH, IP_FORMAT,
 			ip[0], ip[1], ip[2], ip[3]);
@@ -173,7 +144,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_netmask_get(ccapi_rci_info_t * co
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const netmask = wifi_iface_info->info.iface_info.submask;
+	uint8_t const * const netmask = wifi_iface_info->info.net_state.netmask;
 
 	snprintf(wifi_iface_info->submask_buff, IP_STRING_LENGTH, IP_FORMAT,
 			netmask[0], netmask[1], netmask[2], netmask[3]);
@@ -186,7 +157,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_dns1_get(ccapi_rci_info_t * const
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const dns1 = wifi_iface_info->info.iface_info.dnsaddr1;
+	uint8_t const * const dns1 = wifi_iface_info->info.net_state.dns1;
 
 	snprintf(wifi_iface_info->dns1_buff, IP_STRING_LENGTH, IP_FORMAT,
 			dns1[0], dns1[1], dns1[2], dns1[3]);
@@ -199,7 +170,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_dns2_get(ccapi_rci_info_t * const
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const dns2 = wifi_iface_info->info.iface_info.dnsaddr2;
+	uint8_t const * const dns2 = wifi_iface_info->info.net_state.dns2;
 
 	snprintf(wifi_iface_info->dns2_buff, IP_STRING_LENGTH, IP_FORMAT,
 			dns2[0], dns2[1], dns2[2], dns2[3]);
@@ -212,7 +183,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_gateway_get(ccapi_rci_info_t * co
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const gateway = wifi_iface_info->info.iface_info.gateway;
+	uint8_t const * const gateway = wifi_iface_info->info.net_state.gateway;
 
 	snprintf(wifi_iface_info->gw_buff, IP_STRING_LENGTH, IP_FORMAT,
 			gateway[0], gateway[1], gateway[2], gateway[3]);
@@ -225,7 +196,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_mac_addr_get(ccapi_rci_info_t * c
 {
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
-	uint8_t const * const mac = wifi_iface_info->info.iface_info.mac_addr;
+	uint8_t const * const mac = wifi_iface_info->info.net_state.mac;
 
 	snprintf(wifi_iface_info->mac_addr_buff, MAC_STRING_LENGTH, MAC_FORMAT,
 				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);

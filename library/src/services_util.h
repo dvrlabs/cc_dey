@@ -45,9 +45,4 @@ int write_blob(int fd, const void *data, size_t data_length);
 int send_ok(int fd);
 int send_error(int fd, const char *msg);
 
-int execute_cmd(const char *cmd, char **resp, int timeout);
-pid_t _process_exec_fd(int infd, int outfd, int errfd, const char *cmd, ...);
-#define process_exec_fd(tout, ...) _process_exec_fd(tout, __VA_ARGS__, NULL)
-int process_wait(pid_t pid);
-
 #endif

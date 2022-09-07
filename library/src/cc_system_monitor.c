@@ -17,7 +17,8 @@
  * ===========================================================================
  */
 
-#include <net/if.h>
+#include <libdigiapix/bluetooth.h>
+#include <libdigiapix/network.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <sys/sysinfo.h>
@@ -29,7 +30,6 @@
 #include "cc_init.h"
 #include "cc_logging.h"
 #include "cc_system_monitor.h"
-#include "network_utils.h"
 #include "file_utils.h"
 
 /*------------------------------------------------------------------------------
@@ -127,7 +127,6 @@ static double get_cpu_load(void);
 static double get_cpu_temp(void);
 static unsigned long get_cpu_freq(void);
 static unsigned long get_uptime(void);
-static int get_n_ifaces(void);
 static void free_stream_list(stream_list_t *stream_list);
 static void free_timestamp(ccapi_timestamp_t *timestamp);
 static ccapi_bool_t should_read_metric(char *metric_name, const cc_cfg_t *const cc_cfg);
@@ -525,22 +524,20 @@ error:
  */
 static ccapi_dp_error_t init_net_streams(const cc_cfg_t *const cc_cfg)
 {
-	struct if_nameindex *if_name_idx = NULL, *iface;
 	ccapi_dp_error_t dp_error;
-	int n_ifaces = get_n_ifaces();
+	net_names_list_t list_ifaces;
+	int i;
 
-	if (n_ifaces == 0)
+	if (ldx_net_list_available_ifaces(&list_ifaces) <= 0)
 		return CCAPI_DP_ERROR_NONE;
 
-	/* Initialize streams. */
-	if_name_idx = if_nameindex();
-	for (iface = if_name_idx; iface->if_index != 0 || iface->if_name != NULL; iface++) {
+	for (i = 0; i < list_ifaces.n_ifaces; i++) {
 		/* Check if the interface should be skipped. */
-		if (!should_read_interface(iface->if_name, cc_cfg)) {
-			log_sm_debug("Skipping interface '%s'...", iface->if_name);
+		if (!should_read_interface(list_ifaces.names[i], cc_cfg)) {
+			log_sm_debug("Skipping interface '%s'...", list_ifaces.names[i]);
 			continue;
 		}
-		dp_error = init_iface_streams(iface->if_name, &net_stream_list, cc_cfg);
+		dp_error = init_iface_streams(list_ifaces.names[i], &net_stream_list, cc_cfg);
 		if (dp_error != CCAPI_DP_ERROR_NONE)
 			goto error;
 	}
@@ -550,8 +547,6 @@ static ccapi_dp_error_t init_net_streams(const cc_cfg_t *const cc_cfg)
 error:
 	if (dp_error != CCAPI_DP_ERROR_NONE)
 		free_stream_list(&net_stream_list);
-
-	if_freenameindex(if_name_idx);
 
 	return dp_error;
 }
@@ -748,8 +743,7 @@ static void add_sys_samples(ccapi_timestamp_t timestamp)
  */
 static void add_net_samples(ccapi_timestamp_t timestamp)
 {
-	net_stats_t stats;
-	iface_info_t iface_info;
+	net_state_t net_state;
 	char *iface_name = NULL;
 	int i;
 
@@ -757,18 +751,18 @@ static void add_net_samples(ccapi_timestamp_t timestamp)
 		char desc[50] = {0};
 		unsigned long long value = 0;
 		ccapi_dp_error_t dp_error;
+		net_stats_t stats;
 		stream_t stream = net_stream_list.streams[i];
 
 		if (iface_name == NULL || strcmp(iface_name, stream.name) != 0) {
 			iface_name = stream.name;
-
-			get_net_stats(iface_name, &stats);
-			get_iface_info(iface_name, &iface_info);
+			ldx_net_get_iface_stats(iface_name, &stats);
+			ldx_net_get_iface_state(iface_name, &net_state);
 		}
 
 		switch(stream.type) {
 			case STREAM_STATE:
-				value = iface_info.enabled;
+				value = net_state.status == NET_STATUS_CONNECTED;
 				strcpy(desc, " status");
 				break;
 			case STREAM_RX_BYTES:
@@ -802,7 +796,8 @@ static void add_net_samples(ccapi_timestamp_t timestamp)
  */
 static void add_bt_samples(ccapi_timestamp_t timestamp)
 {
-	bt_info_t bt_info;
+	bt_state_t bt_state;
+	bt_stats_t bt_stats;
 	char *iface_name = NULL;
 	int i;
 
@@ -813,22 +808,24 @@ static void add_bt_samples(ccapi_timestamp_t timestamp)
 		stream_t stream = bt_stream_list.streams[i];
 
 		if (iface_name == NULL || strcmp(iface_name, stream.name) != 0) {
-			iface_name = stream.name;
+			int dev_id = atoi(stream.name + 3);
 
-			get_bt_info(iface_name, &bt_info);
+			iface_name = stream.name;
+			ldx_bt_get_state(dev_id, &bt_state);
+			ldx_bt_get_stats(dev_id, &bt_stats);
 		}
 
 		switch(stream.type) {
 			case STREAM_STATE:
-				value = bt_info.enabled;
+				value = bt_state.enable == BT_ENABLED;
 				strcpy(desc, " status");
 				break;
 			case STREAM_RX_BYTES:
-				value = bt_info.stats.rx_bytes;
+				value = bt_stats.rx_bytes;
 				strcpy(desc, " RX bytes");
 				break;
 			case STREAM_TX_BYTES:
-				value = bt_info.stats.tx_bytes;
+				value = bt_stats.tx_bytes;
 				strcpy(desc, " TX bytes");
 				break;
 			default:
@@ -1031,29 +1028,6 @@ static unsigned long get_uptime(void)
 	}
 
 	return info.uptime;
-}
-
-/*
- * get_n_ifaces() - Get number of network interfaces
- *
- * Return: Number of network interfaces.
- */
-static int get_n_ifaces(void)
-{
-	struct if_nameindex *if_ni, *iface;
-	int if_counter = 0;
-
-	if_ni = if_nameindex();
-
-	if (if_ni == NULL)
-		return 0;
-
-	for (iface = if_ni; iface->if_index != 0 || iface->if_name != NULL; iface++)
-		if_counter++;
-
-	if_freenameindex(if_ni);
-
-	return if_counter;
 }
 
 /*

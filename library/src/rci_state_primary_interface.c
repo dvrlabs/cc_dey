@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+
 #include "rci_state_primary_interface.h"
 #include "cc_config.h"
 #include "cc_logging.h"
@@ -32,18 +33,18 @@ ccapi_state_primary_interface_error_id_t rci_state_primary_interface_start(
 		ccapi_rci_info_t * const info)
 {
 	ccapi_state_primary_interface_error_id_t ret = CCAPI_STATE_PRIMARY_INTERFACE_ERROR_NONE;
-	iface_info_t interface_info;
+	net_state_t net_state;
 	UNUSED_PARAMETER(info);
 	log_debug("    Called '%s'", __func__);
 
-	if (get_main_iface_info(cc_cfg->url, &interface_info) != 0) {
+	if (get_main_iface_info(cc_cfg->url, &net_state) != 0) {
 		ret = CCAPI_STATE_PRIMARY_INTERFACE_ERROR_LOAD_FAIL;
 	} else {
-		iface_name = strdup(interface_info.name);
+		iface_name = strdup(net_state.name);
 		iface_ip = malloc(IP_STRING_LENGTH * sizeof(char));
 		snprintf(iface_ip, IP_STRING_LENGTH, "%d.%d.%d.%d",
-				interface_info.ipv4_addr[0], interface_info.ipv4_addr[1],
-				interface_info.ipv4_addr[2], interface_info.ipv4_addr[3]);
+				net_state.ipv4[0], net_state.ipv4[1],
+				net_state.ipv4[2], net_state.ipv4[3]);
 	}
 
 	return ret;

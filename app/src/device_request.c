@@ -21,6 +21,7 @@
 #include <json-c/json_object.h>
 #include <json-c/json_tokener.h>
 #include <libdigiapix/gpio.h>
+#include <libdigiapix/process.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -28,7 +29,6 @@
 #include <signal.h>
 
 #include "device_request.h"
-#include "services_util.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -349,7 +349,7 @@ static ccapi_receive_error_t play_music_cb(char const *const target,
 	}
 
 	/* Stop any mpg123 process. Do not check for error because it will not return 0 if no music was playing. */
-	execute_cmd(CMD_STOP_MUSIC, &resp, 2);
+	ldx_process_execute_cmd(CMD_STOP_MUSIC, &resp, 2);
 
 	/* If music is set to play, reproduce the sound. */
 	if (play) {
@@ -373,7 +373,7 @@ static ccapi_receive_error_t play_music_cb(char const *const target,
 		} else {
 			sprintf(cmd, CMD_PLAY_MUSIC, music_file);
 			/* Do not check for error because 'setsid' always returns -15. */
-			execute_cmd(cmd, &resp, 2);
+			ldx_process_execute_cmd(cmd, &resp, 2);
 			free(cmd);
 		}
 	}
@@ -453,7 +453,7 @@ static ccapi_receive_error_t set_volume_cb(char const *const target,
 		goto done;
 	}
 	sprintf(cmd, CMD_SET_VOLUME, volume, volume);
-	if (execute_cmd(cmd, &resp, 2) != 0 || resp == NULL) {
+	if (ldx_process_execute_cmd(cmd, &resp, 2) != 0 || resp == NULL) {
 		error_msg = "Error setting audio volume";
 		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
 		if (resp != NULL)

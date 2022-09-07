@@ -18,10 +18,10 @@
  */
 
 #include <arpa/inet.h>
-#include <ctype.h>
 #include <errno.h>
+#include <libdigiapix/bluetooth.h>
+#include <libdigiapix/network.h>
 #include <malloc.h>
-#include <net/if.h>
 #include <stdbool.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
@@ -894,14 +894,15 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 	}
 
 	{
-		bt_info_t bt_info;
+		bt_state_t bt_state;
 		char *tmp = NULL;
 		uint8_t *mac = NULL;
 
-		get_bt_info("hci0", &bt_info);
-		mac = bt_info.mac_addr;
+		ldx_bt_get_state(0, &bt_state);
+		mac = bt_state.mac;
 
-		len = snprintf(NULL, 0, FORMAT_INFO_BT_MAC, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+		len = snprintf(NULL, 0, FORMAT_INFO_BT_MAC,
+				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
 		tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
 		if (tmp == NULL) {
@@ -913,61 +914,42 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 		response = tmp;
 
 		sprintf(response + strlen(response), FORMAT_INFO_BT_MAC,
-						mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	}
 
 	{
-		struct if_nameindex *if_name_idx;
+		net_names_list_t list_ifaces;
+		int i;
 
-		if_name_idx = if_nameindex();
-		if (if_name_idx) {
-			struct if_nameindex *iface;
+		ldx_net_list_available_ifaces(&list_ifaces);
 
-			for (iface = if_name_idx; iface->if_index != 0 || iface->if_name != NULL; iface++) {
-				char *iface_name = iface->if_name;
-				char *tmp = NULL;
-				iface_info_t i_info;
-				int ret = -1;
+		for (i = 0; i < list_ifaces.n_ifaces; i++) {
+			net_state_t net_state;
+			char *tmp = NULL;
+			uint8_t *mac = NULL, *ip = NULL;
 
-				ret = get_iface_info(iface_name, &i_info);
-				if (ret == 0) {
-					uint8_t *mac = i_info.mac_addr;
-					uint8_t const * const ip = i_info.ipv4_addr;
+			ldx_net_get_iface_state(list_ifaces.names[i], &net_state);
+			mac = net_state.mac;
+			ip = net_state.ipv4;
 
-					len = snprintf(NULL, 0, FORMAT_INFO_IFACE, iface_name,
-						/* mac */ mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-						/* ip */ ip[0], ip[1], ip[2], ip[3]);
-				} else {
-					len = snprintf(NULL, 0, FORMAT_INFO_IFACE, iface_name,
-						/* mac */ 0, 0, 0, 0, 0, 0,
-						/* ip */ 0, 0, 0, 0);
-				}
+			len = snprintf(NULL, 0, FORMAT_INFO_IFACE, list_ifaces.names[i],
+				/* mac */ mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+				/* ip */ ip[0], ip[1], ip[2], ip[3]);
 
-				/* Expand the available memory with realloc */
-				tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
-				if (tmp == NULL) {
-					log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-					free(response);
-					if_freenameindex(if_name_idx);
-					return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-				}
-
-				response = tmp;
-
-				if (ret == 0) {
-					uint8_t *mac = i_info.mac_addr;
-					uint8_t const * const ip = i_info.ipv4_addr;
-
-					sprintf(response + strlen(response), FORMAT_INFO_IFACE,
-						iface_name,
-						/* mac */ mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-						/* ip */ ip[0], ip[1], ip[2], ip[3]);
-				} else {
-					sprintf(response + strlen(response), FORMAT_INFO_IFACE,
-						iface_name, /* mac */ 0, 0, 0, 0, 0, 0, /* ip */ 0, 0, 0, 0);
-				}
+			/* Expand the available memory with realloc */
+			tmp = (char *)realloc(response, (strlen(response) + len + 1) * sizeof(char));
+			if (tmp == NULL) {
+				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+				free(response);
+				return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 			}
-			if_freenameindex(if_name_idx);
+
+			response = tmp;
+
+			sprintf(response + strlen(response), FORMAT_INFO_IFACE,
+					list_ifaces.names[i],
+					/* mac */ mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+					/* ip */ ip[0], ip[1], ip[2], ip[3]);
 		}
 	}
 

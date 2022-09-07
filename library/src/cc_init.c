@@ -18,6 +18,7 @@
  */
 
 #include <errno.h>
+#include <libdigiapix/network.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -464,7 +465,7 @@ error:
  */
 static int create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg, ccapi_tcp_info_t *tcp_info)
 {
-	iface_info_t active_interface;
+	net_state_t active_interface;
 
 	tcp_info->callback.close = NULL;
 	tcp_info->callback.close = tcp_reconnect_cb;
@@ -482,17 +483,17 @@ static int create_ccapi_tcp_start_info_struct(const cc_cfg_t *const cc_cfg, ccap
 	 * Some interfaces return a null MAC address (like ppp used by some
 	 * cellular modems). In those cases asume a WAN connection
 	 */
-	if (is_zero_array(active_interface.mac_addr, sizeof(active_interface.mac_addr))) {
+	if (is_zero_array(active_interface.mac, sizeof(active_interface.mac))) {
 		tcp_info->connection.type = CCAPI_CONNECTION_WAN;
 		tcp_info->connection.info.wan.link_speed = 0;
 		tcp_info->connection.info.wan.phone_number = "*99#";
 	} else {
 		tcp_info->connection.type = CCAPI_CONNECTION_LAN;
 		memcpy(tcp_info->connection.info.lan.mac_address,
-				active_interface.mac_addr,
+				active_interface.mac,
 				sizeof(tcp_info->connection.info.lan.mac_address));
 	}
-	memcpy(tcp_info->connection.ip.address.ipv4, active_interface.ipv4_addr,
+	memcpy(tcp_info->connection.ip.address.ipv4, active_interface.ipv4,
 			sizeof(tcp_info->connection.ip.address.ipv4));
 
 	tcp_info->keepalives.rx = cc_cfg->keepalive_rx;
