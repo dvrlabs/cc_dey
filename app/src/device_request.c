@@ -25,6 +25,7 @@
 #include <libdigiapix/gpio.h>
 #include <libdigiapix/process.h>
 #include <libdigiapix/network.h>
+#include <libdigiapix/wifi.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -40,6 +41,7 @@
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 #define TARGET_DEVICE_INFO		"device_info"
+#define TARGET_GET_CONFIG		"get_config"
 #define TARGET_GET_TIME			"get_time"
 #define TARGET_PLAY_MUSIC		"play_music"
 #define TARGET_SET_VOLUME		"set_audio_volume"
@@ -51,7 +53,7 @@
 
 #define USER_LED_ALIAS			"USER_LED"
 
-#define DEVREQ_TAG				"DEVREQ:"
+#define DEVREQ_TAG				"APP-DEVREQ:"
 
 #define MAX_RESPONSE_SIZE			512
 
@@ -64,6 +66,11 @@
 #define CMD_PLAY_MUSIC		"setsid mpg123 %s"
 #define CMD_STOP_MUSIC		"pkill -KILL -f mpg123"
 #define CMD_SET_VOLUME		"amixer set 'Speaker' %d%% && amixer set 'Headphone' %d%%"
+
+#define CFG_ELEMENT_ETHERNET		"ethernet"
+#define CFG_ELEMENT_WIFI			"wifi"
+#define CFG_ELEMENT_BLUETOOTH		"bluetooth"
+#define CFG_ELEMENT_CONNECTOR		"connector"
 
 #define FIELD_PLAY			"play"
 #define FIELD_MUSIC_FILE	"music_file"
@@ -83,6 +90,15 @@
  */
 #define log_dr_debug(format, ...)									\
 	log_debug("%s " format, DEVREQ_TAG, __VA_ARGS__)
+
+/**
+ * log_dr_warning() - Log the given message as warning
+ *
+ * @format:		Warning message to log.
+ * @args:		Additional arguments.
+ */
+#define log_dr_warning(format, ...)									\
+	log_warning("%s " format, DEVREQ_TAG, __VA_ARGS__)
 
 /*
  * log_dr_error() - Log the given message as error
@@ -159,6 +175,267 @@ static long get_nand_size(void)
 }
 
 /*
+ * add_json_element() - Creates and adds a new json element with the provided name
+ *
+ * @name:	Name of the new json object.
+ * @root:	Json object to add the created object.
+ *
+ * Return: The created json object.
+ */
+static json_object *add_json_element(const char *name, json_object **root)
+{
+	json_object *item = json_object_new_object();
+
+	if (!item || json_object_object_add(*root, name, item) < 0) {
+		if (item)
+			json_object_put(item);
+		return NULL;
+	}
+
+	return item;
+}
+
+/*
+ * add_bt_json() - Adds Bluetooth details to the provided json
+ *
+ * @root:		Json object to add Bluetooth details.
+ * @complete:	True to include enable and name.
+ *
+ * Return: CCAPI_RECEIVE_ERROR_NONE if success, any other code otherwise.
+ */
+static ccapi_receive_error_t add_bt_json(json_object **root, bool complete)
+{
+	bt_state_t bt_state;
+	char mac[MAC_STRING_LENGTH];
+
+	ldx_bt_get_state(0, &bt_state);
+
+	snprintf(mac, sizeof(mac), MAC_FORMAT, bt_state.mac[0], bt_state.mac[1],
+		bt_state.mac[2], bt_state.mac[3], bt_state.mac[4], bt_state.mac[5]);
+
+	if (json_object_object_add(*root, "bt-mac", json_object_new_string(mac)) < 0)
+		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+
+	if (complete) {
+		if (json_object_object_add(*root, "enable", json_object_new_boolean(bt_state.enable)) < 0)
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+
+		if (json_object_object_add(*root, "name", json_object_new_string(bt_state.name)) < 0)
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+	}
+
+	return CCAPI_RECEIVE_ERROR_NONE;
+}
+
+/*
+ * add_net_state_json() - Adds network details to the provided json
+ *
+ * @i_state:	Network interface state to add.
+ * @iface_item:	Json object to add network details.
+ * @complete:	True to include enable and name.
+ *
+ * Return: 0 if success, 1 otherwise.
+ */
+static int add_net_state_json(net_state_t i_state, json_object **iface_item, bool complete)
+{
+	char mac[MAC_STRING_LENGTH], ip[IP_STRING_LENGTH];
+
+	snprintf(mac, sizeof(mac), MAC_FORMAT, i_state.mac[0], i_state.mac[1],
+		i_state.mac[2], i_state.mac[3], i_state.mac[4], i_state.mac[5]);
+	snprintf(ip, sizeof(ip), IP_FORMAT,
+		i_state.ipv4[0], i_state.ipv4[1], i_state.ipv4[2], i_state.ipv4[3]);
+
+	if (json_object_object_add(*iface_item, "mac", json_object_new_string(mac)) < 0)
+		return 1;
+
+	if (json_object_object_add(*iface_item, "ip", json_object_new_string(ip)) < 0)
+		return 1;
+
+	if (complete) {
+		int type = i_state.is_dhcp ? 0 : 1;
+
+		if (json_object_object_add(*iface_item, "enable", json_object_new_boolean(i_state.status == NET_STATUS_CONNECTED)) < 0)
+			return 1;
+
+		if (json_object_object_add(*iface_item, "type", json_object_new_int(type)) < 0)
+			return 1;
+
+		snprintf(ip, sizeof(ip), IP_FORMAT,
+			i_state.netmask[0], i_state.netmask[1], i_state.netmask[2], i_state.netmask[3]);
+		if (json_object_object_add(*iface_item, "netmask", json_object_new_string(ip)) < 0)
+			return 1;
+
+		snprintf(ip, sizeof(ip), IP_FORMAT,
+			i_state.gateway[0], i_state.gateway[1], i_state.gateway[2], i_state.gateway[3]);
+		if (json_object_object_add(*iface_item, "gateway", json_object_new_string(ip)) < 0)
+			return 1;
+
+		snprintf(ip, sizeof(ip), IP_FORMAT,
+			i_state.dns1[0], i_state.dns1[1], i_state.dns1[2], i_state.dns1[3]);
+		if (json_object_object_add(*iface_item, "dns1", json_object_new_string(ip)) < 0)
+			return 1;
+
+		snprintf(ip, sizeof(ip), IP_FORMAT,
+			i_state.dns2[0], i_state.dns2[1], i_state.dns2[2], i_state.dns2[3]);
+		if (json_object_object_add(*iface_item, "dns2", json_object_new_string(ip)) < 0)
+			return 1;
+	}
+
+	return 0;
+}
+
+/*
+ * get_net_iface_json() - Returns a json object with the info of the network interface.
+ *
+ * @name:		Network interface name.
+ * @complete:	True to include status, type, gateway, netmask, dns1, and dns2.
+ *
+ * Return: The json object.
+ */
+static json_object *get_net_iface_json(const char *iface_name, bool complete)
+{
+	net_state_t i_state;
+	json_object *iface_item = NULL;
+
+	iface_item = json_object_new_object();
+	if (!iface_item)
+		return NULL;
+
+	if (ldx_net_get_iface_state(iface_name, &i_state) != NET_STATE_ERROR_NONE)
+		log_dr_warning("Error getting '%s' interface info", iface_name);
+
+	if (add_net_state_json(i_state, &iface_item, complete) != 0) {
+		json_object_put(iface_item);
+		return NULL;
+	}
+
+	return iface_item;
+}
+
+/*
+ * add_net_ifaces_json() - Adds network interfaces details to the provided json
+ *
+ * @root:		Json object to add network interfaces details.
+ * @complete:	True to include status, type, gateway, netmask, dns1, and dns2.
+ *
+ * Return: CCAPI_RECEIVE_ERROR_NONE if success, any other code otherwise.
+ */
+static ccapi_receive_error_t add_net_ifaces_json(json_object **root, bool complete)
+{
+	ccapi_receive_error_t ret = CCAPI_RECEIVE_ERROR_NONE;
+	net_names_list_t list_ifaces;
+	int i;
+
+	if (ldx_net_list_available_ifaces(&list_ifaces) < 0) {
+		log_dr_error("%s", "Unable to get list of network interfaces");
+		if (complete) {
+			net_state_error_t err = NET_STATE_ERROR_NO_IFACES;
+			if (json_object_object_add(*root, "status", json_object_new_int(err)) < 0
+				|| json_object_object_add(*root, "desc", json_object_new_string(ldx_net_code_to_str(err))) < 0)
+				ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+
+		return ret;
+	}
+
+	for (i = 0; i < list_ifaces.n_ifaces; i++) {
+		if (ldx_wifi_iface_exists(list_ifaces.names[i]))
+			continue;
+
+		json_object *i_item = get_net_iface_json(list_ifaces.names[i], complete);
+
+		if (!i_item || json_object_object_add(*root, list_ifaces.names[i], i_item) < 0) {
+			if (i_item)
+				json_object_put(i_item);
+			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+/*
+ * get_wifi_iface_json() - Returns a json object with the info of the WiFi interface.
+ *
+ * @name:		Network interface name.
+ * @complete:	True to include status, type, ssid, security mode, gateway, netmask, dns1, and dns2.
+ *
+ * Return: The json object.
+ */
+static json_object *get_wifi_iface_json(const char *iface_name, bool complete)
+{
+	wifi_state_t i_state;
+	json_object *iface_item = NULL;
+
+	iface_item = json_object_new_object();
+	if (!iface_item)
+		return NULL;
+
+	if (ldx_wifi_get_iface_state(iface_name, &i_state) != WIFI_STATE_ERROR_NONE)
+		log_dr_warning("Error getting '%s' interface info", iface_name);
+
+	if (add_net_state_json(i_state.net_state, &iface_item, complete) != 0)
+		goto error;
+
+	if (complete) {
+		if (json_object_object_add(iface_item, "ssid", json_object_new_string(i_state.ssid)) < 0)
+			goto error;
+
+		if (json_object_object_add(iface_item, "sec_mode", json_object_new_int(i_state.sec_mode)) < 0)
+			goto error;
+	}
+
+	return iface_item;
+
+error:
+	json_object_put(iface_item);
+
+	return NULL;
+}
+
+/*
+ * add_wifi_ifaces_json() - Adds WiFi interfaces details to the provided json
+ *
+ * @root:		Json object to add WiFi interfaces details.
+ * @complete:	True to include status, type, ssid, security mode, gateway, netmask, dns1, and dns2.
+ *
+ * Return: CCAPI_RECEIVE_ERROR_NONE if success, any other code otherwise.
+ */
+static ccapi_receive_error_t add_wifi_ifaces_json(json_object **root, bool complete)
+{
+	ccapi_receive_error_t ret = CCAPI_RECEIVE_ERROR_NONE;
+	net_names_list_t list_ifaces;
+	int i;
+
+	if (ldx_wifi_list_available_ifaces(&list_ifaces) < 0) {
+		log_dr_error("%s", "Unable to get list of Wi-Fi interfaces");
+		if (complete) {
+			wifi_state_error_t err = WIFI_STATE_ERROR_NO_IFACES;
+			if (json_object_object_add(*root, "status", json_object_new_int(err)) < 0
+				|| json_object_object_add(*root, "desc", json_object_new_string(ldx_wifi_code_to_str(err))) < 0)
+				ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+
+		return ret;
+	}
+
+	for (i = 0; i < list_ifaces.n_ifaces; i++) {
+		json_object *i_item = get_wifi_iface_json(list_ifaces.names[i], complete);
+
+		if (!i_item || json_object_object_add(*root, list_ifaces.names[i], i_item) < 0) {
+			if (i_item)
+				json_object_put(i_item);
+			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+
+/*
  * device_info_cb() - Data callback for 'device_info' device requests
  *
  * @target:					Target ID of the device request (device_info).
@@ -214,8 +491,8 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 
 	root = json_object_new_object();
 	if (!root) {
-		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		goto error;
 	}
 
 	{
@@ -230,9 +507,8 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 			log_dr_error("%s", "Error getting storage size: File not readable");
 
 		if (json_object_object_add(root, "total_st", json_object_new_int64(total_st)) < 0) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-			goto done;
+			goto error;
 		}
 	}
 
@@ -246,9 +522,8 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 			total_mem = s_info.totalram / 1024;
 
 		if (json_object_object_add(root, "total_mem", json_object_new_int64(total_mem)) < 0) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-			goto done;
+			goto error;
 		}
 	}
 
@@ -274,78 +549,27 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 		}
 
 		if (json_object_object_add(root, "resolution", json_object_new_string(resolution)) < 0) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-			goto done;
+			goto error;
 		}
 	}
 
-	{
-		bt_state_t bt_state;
-		uint8_t *mac = NULL;
-		char mac_str[18];
+	status = add_bt_json(&root, false);
+	if (status != CCAPI_RECEIVE_ERROR_NONE)
+		goto error;
 
-		ldx_bt_get_state(0, &bt_state);
-		mac = bt_state.mac;
+	status = add_net_ifaces_json(&root, false);
+	if (status != CCAPI_RECEIVE_ERROR_NONE)
+		goto error;
 
-		snprintf(mac_str, sizeof(mac_str), MAC_FORMAT,
-			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-		if (json_object_object_add(root, "bt-mac", json_object_new_string(mac_str)) < 0) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-			goto done;
-		}
-	}
-
-	{
-		net_names_list_t list_ifaces;
-		int i;
-
-		ldx_net_list_available_ifaces(&list_ifaces);
-
-		for (i = 0; i < list_ifaces.n_ifaces; i++) {
-			net_state_t net_state;
-			uint8_t *mac = NULL, *ip = NULL;
-			char mac_str[MAC_STRING_LENGTH], ip_str[IP_STRING_LENGTH];
-			json_object *iface_item = json_object_new_object();
-
-			ldx_net_get_iface_state(list_ifaces.names[i], &net_state);
-			mac = net_state.mac;
-			ip = net_state.ipv4;
-
-			if (!iface_item || json_object_object_add(root, list_ifaces.names[i], iface_item) < 0) {
-				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-				if (iface_item)
-					json_object_put(iface_item);
-				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-				goto done;
-			}
-			
-			snprintf(mac_str, sizeof(mac_str), MAC_FORMAT,
-				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-			snprintf(ip_str, sizeof(ip_str), IP_FORMAT,
-				ip[0], ip[1], ip[2], ip[3]);
-		
-			if (json_object_object_add(iface_item, "mac", json_object_new_string(mac_str)) < 0) {
-				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-				goto done;
-			}
-
-			if (json_object_object_add(iface_item, "ip", json_object_new_string(ip_str)) < 0) {
-				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-				goto done;
-			}
-		}
-	}
+	status = add_wifi_ifaces_json(&root, false);
+	if (status != CCAPI_RECEIVE_ERROR_NONE)
+		goto error;
 
 	response = strdup(json_object_to_json_string(root));
 	if (response == NULL) {
-		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 		status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-		goto done;
+		goto error;
 	}
 
 	response_buffer_info->buffer = response;
@@ -354,8 +578,209 @@ static ccapi_receive_error_t device_info_cb(char const *const target,
 	log_dr_debug("%s: response: %s (len: %zu)", __func__,
 		(char *)response_buffer_info->buffer, response_buffer_info->length);
 
+	goto done;
+
+error:
+	log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+
 done:
-	json_object_put(root);
+	if (root)
+		json_object_put(root);
+
+	return status;
+}
+
+/*
+ * get_config_cb() - Data callback for 'get_config' device requests
+ *
+ * @target:					Target ID of the device request (get_config).
+ * @transport:				Communication transport used by the device request.
+ * @request_buffer_info:	Buffer containing the device request.
+ * @response_buffer_info:	Buffer to store the answer of the request.
+ *
+ * Logs information about the received request and executes the corresponding
+ * command.
+ */
+static ccapi_receive_error_t get_config_cb(char const *const target,
+		ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info)
+{
+	char *request = request_buffer_info->buffer, *response = NULL;
+	json_object *req = NULL, *json_element = NULL, *resp = NULL;
+	ccapi_receive_error_t status = CCAPI_RECEIVE_ERROR_NONE;
+	bool eth_cfg = false, wifi_cfg = false, bt_cfg = false, cc_cfg = false;
+
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+
+	/*
+		target "get_config"
+
+		Request:
+		{
+			"element": ["ethernet", "wifi"]
+		}
+		Empty request returns all elements.
+		Valid elements: ethernet, wifi, bluetooth, connector
+
+		Response:
+		{
+			"ethernet": {
+				 "eth0":{
+					"mac":"00:40:9d:ee:b6:96",
+					"ip":"192.168.1.44",
+					"enable":true,
+					"type":0,
+					"netmask":"255.255.255.0",
+					"gateway":"192.168.1.1",
+					"dns1":"80.58.61.250",
+					"dns2":"80.58.61.254"
+				},
+				...
+				"ethN": {
+					...
+				}
+			},
+			"wifi": {
+				"wlan0":{
+					"mac":"00:40:9d:dd:bd:13",
+					"ip":"192.168.1.48",
+					"enable":true,
+					"type":0,
+					"netmask":"255.255.255.0",
+					"gateway":"192.168.1.1",
+					"dns1":"80.58.61.250",
+					"dns2":"80.58.61.254",
+					"ssid":"MOVISTAR_6EA8",
+					"sec_mode":2
+				},
+				...
+				"wlanN": {
+					...
+				}
+			},
+			"bluetooth": {
+				"bt-mac":"00:40:9d:7d:1b:8f",
+				"enable":true,
+				"name":"ccimx8mm-dvk"
+			},
+			"connector": {
+				"enable": true
+			}
+		}
+		Only the requested elements.
+		type: 0 (DHCP), 1 (Static)
+		sec_mode: -1 (error), Open (0), WPA (1), WPA2 (2), WPA3 (3)
+	*/
+
+	if (request_buffer_info->length == 0) {
+		eth_cfg = true;
+		wifi_cfg = true;
+		bt_cfg = true;
+		cc_cfg = true;
+	} else {
+		int len, i;
+
+		/* Parse request_buffer_info */
+		request[request_buffer_info->length] = '\0';
+		req = json_tokener_parse(request);
+		if (!req)
+			goto bad_format;
+
+		if (!json_object_object_get_ex(req, "element", &json_element)
+		    || !json_object_is_type(json_element, json_type_array))
+			goto bad_format;
+
+		len = json_object_array_length(json_element);
+
+		for (i = 0; i < len; i++) {
+			json_object *item = json_object_array_get_idx(json_element, i);
+
+			if (json_object_is_type(item, json_type_string)) {
+				const char *element = json_object_get_string(item);
+
+				eth_cfg = eth_cfg || strcmp(element, CFG_ELEMENT_ETHERNET) == 0;
+				wifi_cfg = wifi_cfg || strcmp(element, CFG_ELEMENT_WIFI) == 0;
+				bt_cfg = bt_cfg || strcmp(element, CFG_ELEMENT_BLUETOOTH) == 0;
+				cc_cfg = cc_cfg || strcmp(element, CFG_ELEMENT_CONNECTOR) == 0;
+			}
+		}
+	}
+
+	if (!eth_cfg && !wifi_cfg && !bt_cfg && !cc_cfg)
+		goto bad_format;
+
+	resp = json_object_new_object();
+	if (!resp)
+		goto error;
+
+	if (eth_cfg) {
+		json_object *item = add_json_element(CFG_ELEMENT_ETHERNET, &resp);
+		if (!item)
+			goto error;
+
+		status = add_net_ifaces_json(&item, true);
+		if (status != CCAPI_RECEIVE_ERROR_NONE)
+			goto error;
+	}
+
+	if (wifi_cfg) {
+		json_object *item = add_json_element(CFG_ELEMENT_WIFI, &resp);
+		if (!item)
+			goto error;
+
+		status = add_wifi_ifaces_json(&item, true);
+		if (status != CCAPI_RECEIVE_ERROR_NONE)
+			goto error;
+	}
+
+	if (bt_cfg) {
+		json_object *item = add_json_element(CFG_ELEMENT_BLUETOOTH, &resp);
+		if (!item)
+			goto error;
+
+		status = add_bt_json(&item, true);
+		if (status != CCAPI_RECEIVE_ERROR_NONE)
+			goto error;
+	}
+
+	if (cc_cfg) {
+		json_object *item = add_json_element(CFG_ELEMENT_CONNECTOR, &resp);
+		if (!item)
+			goto error;
+
+		if (json_object_object_add(item, "enable", json_object_new_boolean(true)) < 0)
+			goto error;
+	}
+
+	response = strdup(json_object_to_json_string(resp));
+	if (response == NULL)
+		goto error;
+
+	goto done;
+
+bad_format:
+	response = strdup("Invalid format");
+	status = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+	log_dr_error("Cannot parse request for target '%s': %s", target, response);
+	goto done;
+
+error:
+	response = strdup("Out of memory");
+	status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+	log_dr_error("Cannot generate response for target '%s': %s", target, response);
+
+done:
+	response_buffer_info->buffer = response;
+	response_buffer_info->length = strlen(response);
+
+	log_dr_debug("%s: response: %s (len: %zu)", __func__,
+		(char *)response_buffer_info->buffer, response_buffer_info->length);
+
+	if (resp)
+		json_object_put(resp);
+
+	json_object_put(req);
 
 	return status;
 }
@@ -729,6 +1154,12 @@ ccapi_receive_error_t register_custom_device_requests(void)
 	ccapi_receive_error_t error = ccapi_receive_add_target(target,
 			device_info_cb, request_status_cb, 0);
 
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		goto done;
+
+	target = TARGET_GET_CONFIG;
+	error = ccapi_receive_add_target(target, get_config_cb, request_status_cb,
+			CCAPI_RECEIVE_NO_LIMIT);
 	if (error != CCAPI_RECEIVE_ERROR_NONE)
 		goto done;
 
