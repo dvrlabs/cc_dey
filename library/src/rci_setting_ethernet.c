@@ -26,11 +26,11 @@ static const char * eth_iface_name[] = { "eth0", "eth1" };
 
 typedef struct {
 	iface_info_t info;
-	char ipaddr_buff[IP_STRING_LENTH];
-	char submask_buff[IP_STRING_LENTH];
-	char dns1_buff[IP_STRING_LENTH];
-	char dns2_buff[IP_STRING_LENTH];
-	char gw_buff[IP_STRING_LENTH];
+	char ipaddr_buff[IP_STRING_LENGTH];
+	char submask_buff[IP_STRING_LENGTH];
+	char dns1_buff[IP_STRING_LENGTH];
+	char dns2_buff[IP_STRING_LENGTH];
+	char gw_buff[IP_STRING_LENGTH];
 	char mac_addr_buff[MAC_STRING_LENGTH];
 } rci_iface_info_t;
 
@@ -124,7 +124,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_ipaddr_get(
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const ip = eth_iface_info->info.ipv4_addr;
 
-	snprintf(eth_iface_info->ipaddr_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(eth_iface_info->ipaddr_buff, IP_STRING_LENGTH, IP_FORMAT,
 			ip[0], ip[1], ip[2], ip[3]);
 	*value = eth_iface_info->ipaddr_buff;
 
@@ -138,7 +138,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_netmask_get(
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const netmask = eth_iface_info->info.submask;
 
-	snprintf(eth_iface_info->submask_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(eth_iface_info->submask_buff, IP_STRING_LENGTH, IP_FORMAT,
 			netmask[0], netmask[1], netmask[2], netmask[3]);
 	*value = eth_iface_info->submask_buff;
 
@@ -152,7 +152,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_dns1_get(
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const dns1 = eth_iface_info->info.dnsaddr1;
 
-	snprintf(eth_iface_info->dns1_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(eth_iface_info->dns1_buff, IP_STRING_LENGTH, IP_FORMAT,
 			dns1[0], dns1[1], dns1[2], dns1[3]);
 	*value = eth_iface_info->dns1_buff;
 
@@ -166,7 +166,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_dns2_get(
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const dns2 = eth_iface_info->info.dnsaddr2;
 
-	snprintf(eth_iface_info->dns2_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(eth_iface_info->dns2_buff, IP_STRING_LENGTH, IP_FORMAT,
 			dns2[0], dns2[1], dns2[2], dns2[3]);
 	*value = eth_iface_info->dns2_buff;
 
@@ -180,7 +180,7 @@ ccapi_setting_ethernet_error_id_t rci_setting_ethernet_gateway_get(
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const gateway = eth_iface_info->info.gateway;
 
-	snprintf(eth_iface_info->gw_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(eth_iface_info->gw_buff, IP_STRING_LENGTH, IP_FORMAT,
 			gateway[0], gateway[1], gateway[2], gateway[3]);
 	*value = eth_iface_info->gw_buff;
 

@@ -26,11 +26,11 @@
 
 typedef struct {
 	wifi_info_t info;
-	char ipaddr_buff[IP_STRING_LENTH];
-	char submask_buff[IP_STRING_LENTH];
-	char dns1_buff[IP_STRING_LENTH];
-	char dns2_buff[IP_STRING_LENTH];
-	char gw_buff[IP_STRING_LENTH];
+	char ipaddr_buff[IP_STRING_LENGTH];
+	char submask_buff[IP_STRING_LENGTH];
+	char dns1_buff[IP_STRING_LENGTH];
+	char dns2_buff[IP_STRING_LENGTH];
+	char gw_buff[IP_STRING_LENGTH];
 	char mac_addr_buff[MAC_STRING_LENGTH];
 } rci_iface_info_t;
 
@@ -162,7 +162,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_ipaddr_get(ccapi_rci_info_t * con
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const ip = wifi_iface_info->info.iface_info.ipv4_addr;
 
-	snprintf(wifi_iface_info->ipaddr_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(wifi_iface_info->ipaddr_buff, IP_STRING_LENGTH, IP_FORMAT,
 			ip[0], ip[1], ip[2], ip[3]);
 	*value = wifi_iface_info->ipaddr_buff;
 
@@ -175,7 +175,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_netmask_get(ccapi_rci_info_t * co
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const netmask = wifi_iface_info->info.iface_info.submask;
 
-	snprintf(wifi_iface_info->submask_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(wifi_iface_info->submask_buff, IP_STRING_LENGTH, IP_FORMAT,
 			netmask[0], netmask[1], netmask[2], netmask[3]);
 	*value = wifi_iface_info->submask_buff;
 
@@ -188,7 +188,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_dns1_get(ccapi_rci_info_t * const
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const dns1 = wifi_iface_info->info.iface_info.dnsaddr1;
 
-	snprintf(wifi_iface_info->dns1_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(wifi_iface_info->dns1_buff, IP_STRING_LENGTH, IP_FORMAT,
 			dns1[0], dns1[1], dns1[2], dns1[3]);
 	*value = wifi_iface_info->dns1_buff;
 
@@ -201,7 +201,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_dns2_get(ccapi_rci_info_t * const
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const dns2 = wifi_iface_info->info.iface_info.dnsaddr2;
 
-	snprintf(wifi_iface_info->dns2_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(wifi_iface_info->dns2_buff, IP_STRING_LENGTH, IP_FORMAT,
 			dns2[0], dns2[1], dns2[2], dns2[3]);
 	*value = wifi_iface_info->dns2_buff;
 
@@ -214,7 +214,7 @@ ccapi_setting_wifi_error_id_t rci_setting_wifi_gateway_get(ccapi_rci_info_t * co
 	log_debug("    Called '%s'", __func__);
 	uint8_t const * const gateway = wifi_iface_info->info.iface_info.gateway;
 
-	snprintf(wifi_iface_info->gw_buff, IP_STRING_LENTH, IP_FORMAT,
+	snprintf(wifi_iface_info->gw_buff, IP_STRING_LENGTH, IP_FORMAT,
 			gateway[0], gateway[1], gateway[2], gateway[3]);
 	*value = wifi_iface_info->gw_buff;
 
