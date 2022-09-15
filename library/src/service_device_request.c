@@ -19,36 +19,19 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#include <json-c/json_object.h>
-#include <libdigiapix/bluetooth.h>
-#include <libdigiapix/network.h>
 #include <malloc.h>
-#include <stdbool.h>
-#include <sys/sysinfo.h>
 #include <unistd.h>
 
 #include "cc_config.h"
 #include "cc_logging.h"
 #include "ccapi/ccapi.h"
-#include "file_utils.h"
-#include "network_utils.h"
 #include "services_util.h"
 #include "service_device_request.h"
 #include "string_utils.h"
 
 #define TARGET_EDP_CERT_UPDATE	"builtin/edp_certificate_update"
 
-#define TARGET_DEVICE_INFO		"device_info"
-
 #define DEVICE_REQUEST_TAG		"DEVREQ:"
-
-#define MAX_RESPONSE_SIZE		512
-
-#define EMMC_SIZE_FILE				"/sys/class/mmc_host/mmc0/mmc0:0001/block/mmcblk0/size"
-#define NAND_SIZE_FILE				"/proc/mtd"
-#define RESOLUTION_FILE				"/sys/class/graphics/fb0/modes"
-#define RESOLUTION_FILE_CCMP		"/sys/class/drm/card0/card0-DPI-1/modes"
-#define RESOLUTION_FILE_CCMP_HDMI	"/sys/class/drm/card0/card0-HDMI-A-1/modes"
 
 /**
  * log_dr_debug() - Log the given message as debug
@@ -279,87 +262,6 @@ out:
 
 	if (sock_fd >= 0)
 		close(sock_fd);
-}
-
-#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
-static ccapi_receive_error_t edp_cert_update_cb(const char *const target,
-			const ccapi_transport_t transport,
-			const ccapi_buffer_info_t *const request_buffer_info,
-			ccapi_buffer_info_t *const response_buffer_info)
-{
-	FILE *fp;
-	ccapi_receive_error_t ret;
-
-	UNUSED_ARGUMENT(response_buffer_info);
-
-	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
-	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
-		char *client_cert_path = get_client_cert_path();
-
-		if (!client_cert_path) {
-			log_dr_error("%s", "Invalid client certificate");
-			return CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
-		}
-
-		fp = fopen(client_cert_path, "w");
-		if (!fp) {
-			log_dr_error("Unable to open certificate %s: %s", client_cert_path, strerror(errno));
-			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-		}
-		if (fwrite(request_buffer_info->buffer, sizeof(char), request_buffer_info->length, fp) < request_buffer_info->length) {
-			log_dr_error("Unable to write certificate %s", client_cert_path);
-			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-		} else {
-			log_dr_debug("%s: certificate saved at %s", __func__, client_cert_path);
-			ret = CCAPI_RECEIVE_ERROR_NONE;
-		}
-		fclose(fp);
-	} else {
-		log_dr_error("%s: received invalid data", __func__);
-		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
-	}
-
-	return ret;
-}
-#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
-
-static void builtin_request_status_cb(const char *const target,
-			const ccapi_transport_t transport,
-			ccapi_buffer_info_t *const response_buffer_info,
-			ccapi_receive_error_t receive_error)
-{
-	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_dr_error("Error on device request response: target='%s' - transport='%d' - error='%d'",
-			      target, transport, receive_error);
-	}
-	/* Free the response buffer */
-	if (response_buffer_info != NULL)
-		free(response_buffer_info->buffer);
-}
-
-/*
- * register_builtin_requests() - Register built-in device requests
- *
- * Return: Error code after registering the built-in device requests.
- */
-ccapi_receive_error_t register_builtin_requests(void)
-{
-	ccapi_receive_error_t receive_error = CCAPI_RECEIVE_ERROR_NONE;
-
-#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
-	receive_error = ccapi_receive_add_target(TARGET_EDP_CERT_UPDATE,
-						 edp_cert_update_cb,
-						 builtin_request_status_cb,
-						 CCAPI_RECEIVE_NO_LIMIT);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_dr_error("Cannot register target '%s', error %d", TARGET_EDP_CERT_UPDATE,
-				receive_error);
-		return receive_error;
-	}
-#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
-
-	return receive_error;
 }
 
 static int read_request(int fd, request_data_t *out)
@@ -600,69 +502,87 @@ out:
 	return ret;
 }
 
-/**
- * get_emmc_size() - Returns the total eMMC storage size.
- *
- * Return: total size read.
- */
-static long get_emmc_size(void)
+/******************** Built-in device requests ********************/
+
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+static ccapi_receive_error_t edp_cert_update_cb(const char *const target,
+			const ccapi_transport_t transport,
+			const ccapi_buffer_info_t *const request_buffer_info,
+			ccapi_buffer_info_t *const response_buffer_info)
 {
-	char data[MAX_RESPONSE_SIZE] = {0};
-	long total_size = 0;
+	FILE *fp;
+	ccapi_receive_error_t ret;
 
-	if (read_file(EMMC_SIZE_FILE, data, MAX_RESPONSE_SIZE) <= 0)
-		log_dr_error("%s", "Error getting storage size: Could not read file");
-	if (sscanf(data, "%ld", &total_size) < 1)
-		log_dr_error("%s", "Error getting storage size: Invalid file contents");
+	UNUSED_ARGUMENT(response_buffer_info);
 
-	return total_size * 512 / 1024; /* kB */
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+	if (request_buffer_info && request_buffer_info->buffer && request_buffer_info->length > 0) {
+		char *client_cert_path = get_client_cert_path();
+
+		if (!client_cert_path) {
+			log_dr_error("%s", "Invalid client certificate");
+			return CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+		}
+
+		fp = fopen(client_cert_path, "w");
+		if (!fp) {
+			log_dr_error("Unable to open certificate %s: %s", client_cert_path, strerror(errno));
+			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		}
+		if (fwrite(request_buffer_info->buffer, sizeof(char), request_buffer_info->length, fp) < request_buffer_info->length) {
+			log_dr_error("Unable to write certificate %s", client_cert_path);
+			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		} else {
+			log_dr_debug("%s: certificate saved at %s", __func__, client_cert_path);
+			ret = CCAPI_RECEIVE_ERROR_NONE;
+		}
+		fclose(fp);
+	} else {
+		log_dr_error("%s: received invalid data", __func__);
+		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+	}
+
+	return ret;
+}
+#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
+
+static void builtin_request_status_cb(const char *const target,
+			const ccapi_transport_t transport,
+			ccapi_buffer_info_t *const response_buffer_info,
+			ccapi_receive_error_t receive_error)
+{
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_dr_error("Error on device request response: target='%s' - transport='%d' - error='%d'",
+			      target, transport, receive_error);
+	}
+	/* Free the response buffer */
+	if (response_buffer_info != NULL)
+		free(response_buffer_info->buffer);
 }
 
-/**
- * get_nand_size() - Returns the total NAND storage size.
+/*
+ * register_builtin_requests() - Register built-in device requests
  *
- * Return: total size read.
+ * Return: Error code after registering the built-in device requests.
  */
-static long get_nand_size(void)
+ccapi_receive_error_t register_builtin_requests(void)
 {
-	char buffer[MAX_RESPONSE_SIZE] = {0};
-	long total_size = 0;
-	FILE *fd;
+	ccapi_receive_error_t receive_error = CCAPI_RECEIVE_ERROR_NONE;
 
-	fd = fopen(NAND_SIZE_FILE, "r");
-	if (!fd) {
-		log_dr_error("%s", "Error getting storage size: Could not open file");
-		return total_size;
+#ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
+	receive_error = ccapi_receive_add_target(TARGET_EDP_CERT_UPDATE,
+						 edp_cert_update_cb,
+						 builtin_request_status_cb,
+						 CCAPI_RECEIVE_NO_LIMIT);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_dr_error("Cannot register target '%s', error %d", TARGET_EDP_CERT_UPDATE,
+				receive_error);
+		return receive_error;
 	}
-	/* Ignore first line */
-	if (fgets(buffer, sizeof(buffer), fd) == NULL) {
-		log_dr_error("%s", "Error getting storage size: Could not read file");
-		fclose(fd);
-		return total_size;
-	}
-	/* Start reading line by line */
-	while (fgets(buffer, sizeof(buffer), fd)) {
-		char partition_id[20] = {'\0'};
-		char partition_name[20] = {'\0'};
-		char size_hex[20] = {'\0'};
-		char erase_size_hex[20] = {'\0'};
-		unsigned long size;
+#endif /* CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED */
 
-		sscanf(buffer,
-			"%s %s %s %s",
-			partition_id,
-			size_hex,
-			erase_size_hex,
-			partition_name);
-
-		size = strtol(size_hex, NULL, 16);
-		total_size = total_size + size;
-	}
-	if (ferror(fd))
-		log_dr_error("%s", "Error getting storage size: File read error");
-	fclose(fd);
-
-	return total_size / 1024; /* kB */
+	return receive_error;
 }
 
 /**
@@ -783,224 +703,6 @@ static void receive_default_status_cb(char const *const target,
 	/* Free the response buffer */
 	if (response_buffer_info != NULL)
 		free(response_buffer_info->buffer);
-}
-
-/*
- * device_info_cb() - Data callback for 'device_info' device requests
- *
- * @target:					Target ID of the device request (device_info).
- * @transport:				Communication transport used by the device request.
- * @request_buffer_info:	Buffer containing the device request.
- * @response_buffer_info:	Buffer to store the answer of the request.
- *
- * Logs information about the received request and executes the corresponding
- * command.
- */
-static ccapi_receive_error_t device_info_cb(char const *const target,
-		ccapi_transport_t const transport,
-		ccapi_buffer_info_t const *const request_buffer_info,
-		ccapi_buffer_info_t *const response_buffer_info)
-{
-	json_object *root = NULL;
-	char *response = NULL;
-	ccapi_receive_error_t status = CCAPI_RECEIVE_ERROR_NONE;
-
-	UNUSED_ARGUMENT(request_buffer_info);
-
-	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
-
-	/*
-		target "device_info"
-
-		Request: -
-
-		Response:
-		{
-			"total_st": 0,
-			"total_mem": 2002120,
-			"resolution": "1920x1080p-0",
-			"bt-mac": "00:40:9d:7d:1b:8f",
-			"lo": {
-				"mac": "00:00:00:00:00:00",
-				"ip": "127.0.0.1"
-			},
-			"eth0": {
-				"mac": "00:40:9d:ee:b6:96",
-				"ip": "192.168.1.44"
-			},
-			"can0": {
-				"mac": "00:00:00:00:00:00",
-				"ip": "0.0.0.0"
-			},
-			"wlan0": {
-				"mac": "00:40:9d:dd:bd:13",
-				"ip": "0.0.0.0"
-			}
-		}
-	*/
-
-	root = json_object_new_object();
-	if (!root) {
-		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-	}
-
-	{
-		long total_st = 0;
-
-		/* Check first emmc, because '/proc/mtd' may exists although empty */
-		if (file_readable(EMMC_SIZE_FILE))
-			total_st = get_emmc_size();
-		else if (file_readable(NAND_SIZE_FILE))
-			total_st = get_nand_size();
-		else
-			log_dr_error("%s", "Error getting storage size: File not readable");
-
-		if (json_object_object_add(root, "total_st", json_object_new_int64(total_st)) < 0) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-			goto done;
-		}
-	}
-
-	{
-		struct sysinfo s_info;
-		long total_mem = -1;
-
-		if (sysinfo(&s_info) != 0)
-			log_dr_error("Error getting total memory: %s (%d)", strerror(errno), errno);
-		else
-			total_mem = s_info.totalram / 1024;
-
-		if (json_object_object_add(root, "total_mem", json_object_new_int64(total_mem)) < 0) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-			goto done;
-		}
-	}
-
-	{
-		char data[MAX_RESPONSE_SIZE] = {0};
-		char resolution[MAX_RESPONSE_SIZE] = {0};
-		char *resolution_file = "";
-
-		if (file_readable(RESOLUTION_FILE))
-			resolution_file = RESOLUTION_FILE;
-		else if (file_readable(RESOLUTION_FILE_CCMP))
-			resolution_file = RESOLUTION_FILE_CCMP;
-		else if (file_readable(RESOLUTION_FILE_CCMP_HDMI))
-			resolution_file = RESOLUTION_FILE_CCMP_HDMI;
-
-		if (!file_readable(resolution_file))
-			log_dr_error("%s", "Error getting video resolution: File not readable");
-		else if (read_file(resolution_file, data, MAX_RESPONSE_SIZE) <= 0)
-			log_dr_error("%s", "Error getting video resolution");
-		else if (sscanf(data, "U:%s", resolution) < 1) {
-			if (sscanf(data, "%s", resolution) < 1)
-				log_dr_error("%s", "Error getting video resolution");
-		}
-
-		if (json_object_object_add(root, "resolution", json_object_new_string(resolution)) < 0) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-			goto done;
-		}
-	}
-
-	{
-		bt_state_t bt_state;
-		uint8_t *mac = NULL;
-		char mac_str[18];
-
-		ldx_bt_get_state(0, &bt_state);
-		mac = bt_state.mac;
-
-		snprintf(mac_str, sizeof(mac_str), MAC_FORMAT,
-			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-		if (json_object_object_add(root, "bt-mac", json_object_new_string(mac_str)) < 0) {
-			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-			goto done;
-		}
-	}
-
-	{
-		net_names_list_t list_ifaces;
-		int i;
-
-		ldx_net_list_available_ifaces(&list_ifaces);
-
-		for (i = 0; i < list_ifaces.n_ifaces; i++) {
-			net_state_t net_state;
-			uint8_t *mac = NULL, *ip = NULL;
-			char mac_str[MAC_STRING_LENGTH], ip_str[IP_STRING_LENGTH];
-			json_object *iface_item = json_object_new_object();
-
-			ldx_net_get_iface_state(list_ifaces.names[i], &net_state);
-			mac = net_state.mac;
-			ip = net_state.ipv4;
-
-			if (!iface_item || json_object_object_add(root, list_ifaces.names[i], iface_item) < 0) {
-				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-				if (iface_item)
-					json_object_put(iface_item);
-				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-				goto done;
-			}
-			
-			snprintf(mac_str, sizeof(mac_str), MAC_FORMAT,
-				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-			snprintf(ip_str, sizeof(ip_str), IP_FORMAT,
-				ip[0], ip[1], ip[2], ip[3]);
-		
-			if (json_object_object_add(iface_item, "mac", json_object_new_string(mac_str)) < 0) {
-				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-				goto done;
-			}
-
-			if (json_object_object_add(iface_item, "ip", json_object_new_string(ip_str)) < 0) {
-				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-				goto done;
-			}
-		}
-	}
-
-	response = strdup(json_object_to_json_string(root));
-	if (response == NULL) {
-		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
-		status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
-		goto done;
-	}
-
-	response_buffer_info->buffer = response;
-	response_buffer_info->length = strlen(response);
-
-	log_dr_debug("%s: response: %s (len: %zu)", __func__,
-		(char *)response_buffer_info->buffer, response_buffer_info->length);
-
-done:
-	json_object_put(root);
-
-	return status;
-}
-
-/*
- * register_device_requests() - Register custom device requests
- *
- * Return: Error code after registering the custom device requests.
- */
-ccapi_receive_error_t register_cc_device_requests(void)
-{
-	ccapi_receive_error_t error = ccapi_receive_add_target(TARGET_DEVICE_INFO,
-			device_info_cb, receive_default_status_cb, 0);
-	if (error != CCAPI_RECEIVE_ERROR_NONE)
-		log_error("Cannot register target '%s', error %d", TARGET_DEVICE_INFO,
-				error);
-
-	return error;
 }
 
 ccapi_receive_service_t receive_service = {

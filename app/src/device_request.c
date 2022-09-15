@@ -17,43 +17,56 @@
  * ===========================================================================
  */
 
+#include <errno.h>
 #include <json-c/json_object_iterator.h>
 #include <json-c/json_object.h>
 #include <json-c/json_tokener.h>
+#include <libdigiapix/bluetooth.h>
 #include <libdigiapix/gpio.h>
 #include <libdigiapix/process.h>
+#include <libdigiapix/network.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <sys/sysinfo.h>
 #include <time.h>
-#include <signal.h>
+#include <unistd.h>
 
 #include "device_request.h"
+#include "file_utils.h"
+#include "network_utils.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
-#define TARGET_GET_TIME		"get_time"
-#define TARGET_STOP_CC		"stop_cc"
-#define TARGET_USER_LED		"user_led"
-#define TARGET_PLAY_MUSIC	"play_music"
-#define TARGET_SET_VOLUME	"set_audio_volume"
+#define TARGET_DEVICE_INFO		"device_info"
+#define TARGET_GET_TIME			"get_time"
+#define TARGET_PLAY_MUSIC		"play_music"
+#define TARGET_SET_VOLUME		"set_audio_volume"
+#define TARGET_STOP_CC			"stop_cc"
+#define TARGET_USER_LED			"user_led"
 
-#define RESPONSE_ERROR		"ERROR"
-#define RESPONSE_OK			"OK"
+#define RESPONSE_ERROR			"ERROR"
+#define RESPONSE_OK				"OK"
 
-#define USER_LED_ALIAS		"USER_LED"
+#define USER_LED_ALIAS			"USER_LED"
 
-#define DEVREQ_TAG			"DEVREQ:"
+#define DEVREQ_TAG				"DEVREQ:"
 
-#define FIELD_PLAY			"play"
-#define FIELD_MUSIC_FILE	"music_file"
+#define MAX_RESPONSE_SIZE			512
+
+#define EMMC_SIZE_FILE				"/sys/class/mmc_host/mmc0/mmc0:0001/block/mmcblk0/size"
+#define NAND_SIZE_FILE				"/proc/mtd"
+#define RESOLUTION_FILE				"/sys/class/graphics/fb0/modes"
+#define RESOLUTION_FILE_CCMP		"/sys/class/drm/card0/card0-DPI-1/modes"
+#define RESOLUTION_FILE_CCMP_HDMI	"/sys/class/drm/card0/card0-HDMI-A-1/modes"
 
 #define CMD_PLAY_MUSIC		"setsid mpg123 %s"
 #define CMD_STOP_MUSIC		"pkill -KILL -f mpg123"
 #define CMD_SET_VOLUME		"amixer set 'Speaker' %d%% && amixer set 'Headphone' %d%%"
 
-#define MAX_RESPONSE_SIZE	256
+#define FIELD_PLAY			"play"
+#define FIELD_MUSIC_FILE	"music_file"
 
 #if !(defined UNUSED_ARGUMENT)
 #define UNUSED_ARGUMENT(a)	(void)(a)
@@ -80,80 +93,75 @@
 #define log_dr_error(format, ...)									\
 	log_error("%s " format, DEVREQ_TAG, __VA_ARGS__)
 
-/*------------------------------------------------------------------------------
-                    F U N C T I O N  D E C L A R A T I O N S
-------------------------------------------------------------------------------*/
-static ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
-		ccapi_buffer_info_t const *const request_buffer_info,
-		ccapi_buffer_info_t *const response_buffer_info);
-static ccapi_receive_error_t get_time_cb(char const *const target, ccapi_transport_t const transport,
-		ccapi_buffer_info_t const *const request_buffer_info,
-		ccapi_buffer_info_t *const response_buffer_info);
-static ccapi_receive_error_t update_user_led_cb(char const *const target, ccapi_transport_t const transport,
-		ccapi_buffer_info_t const *const request_buffer_info,
-		ccapi_buffer_info_t *const response_buffer_info);
-static ccapi_receive_error_t play_music_cb(char const *const target, ccapi_transport_t const transport,
-		ccapi_buffer_info_t const *const request_buffer_info,
-		ccapi_buffer_info_t *const response_buffer_info);
-static ccapi_receive_error_t set_volume_cb(char const *const target, ccapi_transport_t const transport,
-		ccapi_buffer_info_t const *const request_buffer_info,
-		ccapi_buffer_info_t *const response_buffer_info);
-static void request_status_cb(char const *const target,
-		ccapi_transport_t const transport,
-		ccapi_buffer_info_t *const response_buffer_info,
-		ccapi_receive_error_t receive_error);
-
-/*------------------------------------------------------------------------------
-                     F U N C T I O N  D E F I N I T I O N S
-------------------------------------------------------------------------------*/
-
-/*
- * register_custom_device_requests() - Register custom device requests
+/**
+ * get_emmc_size() - Returns the total eMMC storage size.
  *
- * Return: Error code after registering the custom device requests.
+ * Return: total size read.
  */
-ccapi_receive_error_t register_custom_device_requests(void)
+static long get_emmc_size(void)
 {
-	ccapi_receive_error_t receive_error;
+	char data[MAX_RESPONSE_SIZE] = {0};
+	long total_size = 0;
 
-	receive_error = ccapi_receive_add_target(TARGET_GET_TIME, get_time_cb,
-			request_status_cb, 0);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_GET_TIME,
-				receive_error);
-	}
-	receive_error = ccapi_receive_add_target(TARGET_STOP_CC, stop_cb,
-			request_status_cb, 0);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_STOP_CC,
-				receive_error);
-	}
-	receive_error = ccapi_receive_add_target(TARGET_USER_LED, update_user_led_cb,
-			request_status_cb, 5); /* Max size of possible values (on, off, 0, 1, true, false): 5 */
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_USER_LED,
-				receive_error);
-	}
-	receive_error = ccapi_receive_add_target(TARGET_PLAY_MUSIC, play_music_cb,
-			request_status_cb, 255);
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_PLAY_MUSIC,
-				receive_error);
-	}
-	receive_error = ccapi_receive_add_target(TARGET_SET_VOLUME, set_volume_cb,
-			request_status_cb, 3); /* Max size of possible values (0-100): 3 */
-	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
-		log_error("Cannot register target '%s', error %d", TARGET_SET_VOLUME,
-				receive_error);
-	}
+	if (read_file(EMMC_SIZE_FILE, data, MAX_RESPONSE_SIZE) <= 0)
+		log_dr_error("%s", "Error getting storage size: Could not read file");
+	if (sscanf(data, "%ld", &total_size) < 1)
+		log_dr_error("%s", "Error getting storage size: Invalid file contents");
 
-	return receive_error;
+	return total_size * 512 / 1024; /* kB */
+}
+
+/**
+ * get_nand_size() - Returns the total NAND storage size.
+ *
+ * Return: total size read.
+ */
+static long get_nand_size(void)
+{
+	char buffer[MAX_RESPONSE_SIZE] = {0};
+	long total_size = 0;
+	FILE *fd;
+
+	fd = fopen(NAND_SIZE_FILE, "r");
+	if (!fd) {
+		log_dr_error("%s", "Error getting storage size: Could not open file");
+		return total_size;
+	}
+	/* Ignore first line */
+	if (fgets(buffer, sizeof(buffer), fd) == NULL) {
+		log_dr_error("%s", "Error getting storage size: Could not read file");
+		fclose(fd);
+		return total_size;
+	}
+	/* Start reading line by line */
+	while (fgets(buffer, sizeof(buffer), fd)) {
+		char partition_id[20] = {'\0'};
+		char partition_name[20] = {'\0'};
+		char size_hex[20] = {'\0'};
+		char erase_size_hex[20] = {'\0'};
+		unsigned long size;
+
+		sscanf(buffer,
+			"%s %s %s %s",
+			partition_id,
+			size_hex,
+			erase_size_hex,
+			partition_name);
+
+		size = strtol(size_hex, NULL, 16);
+		total_size = total_size + size;
+	}
+	if (ferror(fd))
+		log_dr_error("%s", "Error getting storage size: File read error");
+	fclose(fd);
+
+	return total_size / 1024; /* kB */
 }
 
 /*
- * stop_cb() - Data callback for 'stop_cc' device requests
+ * device_info_cb() - Data callback for 'device_info' device requests
  *
- * @target:					Target ID of the device request (stop_cc).
+ * @target:					Target ID of the device request (device_info).
  * @transport:				Communication transport used by the device request.
  * @request_buffer_info:	Buffer containing the device request.
  * @response_buffer_info:	Buffer to store the answer of the request.
@@ -161,26 +169,195 @@ ccapi_receive_error_t register_custom_device_requests(void)
  * Logs information about the received request and executes the corresponding
  * command.
  */
-static ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
+static ccapi_receive_error_t device_info_cb(char const *const target,
+		ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info)
 {
-	static char const stop_response[] = "I'll stop";
+	json_object *root = NULL;
+	char *response = NULL;
+	ccapi_receive_error_t status = CCAPI_RECEIVE_ERROR_NONE;
 
 	UNUSED_ARGUMENT(request_buffer_info);
 
 	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
 
-	response_buffer_info->buffer = calloc(MAX_RESPONSE_SIZE + 1, sizeof(char));
-	if (response_buffer_info->buffer == NULL) {
+	/*
+		target "device_info"
+
+		Request: -
+
+		Response:
+		{
+			"total_st": 0,
+			"total_mem": 2002120,
+			"resolution": "1920x1080p-0",
+			"bt-mac": "00:40:9d:7d:1b:8f",
+			"lo": {
+				"mac": "00:00:00:00:00:00",
+				"ip": "127.0.0.1"
+			},
+			"eth0": {
+				"mac": "00:40:9d:ee:b6:96",
+				"ip": "192.168.1.44"
+			},
+			"can0": {
+				"mac": "00:00:00:00:00:00",
+				"ip": "0.0.0.0"
+			},
+			"wlan0": {
+				"mac": "00:40:9d:dd:bd:13",
+				"ip": "0.0.0.0"
+			}
+		}
+	*/
+
+	root = json_object_new_object();
+	if (!root) {
 		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 
-	response_buffer_info->length = snprintf(response_buffer_info->buffer,
-			strlen(stop_response) + 1, "%s", stop_response);
+	{
+		long total_st = 0;
 
-	return CCAPI_RECEIVE_ERROR_NONE;
+		/* Check first emmc, because '/proc/mtd' may exists although empty */
+		if (file_readable(EMMC_SIZE_FILE))
+			total_st = get_emmc_size();
+		else if (file_readable(NAND_SIZE_FILE))
+			total_st = get_nand_size();
+		else
+			log_dr_error("%s", "Error getting storage size: File not readable");
+
+		if (json_object_object_add(root, "total_st", json_object_new_int64(total_st)) < 0) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			goto done;
+		}
+	}
+
+	{
+		struct sysinfo s_info;
+		long total_mem = -1;
+
+		if (sysinfo(&s_info) != 0)
+			log_dr_error("Error getting total memory: %s (%d)", strerror(errno), errno);
+		else
+			total_mem = s_info.totalram / 1024;
+
+		if (json_object_object_add(root, "total_mem", json_object_new_int64(total_mem)) < 0) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			goto done;
+		}
+	}
+
+	{
+		char data[MAX_RESPONSE_SIZE] = {0};
+		char resolution[MAX_RESPONSE_SIZE] = {0};
+		char *resolution_file = "";
+
+		if (file_readable(RESOLUTION_FILE))
+			resolution_file = RESOLUTION_FILE;
+		else if (file_readable(RESOLUTION_FILE_CCMP))
+			resolution_file = RESOLUTION_FILE_CCMP;
+		else if (file_readable(RESOLUTION_FILE_CCMP_HDMI))
+			resolution_file = RESOLUTION_FILE_CCMP_HDMI;
+
+		if (!file_readable(resolution_file))
+			log_dr_error("%s", "Error getting video resolution: File not readable");
+		else if (read_file(resolution_file, data, MAX_RESPONSE_SIZE) <= 0)
+			log_dr_error("%s", "Error getting video resolution");
+		else if (sscanf(data, "U:%s", resolution) < 1) {
+			if (sscanf(data, "%s", resolution) < 1)
+				log_dr_error("%s", "Error getting video resolution");
+		}
+
+		if (json_object_object_add(root, "resolution", json_object_new_string(resolution)) < 0) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			goto done;
+		}
+	}
+
+	{
+		bt_state_t bt_state;
+		uint8_t *mac = NULL;
+		char mac_str[18];
+
+		ldx_bt_get_state(0, &bt_state);
+		mac = bt_state.mac;
+
+		snprintf(mac_str, sizeof(mac_str), MAC_FORMAT,
+			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+		if (json_object_object_add(root, "bt-mac", json_object_new_string(mac_str)) < 0) {
+			log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+			status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			goto done;
+		}
+	}
+
+	{
+		net_names_list_t list_ifaces;
+		int i;
+
+		ldx_net_list_available_ifaces(&list_ifaces);
+
+		for (i = 0; i < list_ifaces.n_ifaces; i++) {
+			net_state_t net_state;
+			uint8_t *mac = NULL, *ip = NULL;
+			char mac_str[MAC_STRING_LENGTH], ip_str[IP_STRING_LENGTH];
+			json_object *iface_item = json_object_new_object();
+
+			ldx_net_get_iface_state(list_ifaces.names[i], &net_state);
+			mac = net_state.mac;
+			ip = net_state.ipv4;
+
+			if (!iface_item || json_object_object_add(root, list_ifaces.names[i], iface_item) < 0) {
+				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+				if (iface_item)
+					json_object_put(iface_item);
+				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+				goto done;
+			}
+			
+			snprintf(mac_str, sizeof(mac_str), MAC_FORMAT,
+				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+			snprintf(ip_str, sizeof(ip_str), IP_FORMAT,
+				ip[0], ip[1], ip[2], ip[3]);
+		
+			if (json_object_object_add(iface_item, "mac", json_object_new_string(mac_str)) < 0) {
+				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+				goto done;
+			}
+
+			if (json_object_object_add(iface_item, "ip", json_object_new_string(ip_str)) < 0) {
+				log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+				status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+				goto done;
+			}
+		}
+	}
+
+	response = strdup(json_object_to_json_string(root));
+	if (response == NULL) {
+		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+		status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		goto done;
+	}
+
+	response_buffer_info->buffer = response;
+	response_buffer_info->length = strlen(response);
+
+	log_dr_debug("%s: response: %s (len: %zu)", __func__,
+		(char *)response_buffer_info->buffer, response_buffer_info->length);
+
+done:
+	json_object_put(root);
+
+	return status;
 }
 
 /*
@@ -212,6 +389,39 @@ static ccapi_receive_error_t get_time_cb(char const *const target,
 	time_t t = time(NULL);
 	response_buffer_info->length = snprintf(response_buffer_info->buffer,
 			MAX_RESPONSE_SIZE, "Time: %s", ctime(&t));
+
+	return CCAPI_RECEIVE_ERROR_NONE;
+}
+
+/*
+ * stop_cb() - Data callback for 'stop_cc' device requests
+ *
+ * @target:					Target ID of the device request (stop_cc).
+ * @transport:				Communication transport used by the device request.
+ * @request_buffer_info:	Buffer containing the device request.
+ * @response_buffer_info:	Buffer to store the answer of the request.
+ *
+ * Logs information about the received request and executes the corresponding
+ * command.
+ */
+static ccapi_receive_error_t stop_cb(char const *const target, ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info)
+{
+	static char const stop_response[] = "I'll stop";
+
+	UNUSED_ARGUMENT(request_buffer_info);
+
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+
+	response_buffer_info->buffer = calloc(MAX_RESPONSE_SIZE + 1, sizeof(char));
+	if (response_buffer_info->buffer == NULL) {
+		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+	}
+
+	response_buffer_info->length = snprintf(response_buffer_info->buffer,
+			strlen(stop_response) + 1, "%s", stop_response);
 
 	return CCAPI_RECEIVE_ERROR_NONE;
 }
@@ -472,10 +682,8 @@ done:
 
 exit:
 	free(val);
-	if (cmd != NULL)
-		free(cmd);
-	if (resp != NULL)
-		free(resp);
+	free(cmd);
+	free(resp);
 
 	return ret;
 }
@@ -508,4 +716,51 @@ static void request_status_cb(char const *const target,
 
 	if (receive_error == CCAPI_RECEIVE_ERROR_NONE && strcmp(TARGET_STOP_CC, target) == 0)
 		kill(getpid(), SIGINT);
+}
+
+/*
+ * register_custom_device_requests() - Register custom device requests
+ *
+ * Return: Error code after registering the custom device requests.
+ */
+ccapi_receive_error_t register_custom_device_requests(void)
+{
+	char *target = TARGET_DEVICE_INFO;
+	ccapi_receive_error_t error = ccapi_receive_add_target(target,
+			device_info_cb, request_status_cb, 0);
+
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		goto done;
+
+	target = TARGET_GET_TIME;
+	error = ccapi_receive_add_target(target, get_time_cb, request_status_cb, 0);
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		goto done;
+
+	target = TARGET_STOP_CC;
+	error = ccapi_receive_add_target(target, stop_cb, request_status_cb, 0);
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		goto done;
+
+	target = TARGET_USER_LED;
+	error = ccapi_receive_add_target(target, update_user_led_cb,
+			request_status_cb, 5); /* Max size of possible values (on, off, 0, 1, true, false): 5 */
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		goto done;
+
+	target = TARGET_PLAY_MUSIC;
+	error = ccapi_receive_add_target(target, play_music_cb,
+			request_status_cb, 255);
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		goto done;
+
+	target = TARGET_SET_VOLUME;
+	error = ccapi_receive_add_target(target, set_volume_cb,
+			request_status_cb, 3); /* Max size of possible values (0-100): 3 */
+
+done:
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		log_error("Cannot register target '%s', error %d", target, error);
+
+	return error;
 }

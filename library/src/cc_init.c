@@ -153,9 +153,6 @@ cc_init_error_t init_cloud_connection(const char *config_file)
 	if (register_builtin_requests() != CCAPI_RECEIVE_ERROR_NONE)
 		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
 
-	if (register_cc_device_requests() != CCAPI_RECEIVE_ERROR_NONE)
-		return CC_INIT_ERROR_REG_BUILTIN_REQUESTS;
-
 	if (setup_virtual_dirs(cc_cfg->vdirs, cc_cfg->n_vdirs) != 0)
 		return CC_INIT_ERROR_ADD_VIRTUAL_DIRECTORY;
 

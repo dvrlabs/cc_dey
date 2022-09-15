@@ -30,6 +30,5 @@ int import_devicerequests(const char *file_path);
 int dump_devicerequests(const char *file_path);
 
 ccapi_receive_error_t register_builtin_requests(void);
-ccapi_receive_error_t register_cc_device_requests(void);
 
 #endif
