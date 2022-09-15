@@ -45,6 +45,7 @@
 #define TARGET_GET_TIME			"get_time"
 #define TARGET_PLAY_MUSIC		"play_music"
 #define TARGET_SET_VOLUME		"set_audio_volume"
+#define TARGET_SET_CONFIG		"set_config"
 #define TARGET_STOP_CC			"stop_cc"
 #define TARGET_USER_LED			"user_led"
 
@@ -72,8 +73,22 @@
 #define CFG_ELEMENT_BLUETOOTH		"bluetooth"
 #define CFG_ELEMENT_CONNECTOR		"connector"
 
-#define FIELD_PLAY			"play"
-#define FIELD_MUSIC_FILE	"music_file"
+#define CFG_FIELD_DESC				"desc"
+#define CFG_FIELD_DNS1				"dns1"
+#define CFG_FIELD_DNS2				"dns2"
+#define CFG_FIELD_ENABLE			"enable"
+#define CFG_FIELD_GATEWAY			"gateway"
+#define CFG_FIELD_IP				"ip"
+#define CFG_FIELD_MAC				"mac"
+#define CFG_FIELD_MUSIC_FILE	"music_file"
+#define CFG_FIELD_NAME				"name"
+#define CFG_FIELD_NETMASK			"netmask"
+#define CFG_FIELD_PLAY			"play"
+#define CFG_FIELD_PSK				"psk"
+#define CFG_FIELD_SEC_MODE			"sec_mode"
+#define CFG_FIELD_SSID				"ssid"
+#define CFG_FIELD_STATUS			"status"
+#define CFG_FIELD_TYPE				"type"
 
 #if !(defined UNUSED_ARGUMENT)
 #define UNUSED_ARGUMENT(a)	(void)(a)
@@ -108,6 +123,8 @@
  */
 #define log_dr_error(format, ...)									\
 	log_error("%s " format, DEVREQ_TAG, __VA_ARGS__)
+
+static int future_connector_enable = true;
 
 /**
  * get_emmc_size() - Returns the total eMMC storage size.
@@ -217,10 +234,10 @@ static ccapi_receive_error_t add_bt_json(json_object **root, bool complete)
 		return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 
 	if (complete) {
-		if (json_object_object_add(*root, "enable", json_object_new_boolean(bt_state.enable)) < 0)
+		if (json_object_object_add(*root, CFG_FIELD_ENABLE, json_object_new_boolean(bt_state.enable)) < 0)
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 
-		if (json_object_object_add(*root, "name", json_object_new_string(bt_state.name)) < 0)
+		if (json_object_object_add(*root, CFG_FIELD_NAME, json_object_new_string(bt_state.name)) < 0)
 			return CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 	}
 
@@ -245,39 +262,39 @@ static int add_net_state_json(net_state_t i_state, json_object **iface_item, boo
 	snprintf(ip, sizeof(ip), IP_FORMAT,
 		i_state.ipv4[0], i_state.ipv4[1], i_state.ipv4[2], i_state.ipv4[3]);
 
-	if (json_object_object_add(*iface_item, "mac", json_object_new_string(mac)) < 0)
+	if (json_object_object_add(*iface_item, CFG_FIELD_MAC, json_object_new_string(mac)) < 0)
 		return 1;
 
-	if (json_object_object_add(*iface_item, "ip", json_object_new_string(ip)) < 0)
+	if (json_object_object_add(*iface_item, CFG_FIELD_IP, json_object_new_string(ip)) < 0)
 		return 1;
 
 	if (complete) {
 		int type = i_state.is_dhcp ? 0 : 1;
 
-		if (json_object_object_add(*iface_item, "enable", json_object_new_boolean(i_state.status == NET_STATUS_CONNECTED)) < 0)
+		if (json_object_object_add(*iface_item, CFG_FIELD_ENABLE, json_object_new_boolean(i_state.status == NET_STATUS_CONNECTED)) < 0)
 			return 1;
 
-		if (json_object_object_add(*iface_item, "type", json_object_new_int(type)) < 0)
+		if (json_object_object_add(*iface_item, CFG_FIELD_TYPE, json_object_new_int(type)) < 0)
 			return 1;
 
 		snprintf(ip, sizeof(ip), IP_FORMAT,
 			i_state.netmask[0], i_state.netmask[1], i_state.netmask[2], i_state.netmask[3]);
-		if (json_object_object_add(*iface_item, "netmask", json_object_new_string(ip)) < 0)
+		if (json_object_object_add(*iface_item, CFG_FIELD_NETMASK, json_object_new_string(ip)) < 0)
 			return 1;
 
 		snprintf(ip, sizeof(ip), IP_FORMAT,
 			i_state.gateway[0], i_state.gateway[1], i_state.gateway[2], i_state.gateway[3]);
-		if (json_object_object_add(*iface_item, "gateway", json_object_new_string(ip)) < 0)
+		if (json_object_object_add(*iface_item, CFG_FIELD_GATEWAY, json_object_new_string(ip)) < 0)
 			return 1;
 
 		snprintf(ip, sizeof(ip), IP_FORMAT,
 			i_state.dns1[0], i_state.dns1[1], i_state.dns1[2], i_state.dns1[3]);
-		if (json_object_object_add(*iface_item, "dns1", json_object_new_string(ip)) < 0)
+		if (json_object_object_add(*iface_item, CFG_FIELD_DNS1, json_object_new_string(ip)) < 0)
 			return 1;
 
 		snprintf(ip, sizeof(ip), IP_FORMAT,
 			i_state.dns2[0], i_state.dns2[1], i_state.dns2[2], i_state.dns2[3]);
-		if (json_object_object_add(*iface_item, "dns2", json_object_new_string(ip)) < 0)
+		if (json_object_object_add(*iface_item, CFG_FIELD_DNS2, json_object_new_string(ip)) < 0)
 			return 1;
 	}
 
@@ -330,8 +347,8 @@ static ccapi_receive_error_t add_net_ifaces_json(json_object **root, bool comple
 		log_dr_error("%s", "Unable to get list of network interfaces");
 		if (complete) {
 			net_state_error_t err = NET_STATE_ERROR_NO_IFACES;
-			if (json_object_object_add(*root, "status", json_object_new_int(err)) < 0
-				|| json_object_object_add(*root, "desc", json_object_new_string(ldx_net_code_to_str(err))) < 0)
+			if (json_object_object_add(*root, CFG_FIELD_STATUS, json_object_new_int(err)) < 0
+				|| json_object_object_add(*root, CFG_FIELD_DESC, json_object_new_string(ldx_net_code_to_str(err))) < 0)
 				ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 
@@ -379,10 +396,10 @@ static json_object *get_wifi_iface_json(const char *iface_name, bool complete)
 		goto error;
 
 	if (complete) {
-		if (json_object_object_add(iface_item, "ssid", json_object_new_string(i_state.ssid)) < 0)
+		if (json_object_object_add(iface_item, CFG_FIELD_SSID, json_object_new_string(i_state.ssid)) < 0)
 			goto error;
 
-		if (json_object_object_add(iface_item, "sec_mode", json_object_new_int(i_state.sec_mode)) < 0)
+		if (json_object_object_add(iface_item, CFG_FIELD_SEC_MODE, json_object_new_int(i_state.sec_mode)) < 0)
 			goto error;
 	}
 
@@ -412,8 +429,8 @@ static ccapi_receive_error_t add_wifi_ifaces_json(json_object **root, bool compl
 		log_dr_error("%s", "Unable to get list of Wi-Fi interfaces");
 		if (complete) {
 			wifi_state_error_t err = WIFI_STATE_ERROR_NO_IFACES;
-			if (json_object_object_add(*root, "status", json_object_new_int(err)) < 0
-				|| json_object_object_add(*root, "desc", json_object_new_string(ldx_wifi_code_to_str(err))) < 0)
+			if (json_object_object_add(*root, CFG_FIELD_STATUS, json_object_new_int(err)) < 0
+				|| json_object_object_add(*root, CFG_FIELD_DESC, json_object_new_string(ldx_wifi_code_to_str(err))) < 0)
 				ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
 		}
 
@@ -433,7 +450,6 @@ static ccapi_receive_error_t add_wifi_ifaces_json(json_object **root, bool compl
 
 	return ret;
 }
-
 
 /*
  * device_info_cb() - Data callback for 'device_info' device requests
@@ -749,7 +765,7 @@ static ccapi_receive_error_t get_config_cb(char const *const target,
 		if (!item)
 			goto error;
 
-		if (json_object_object_add(item, "enable", json_object_new_boolean(true)) < 0)
+		if (json_object_object_add(item, CFG_FIELD_ENABLE, json_object_new_boolean(true)) < 0)
 			goto error;
 	}
 
@@ -781,6 +797,603 @@ done:
 		json_object_put(resp);
 
 	json_object_put(req);
+
+	return status;
+}
+
+/*
+ * get_ip_from_json() - Retrieves the IP value from the given json object field
+ *
+ * @json_item:	JSon object.
+ * @key:		Field name.
+ * @ip:			A pointer to store the IP value.
+ *
+ * Return: 0 if the field is not found, 1 if success, -1 if bad format.
+ */
+static int get_ip_from_json(json_object *json_item, const char *key,  uint8_t (*ip)[IPV4_GROUPS])
+{
+	json_object *cfg_field = NULL;
+	const char *ip_str = NULL;
+	int segments;
+
+	memset(ip, 0, IPV4_GROUPS);
+
+	if (!json_object_object_get_ex(json_item, key, &cfg_field))
+		return 0;
+
+	if (!json_object_is_type(cfg_field, json_type_string))
+		return -1;
+
+	ip_str = json_object_get_string(cfg_field);
+	segments = sscanf(ip_str, "%hhu.%hhu.%hhu.%hhu", *ip, *ip+1, *ip+2, *ip+3);
+	if (segments != 4) {
+		return -1;
+	}
+
+	log_dr_debug("  %s: %hhu.%hhu.%hhu.%hhu", key, (*ip)[0], (*ip)[1], (*ip)[2], (*ip)[3]);
+
+	return 1;
+}
+
+/*
+ * get_net_cfg_from_json() - Retrieves the network configuration from the JSon object
+ *
+ * @json_item:	JSon object.
+ * @iface_name: Interface name.
+ * @net_cfg:	A pointer to store the network configuration.
+ *
+ * Return: Number of valid fields if success, -1 if fails.
+ */
+static int get_net_cfg_from_json(json_object *json_item, const char *iface_name, net_config_t *net_cfg)
+{
+	json_object *cfg_field = NULL;
+	int valid_fields = 0, ret;
+
+	strncpy(net_cfg->name, iface_name, sizeof(net_cfg->name));
+
+	if (json_object_object_get_ex(json_item, CFG_FIELD_ENABLE, &cfg_field)) {
+		if (!json_object_is_type(cfg_field, json_type_boolean))
+			return -1;
+		net_cfg->status = json_object_get_boolean(cfg_field) ? NET_STATUS_CONNECTED : NET_STATUS_DISCONNECTED;
+		valid_fields++;
+		log_dr_debug("  %s: %s", CFG_FIELD_ENABLE, net_cfg->status == NET_STATUS_CONNECTED ? "true" : "false");
+	}
+
+	if (json_object_object_get_ex(json_item, CFG_FIELD_TYPE, &cfg_field)) {
+		int type = -1;
+
+		if (!json_object_is_type(cfg_field, json_type_int))
+			return -1;
+
+		type = json_object_get_int(cfg_field);
+		if (type < 0 || type > 1)
+			return -1;
+
+		net_cfg->is_dhcp = type == 0 ? NET_ENABLED : NET_DISABLED;
+		valid_fields++;
+
+		log_dr_debug("  %s: %s", CFG_FIELD_TYPE, type == 0 ? "DHCP" : "Static");
+	}
+
+	ret = get_ip_from_json(json_item, CFG_FIELD_IP, &net_cfg->ipv4);
+	net_cfg->set_ip = (ret == 1);
+	if (ret < 0)
+		return -1;
+	valid_fields += ret;
+
+	ret = get_ip_from_json(json_item, CFG_FIELD_NETMASK, &net_cfg->netmask);
+	net_cfg->set_netmask = (ret == 1);
+	if (ret < 0)
+		return -1;
+	valid_fields += ret;
+
+	ret = get_ip_from_json(json_item, CFG_FIELD_GATEWAY, &net_cfg->gateway);
+	net_cfg->set_gateway = (ret == 1);
+	if (ret < 0)
+		return -1;
+	valid_fields += ret;
+
+	ret = get_ip_from_json(json_item, CFG_FIELD_DNS1, &net_cfg->dns1);
+	if (ret < 0)
+		return -1;
+	net_cfg->n_dns = (ret == 1 ? net_cfg->n_dns + 1 : net_cfg->n_dns);
+	valid_fields += ret;
+
+	ret = get_ip_from_json(json_item, CFG_FIELD_DNS2, &net_cfg->dns2);
+	if (ret < 0)
+		return -1;
+	net_cfg->n_dns = (ret == 1 ? net_cfg->n_dns + 1 : net_cfg->n_dns);
+	valid_fields += ret;
+
+	return valid_fields;
+}
+
+/*
+ * get_wifi_cfg_from_json() - Retrieves the WiFi configuration from the JSon object
+ *
+ * @json_item:	JSon object.
+ * @iface_name: Interface name.
+ * @wifi_cfg:	A pointer to store the WiFi configuration.
+ *
+ * Return: 0 if success, 1 otherwise.
+ */
+static int get_wifi_cfg_from_json(json_object *json_item, const char *iface_name, wifi_config_t *wifi_cfg)
+{
+	json_object *cfg_field = NULL;
+	int valid_fields = 0;
+
+	strncpy(wifi_cfg->name, iface_name, sizeof(wifi_cfg->name));
+
+	valid_fields = get_net_cfg_from_json(json_item, iface_name, &wifi_cfg->net_config);
+	if (valid_fields < 0)
+		return 1;
+
+	valid_fields++;
+
+	wifi_cfg->set_ssid = false;
+	if (json_object_object_get_ex(json_item, CFG_FIELD_SSID, &cfg_field)) {
+		if (!json_object_is_type(cfg_field, json_type_string))
+			return 1;
+		wifi_cfg->set_ssid = true;
+		strncpy(wifi_cfg->ssid, json_object_get_string(cfg_field), IW_ESSID_MAX_SIZE);
+		valid_fields++;
+		log_dr_debug("  %s: %s", CFG_FIELD_SSID, wifi_cfg->ssid);
+	}
+
+	if (json_object_object_get_ex(json_item, CFG_FIELD_SEC_MODE, &cfg_field)) {
+		int sec_mode = -1;
+
+		if (!json_object_is_type(cfg_field, json_type_int))
+			return 1;
+
+		sec_mode = json_object_get_int(cfg_field);
+		if (sec_mode < WIFI_SEC_MODE_OPEN || sec_mode > WIFI_SEC_MODE_WPA3)
+			return 1;
+
+		wifi_cfg->sec_mode = sec_mode;
+		valid_fields++;
+
+		log_dr_debug("  %s: %s", CFG_FIELD_SEC_MODE, ldx_wifi_sec_mode_to_str(sec_mode));
+	}
+
+	if (json_object_object_get_ex(json_item, CFG_FIELD_PSK, &cfg_field)) {
+		if (!json_object_is_type(cfg_field, json_type_string))
+			return 1;
+		wifi_cfg->psk = (char *)json_object_get_string(cfg_field);
+		valid_fields++;
+		log_dr_debug("  %s: %s", CFG_FIELD_PSK, wifi_cfg->psk);
+	}
+
+	return valid_fields > 0 ? 0 : 1;
+}
+
+/*
+ * get_wifi_config() - Retrieves the WiFi configurations from the JSon object
+ *
+ * @req:		Request JSon object.
+ * @wifi_cfgs:	Pointer to store configurations.
+ * @resp:		Response JSon object.
+ *
+ * Return: The number of interfaces to configure, -1 for bad format, -2 for out of memory.
+ */
+static int get_wifi_config(json_object *req, wifi_config_t **wifi_cfgs, json_object **resp)
+{
+	int n_ifaces = 0, ret = 0;
+	wifi_config_t *cfgs = NULL;
+	json_object *item = NULL;
+	struct json_object_iterator it = json_object_iter_begin(req);
+	struct json_object_iterator it_end = json_object_iter_end(req);
+
+	if (json_object_object_length(req) <= 0)
+		return -1; /* Bad format */
+
+	item = add_json_element(CFG_ELEMENT_WIFI, resp);
+	if (item == NULL) {
+		ret = -2; /* Out of memory */
+		goto error;
+	}
+
+	while (!json_object_iter_equal(&it, &it_end)) {
+		wifi_config_t *tmp = NULL;
+		const char *iface_name = json_object_iter_peek_name(&it);
+		json_object *json_iface = json_object_iter_peek_value(&it);
+
+		if (!ldx_wifi_iface_exists(iface_name)) {
+			json_object *iface_item = add_json_element(iface_name, &item);
+
+			wifi_state_error_t err = WIFI_STATE_ERROR_NO_EXIST;
+			if (iface_item == NULL
+				|| json_object_object_add(iface_item, CFG_FIELD_STATUS, json_object_new_int(err)) < 0
+				|| json_object_object_add(iface_item, CFG_FIELD_DESC, json_object_new_string(ldx_wifi_code_to_str(err))) < 0) {
+				ret = -2;
+				goto error;
+			}
+			json_object_iter_next(&it);
+			continue;
+		}
+
+		n_ifaces++;
+
+		tmp = realloc(cfgs, n_ifaces * sizeof(*cfgs));
+		if (tmp == NULL) {
+			ret = -2;
+			goto error;
+		}
+
+		cfgs = tmp;
+
+		memset(&cfgs[n_ifaces - 1], 0, sizeof(*cfgs));
+		cfgs[n_ifaces - 1].sec_mode = WIFI_SEC_MODE_ERROR;
+		cfgs[n_ifaces - 1].net_config.status = NET_STATUS_UNKNOWN;
+		cfgs[n_ifaces - 1].net_config.is_dhcp = NET_ENABLED_ERROR;
+
+		log_dr_debug("'%s' new configuration: ", iface_name);
+		if (get_wifi_cfg_from_json(json_iface, iface_name, &cfgs[n_ifaces - 1]) != 0) {
+			ret = -1;
+			goto error;
+		}
+
+		json_object_iter_next(&it);
+	}
+
+	*wifi_cfgs = cfgs;
+
+	return n_ifaces;
+
+error:
+	free(cfgs);
+
+	return ret;
+}
+
+/*
+ * get_wifi_config() - Retrieves the Ethernet configurations from the JSon object
+ *
+ * @req:		Request JSon object.
+ * @wifi_cfgs:	Pointer to store configurations.
+ * @resp:		Response JSon object.
+ *
+ * Return: The number of interfaces to configure, -1 for bad format, -2 for out of memory.
+ */
+static int get_eth_config(json_object *req, net_config_t **net_cfgs, json_object **resp)
+{
+	int n_ifaces = 0, ret = 0;
+	net_config_t *cfgs = NULL;
+	json_object *item = NULL;
+	struct json_object_iterator it = json_object_iter_begin(req);
+	struct json_object_iterator it_end = json_object_iter_end(req);
+
+	if (json_object_object_length(req) <= 0)
+		return -1; /* Bad format */
+
+	item = add_json_element(CFG_ELEMENT_ETHERNET, resp);
+	if (item == NULL) {
+		ret = -2; /* Out of memory */
+		goto error;
+	}
+
+	while (!json_object_iter_equal(&it, &it_end)) {
+		net_config_t *tmp = NULL;
+		const char *iface_name = json_object_iter_peek_name(&it);
+		json_object *json_iface = json_object_iter_peek_value(&it);
+
+		if (!ldx_net_iface_exists(iface_name)) {
+			json_object *iface_item = add_json_element(iface_name, &item);
+
+			net_state_error_t err = NET_STATE_ERROR_NO_EXIST;
+			if (iface_item == NULL
+				|| json_object_object_add(iface_item, CFG_FIELD_STATUS, json_object_new_int(err)) < 0
+				|| json_object_object_add(iface_item, CFG_FIELD_DESC, json_object_new_string(ldx_net_code_to_str(err))) < 0) {
+				ret = -2;
+				goto error;
+			}
+			json_object_iter_next(&it);
+			continue;
+		}
+
+		n_ifaces++;
+
+		tmp = realloc(cfgs, n_ifaces * sizeof(*cfgs));
+		if (tmp == NULL) {
+			ret = -2;
+			goto error;
+		}
+
+		cfgs = tmp;
+
+		memset(&cfgs[n_ifaces - 1], 0, sizeof(*cfgs));
+		cfgs[n_ifaces - 1].status = NET_STATUS_UNKNOWN;
+		cfgs[n_ifaces - 1].is_dhcp = NET_ENABLED_ERROR;
+
+		log_dr_debug("'%s' new configuration: ", iface_name);
+		if (get_net_cfg_from_json(json_iface, iface_name, &cfgs[n_ifaces - 1]) < 0) {
+			ret = -1;
+			goto error;
+		}
+		json_object_iter_next(&it);
+	}
+
+	*net_cfgs = cfgs;
+
+	return n_ifaces;
+
+error:
+	free(cfgs);
+
+	return ret;
+}
+
+/*
+ * get_bt_config() - Retrieves the Bluetooth from the JSon object
+ *
+ * @req:		Request JSon object.
+ * @wifi_cfgs:	Pointer to store the configuration.
+ * @resp:		Response JSon object.
+ *
+ * Return: 0 if success, -1 for bad format, -2 for out of memory.
+ */
+static int get_bt_config(json_object *bt_req, bt_config_t *bt_cfg, json_object **resp)
+{
+	int valid_fields = 0;
+	json_object *cfg_field = NULL;
+	json_object *bt_item = add_json_element(CFG_ELEMENT_BLUETOOTH, resp);
+
+	if (bt_item == NULL)
+		return -2; /* Out of memory */
+
+	if (json_object_object_get_ex(bt_req, CFG_FIELD_ENABLE, &cfg_field)) {
+		if (!json_object_is_type(cfg_field, json_type_boolean))
+			return -1; /* Bad format */
+		bt_cfg->enable = json_object_get_boolean(cfg_field) ? BT_ENABLED : BT_DISABLED;
+		valid_fields++;
+	}
+
+	if (json_object_object_get_ex(bt_req, CFG_FIELD_NAME, &cfg_field)) {
+		if (!json_object_is_type(cfg_field, json_type_string))
+			return -1;
+
+		bt_cfg->set_name = true;
+		strncpy(bt_cfg->name, json_object_get_string(cfg_field), BT_NAME_MAX_LEN);
+		valid_fields++;
+	}
+
+	return valid_fields > 0 ? 0 : -1;
+}
+
+/*
+ * set_config_cb() - Data callback for 'set_config' device requests
+ *
+ * @target:					Target ID of the device request (set_config).
+ * @transport:				Communication transport used by the device request.
+ * @request_buffer_info:	Buffer containing the device request.
+ * @response_buffer_info:	Buffer to store the answer of the request.
+ *
+ * Logs information about the received request and executes the corresponding
+ * command.
+ */
+static ccapi_receive_error_t set_config_cb(char const *const target,
+		ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info)
+{
+	char *request = request_buffer_info->buffer, *response = NULL;
+	json_object *req = NULL, *json_element = NULL, *resp = NULL;
+	ccapi_receive_error_t status = CCAPI_RECEIVE_ERROR_NONE;
+	int valid_fields = 0, bt_devs = 0, n_eth_ifaces = 0, n_wifi_ifaces = 0, i;
+	net_config_t *net_cfgs = NULL;
+	wifi_config_t *wifi_cfgs = NULL;
+	bt_config_t bt_cfg = {
+		.dev_id = 0,
+		.enable = BT_ENABLED_ERROR,
+		.set_name = false,
+		.name = {0},
+	};
+
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+
+		/*
+		target "set_config"
+
+		Request:
+		{
+			"ethernet": {
+				 "eth0":{
+					"ip":"192.168.1.44",
+					"enable":true,
+					"type":1,
+					"netmask":"255.255.255.0",
+					"gateway":"192.168.1.1",
+					"dns1":"80.58.61.250",
+					"dns2":"80.58.61.254"
+				},
+				...
+				"ethN": {
+					...
+				}
+			},
+			"wifi": {
+				"wlan0":{
+					"ip":"192.168.1.48",
+					"enable":true,
+					"type":0,
+					"ssid":"MOVISTAR_6EA8"
+					"sec_mode":3,
+					"psk":"password",
+				},
+				...
+				"wlanN": {
+					...
+				}
+			},
+			"bluetooth": {
+				"enable":true,
+				"name":"ccimx8mm-dvk"
+			},
+			"connector": {
+				"enable": true
+			}
+		}
+		Valid elements: ethernet, wifi, bluetooth, connector
+		type: 0 (DHCP), 1 (Static)
+		sec_mode: 0 (open), 1 (wpa), 2 (wpa2), 3 (wpa3)
+
+		Response:
+		{
+			"ethernet": {
+				"eth0": {
+					"status": 0
+				}
+			}
+		}
+	*/
+
+	if (request_buffer_info->length == 0)
+		goto bad_format;
+
+	request[request_buffer_info->length] = '\0';
+	req = json_tokener_parse(request);
+	if (!req || json_object_get_type(req) != json_type_object
+		|| json_object_object_length(req) == 0)
+		goto bad_format;
+
+	resp = json_object_new_object();
+	if (!resp)
+		goto error;
+
+	if (json_object_object_get_ex(req, CFG_ELEMENT_ETHERNET, &json_element)) {
+		n_eth_ifaces = get_eth_config(json_element, &net_cfgs, &resp);
+		if (n_eth_ifaces == -1)
+			goto bad_format;
+		if (n_eth_ifaces == -2)
+			goto error;
+		valid_fields++;
+	}
+
+	if (json_object_object_get_ex(req, CFG_ELEMENT_WIFI, &json_element)) {
+		n_wifi_ifaces = get_wifi_config(json_element, &wifi_cfgs, &resp);
+		if (n_wifi_ifaces == -1)
+			goto bad_format;
+		if (n_wifi_ifaces == -2)
+			goto error;
+		valid_fields++;
+	}
+
+	if (json_object_object_get_ex(req, CFG_ELEMENT_BLUETOOTH, &json_element)) {
+		int ret_bt = get_bt_config(json_element, &bt_cfg, &resp);
+		if (ret_bt == -1)
+			goto bad_format;
+		if (ret_bt == -2)
+			goto error;
+
+		bt_cfg.dev_id = 0;
+		bt_devs = 1;
+		valid_fields++;
+	}
+
+	if (json_object_object_get_ex(req, CFG_ELEMENT_CONNECTOR, &json_element)) {
+		json_object *cfg_field = NULL;
+		valid_fields++;
+
+		if (!json_object_object_get_ex(json_element, CFG_FIELD_ENABLE, &cfg_field)
+			|| !json_object_is_type(cfg_field, json_type_boolean))
+			goto bad_format;
+
+		future_connector_enable = json_object_get_boolean(cfg_field);
+	}
+
+	if (!valid_fields)
+		goto bad_format;
+
+	/* Configure Bluetooth */
+	if (bt_devs) {
+		json_object *bt_item = NULL;
+		bt_state_error_t err = ldx_bt_set_config(bt_cfg);
+
+		if (!json_object_object_get_ex(resp, CFG_ELEMENT_BLUETOOTH, &bt_item))
+			goto bad_format; /* Should not occur */
+
+		if (json_object_object_add(bt_item, CFG_FIELD_STATUS, json_object_new_int(err)) < 0
+			|| json_object_object_add(bt_item, CFG_FIELD_DESC, json_object_new_string(ldx_bt_code_to_str(err))) < 0)
+			goto error;
+	}
+
+	/* Configure Ethernet */
+	for (i = 0; i < n_eth_ifaces; i++) {
+		net_state_error_t err;
+		json_object *eth_item = NULL, *iface_item = NULL;
+
+		if (net_cfgs[i].name == NULL)
+			continue;
+
+		err = ldx_net_set_config(net_cfgs[i]);
+
+		if (!json_object_object_get_ex(resp, CFG_ELEMENT_ETHERNET, &eth_item))
+			goto bad_format; /* Should not occur */
+
+		iface_item = add_json_element(net_cfgs[i].name, &eth_item);
+		if (iface_item == NULL
+			|| json_object_object_add(iface_item, CFG_FIELD_STATUS, json_object_new_int(err)) < 0
+			|| json_object_object_add(iface_item, CFG_FIELD_DESC, json_object_new_string(ldx_net_code_to_str(err))) < 0)
+			goto error;
+	}
+
+	/* Configure WiFi */
+	for (i = 0; i < n_wifi_ifaces; i++) {
+		wifi_state_error_t err;
+		json_object *wifi_item = NULL, *iface_item = NULL;
+
+		if (wifi_cfgs[i].name == NULL)
+			continue;
+
+		err = ldx_wifi_set_config(wifi_cfgs[i]);
+
+		if (!json_object_object_get_ex(resp, CFG_ELEMENT_WIFI, &wifi_item))
+			goto bad_format; /* Should not occur */
+
+		iface_item = add_json_element(wifi_cfgs[i].name, &wifi_item);
+		if (iface_item == NULL
+			|| json_object_object_add(iface_item, CFG_FIELD_STATUS, json_object_new_int(err)) < 0
+			|| json_object_object_add(iface_item, CFG_FIELD_DESC, json_object_new_string(ldx_wifi_code_to_str(err))) < 0)
+			goto error;
+	}
+
+	/* Configure Connector */
+	response = strdup(json_object_to_json_string(resp));
+	if (response == NULL)
+		goto error;
+
+	goto done;
+
+bad_format:
+	response = strdup("Invalid format");
+	status = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+	log_dr_error("Cannot parse request for target '%s': %s", target, response);
+	goto done;
+
+error:
+	response = strdup("Out of memory");
+	status = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+	log_dr_error("Cannot process request for target '%s': %s", target, response);
+
+done:
+	response_buffer_info->buffer = response;
+	response_buffer_info->length = strlen(response);
+
+	log_dr_debug("%s: response: %s (len: %zu)", __func__,
+		(char *)response_buffer_info->buffer, response_buffer_info->length);
+
+	free(net_cfgs);
+
+	free(wifi_cfgs);
+
+	if (resp)
+		json_object_put(resp);
+
+	/* It may happen that the parser function returns an string, the same that
+	   is trying to parse. In that case do not free it, leave the connector
+	   to free it */
+	if (req && !json_object_is_type(req, json_type_string))
+		json_object_put(req);
 
 	return status;
 }
@@ -956,7 +1569,7 @@ static ccapi_receive_error_t play_music_cb(char const *const target,
 		goto bad_format;
 
 	/* Read the "play" value. */
-	if (json_object_object_get_ex(req, FIELD_PLAY, &json_element)) {
+	if (json_object_object_get_ex(req, CFG_FIELD_PLAY, &json_element)) {
 		if (!json_object_is_type(json_element, json_type_boolean))
 			goto bad_format; /* Must be a boolean field. */
 		play = json_object_get_boolean(json_element);
@@ -966,7 +1579,7 @@ static ccapi_receive_error_t play_music_cb(char const *const target,
 
 	/* Read the "music_file" value. */
 	if (play) {
-		if (json_object_object_get_ex(req, FIELD_MUSIC_FILE, &json_element)) {
+		if (json_object_object_get_ex(req, CFG_FIELD_MUSIC_FILE, &json_element)) {
 			if (!json_object_is_type(json_element, json_type_string))
 				goto bad_format; /* Must be a string field. */
 			music_file = (char *)json_object_get_string(json_element);
@@ -1113,6 +1726,7 @@ exit:
 	return ret;
 }
 
+
 /*
  * request_status_cb() - Status callback for application device requests
  *
@@ -1141,6 +1755,10 @@ static void request_status_cb(char const *const target,
 
 	if (receive_error == CCAPI_RECEIVE_ERROR_NONE && strcmp(TARGET_STOP_CC, target) == 0)
 		kill(getpid(), SIGINT);
+
+	if (receive_error == CCAPI_RECEIVE_ERROR_NONE
+		&& strcmp(TARGET_SET_CONFIG, target) == 0 && !future_connector_enable)
+		kill(getpid(), SIGINT);
 }
 
 /*
@@ -1159,6 +1777,12 @@ ccapi_receive_error_t register_custom_device_requests(void)
 
 	target = TARGET_GET_CONFIG;
 	error = ccapi_receive_add_target(target, get_config_cb, request_status_cb,
+			CCAPI_RECEIVE_NO_LIMIT);
+	if (error != CCAPI_RECEIVE_ERROR_NONE)
+		goto done;
+
+	target = TARGET_SET_CONFIG;
+	error = ccapi_receive_add_target(target, set_config_cb, request_status_cb,
 			CCAPI_RECEIVE_NO_LIMIT);
 	if (error != CCAPI_RECEIVE_ERROR_NONE)
 		goto done;
