@@ -74,6 +74,7 @@ SRCS = $(APP_SRCS)
 # Libraries to Link
 LIBS += $(shell PKG_CONFIG_PATH=../library:$${PKG_CONFIG_PATH} pkg-config --libs --static cloudconnector)
 LIBS += $(shell pkg-config --libs --static libdigiapix)
+LIBS += $(shell pkg-config --libs json-c)
 
 # Generated Executable Name.
 EXECUTABLE = cloud-connector

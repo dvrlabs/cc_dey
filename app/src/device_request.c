@@ -17,13 +17,18 @@
  * ===========================================================================
  */
 
+#include <json-c/json_object_iterator.h>
+#include <json-c/json_object.h>
+#include <json-c/json_tokener.h>
 #include <libdigiapix/gpio.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
 
 #include "device_request.h"
+#include "services_util.h"
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -31,6 +36,7 @@
 #define TARGET_GET_TIME		"get_time"
 #define TARGET_STOP_CC		"stop_cc"
 #define TARGET_USER_LED		"user_led"
+#define TARGET_PLAY_MUSIC	"play_music"
 
 #define RESPONSE_ERROR		"ERROR"
 #define RESPONSE_OK			"OK"
@@ -38,6 +44,12 @@
 #define USER_LED_ALIAS		"USER_LED"
 
 #define DEVREQ_TAG			"DEVREQ:"
+
+#define FIELD_PLAY			"play"
+#define FIELD_MUSIC_FILE	"music_file"
+
+#define CMD_PLAY_MUSIC		"setsid mpg123 %s"
+#define CMD_STOP_MUSIC		"pkill -KILL -f mpg123"
 
 #define MAX_RESPONSE_SIZE	256
 
@@ -78,6 +90,9 @@ static ccapi_receive_error_t get_time_cb(char const *const target, ccapi_transpo
 static ccapi_receive_error_t update_user_led_cb(char const *const target, ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info);
+static ccapi_receive_error_t play_music_cb(char const *const target, ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info);
 static void request_status_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t *const response_buffer_info,
@@ -112,6 +127,12 @@ ccapi_receive_error_t register_custom_device_requests(void)
 			request_status_cb, 5); /* Max size of possible values (on, off, 0, 1, true, false): 5 */
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
 		log_error("Cannot register target '%s', error %d", TARGET_USER_LED,
+				receive_error);
+	}
+	receive_error = ccapi_receive_add_target(TARGET_PLAY_MUSIC, play_music_cb,
+			request_status_cb, 255);
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("Cannot register target '%s', error %d", TARGET_PLAY_MUSIC,
 				receive_error);
 	}
 
@@ -253,6 +274,118 @@ done:
 exit:
 	ldx_gpio_free(led);
 	free(val);
+
+	return ret;
+}
+
+/*
+ * play_music_cb() - Data callback for 'play_music' device requests
+ *
+ * @target:					Target ID of the device request (play_music).
+ * @transport:				Communication transport used by the device request.
+ * @request_buffer_info:	Buffer containing the device request.
+ * @response_buffer_info:	Buffer to store the answer of the request.
+ *
+ * Logs information about the received request and executes the corresponding
+ * command.
+ */
+static ccapi_receive_error_t play_music_cb(char const *const target,
+		ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info)
+{
+	char *request = request_buffer_info->buffer, *error_msg = NULL, *resp = NULL, *music_file = NULL;
+	json_object *req = NULL, *json_element = NULL;
+	ccapi_receive_error_t ret = CCAPI_RECEIVE_ERROR_NONE;
+	bool play = false;
+
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+
+	if (request_buffer_info->length == 0)
+		goto bad_format;
+
+	request[request_buffer_info->length] = '\0';
+	req = json_tokener_parse(request);
+	if (!req)
+		goto bad_format;
+
+	/* Read the "play" value. */
+	if (json_object_object_get_ex(req, FIELD_PLAY, &json_element)) {
+		if (!json_object_is_type(json_element, json_type_boolean))
+			goto bad_format; /* Must be a boolean field. */
+		play = json_object_get_boolean(json_element);
+	} else {
+		goto bad_format; /* Required field. */
+	}
+
+	/* Read the "music_file" value. */
+	if (play) {
+		if (json_object_object_get_ex(req, FIELD_MUSIC_FILE, &json_element)) {
+			if (!json_object_is_type(json_element, json_type_string))
+				goto bad_format; /* Must be a string field. */
+			music_file = (char *)json_object_get_string(json_element);
+		} else {
+			goto bad_format; /* Required field. */
+		}
+	}
+
+	response_buffer_info->buffer = calloc(MAX_RESPONSE_SIZE + 1, sizeof(char));
+	if (response_buffer_info->buffer == NULL) {
+		error_msg = "Insufficient memory";
+		ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		log_dr_error("Cannot generate response for target '%s': %s", target, error_msg);
+		goto done;
+	}
+
+	/* Stop any mpg123 process. Do not check for error because it will not return 0 if no music was playing. */
+	execute_cmd(CMD_STOP_MUSIC, &resp, 2);
+
+	/* If music is set to play, reproduce the sound. */
+	if (play) {
+		char *cmd = NULL;
+		int cmd_len = 0;
+
+		/* Verify that music file exists. */
+		if (access(music_file, F_OK) != 0) {
+			error_msg = "File does not exist";
+			ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+			log_error("Error executing target '%s': Music file '%s' does not exist", target, music_file);
+			goto done;
+		}
+		/* Build play command. */
+		cmd_len = snprintf(NULL, 0, CMD_PLAY_MUSIC, music_file);
+		cmd = calloc(cmd_len + 1, sizeof(char));
+		if (cmd == NULL) {
+			error_msg = "Insufficient memory";
+			ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+			log_error("Error executing target '%s': %s", target, error_msg);
+		} else {
+			sprintf(cmd, CMD_PLAY_MUSIC, music_file);
+			/* Do not check for error because 'setsid' always returns -15. */
+			execute_cmd(cmd, &resp, 2);
+			free(cmd);
+		}
+	}
+
+	goto done;
+
+bad_format:
+	error_msg = "Invalid format";
+	ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+	log_dr_error("Cannot parse request for target '%s': Invalid request format", target);
+
+done:
+	if (ret != CCAPI_RECEIVE_ERROR_NONE) {
+		response_buffer_info->length = sprintf(response_buffer_info->buffer, "ERROR: %s", error_msg);
+		log_dr_error("Cannot process request for target '%s': %s", target, error_msg);
+	} else {
+		response_buffer_info->length = sprintf(response_buffer_info->buffer, "OK");
+	}
+
+	/* Free resources. */
+	free(resp);
+	if (req && !json_object_is_type(req, json_type_string))
+		json_object_put(req);
 
 	return ret;
 }
