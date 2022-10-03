@@ -37,6 +37,7 @@
 #define TARGET_STOP_CC		"stop_cc"
 #define TARGET_USER_LED		"user_led"
 #define TARGET_PLAY_MUSIC	"play_music"
+#define TARGET_SET_VOLUME	"set_audio_volume"
 
 #define RESPONSE_ERROR		"ERROR"
 #define RESPONSE_OK			"OK"
@@ -50,6 +51,7 @@
 
 #define CMD_PLAY_MUSIC		"setsid mpg123 %s"
 #define CMD_STOP_MUSIC		"pkill -KILL -f mpg123"
+#define CMD_SET_VOLUME		"amixer set 'Speaker' %d%% && amixer set 'Headphone' %d%%"
 
 #define MAX_RESPONSE_SIZE	256
 
@@ -93,6 +95,9 @@ static ccapi_receive_error_t update_user_led_cb(char const *const target, ccapi_
 static ccapi_receive_error_t play_music_cb(char const *const target, ccapi_transport_t const transport,
 		ccapi_buffer_info_t const *const request_buffer_info,
 		ccapi_buffer_info_t *const response_buffer_info);
+static ccapi_receive_error_t set_volume_cb(char const *const target, ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info);
 static void request_status_cb(char const *const target,
 		ccapi_transport_t const transport,
 		ccapi_buffer_info_t *const response_buffer_info,
@@ -133,6 +138,12 @@ ccapi_receive_error_t register_custom_device_requests(void)
 			request_status_cb, 255);
 	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
 		log_error("Cannot register target '%s', error %d", TARGET_PLAY_MUSIC,
+				receive_error);
+	}
+	receive_error = ccapi_receive_add_target(TARGET_SET_VOLUME, set_volume_cb,
+			request_status_cb, 3); /* Max size of possible values (0-100): 3 */
+	if (receive_error != CCAPI_RECEIVE_ERROR_NONE) {
+		log_error("Cannot register target '%s', error %d", TARGET_SET_VOLUME,
 				receive_error);
 	}
 
@@ -386,6 +397,85 @@ done:
 	free(resp);
 	if (req && !json_object_is_type(req, json_type_string))
 		json_object_put(req);
+
+	return ret;
+}
+
+/*
+ * set_volume_cb() - Data callback for 'set_audio_volume' device requests
+ *
+ * @target:					Target ID of the device request (set_audio_volume).
+ * @transport:				Communication transport used by the device request.
+ * @request_buffer_info:	Buffer containing the device request.
+ * @response_buffer_info:	Buffer to store the answer of the request.
+ *
+ * Logs information about the received request and executes the corresponding
+ * command.
+ */
+static ccapi_receive_error_t set_volume_cb(char const *const target,
+		ccapi_transport_t const transport,
+		ccapi_buffer_info_t const *const request_buffer_info,
+		ccapi_buffer_info_t *const response_buffer_info)
+{
+	ccapi_receive_error_t ret = CCAPI_RECEIVE_ERROR_NONE;
+	char *cmd = NULL, *error_msg = NULL, *resp = NULL, *val = NULL;
+	uint16_t volume, cmd_len = 0;
+
+	log_dr_debug("%s: target='%s' - transport='%d'", __func__, target, transport);
+
+	response_buffer_info->buffer = calloc(MAX_RESPONSE_SIZE + 1, sizeof(char));
+	val = calloc(request_buffer_info->length + 1, sizeof(char));
+	if (response_buffer_info->buffer == NULL || val == NULL) {
+		log_dr_error("Cannot generate response for target '%s': Out of memory", target);
+		ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		goto exit;
+	}
+
+	strncpy(val, request_buffer_info->buffer, request_buffer_info->length);
+	log_dr_debug("%s=%s", target, val);
+
+	/* Verify value is an integer. */
+	volume = atoi(val);
+	if (strlen(val) != (uint16_t)snprintf(NULL, 0, "%d", volume)) {
+		error_msg = "Volume value must be an integer";
+		log_dr_error("Argument for target '%s' is not an integer: '%s'", target, val);
+		ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		goto done;
+	}
+
+	/* Execute command. */
+	cmd_len = snprintf(NULL, 0, CMD_SET_VOLUME, volume, volume);
+	cmd = calloc(cmd_len + 1, sizeof(char));
+	if (cmd == NULL) {
+		error_msg = "Out of memory";
+		log_dr_error("Cannot change volume: %s", error_msg);
+		ret = CCAPI_RECEIVE_ERROR_INSUFFICIENT_MEMORY;
+		goto done;
+	}
+	sprintf(cmd, CMD_SET_VOLUME, volume, volume);
+	if (execute_cmd(cmd, &resp, 2) != 0 || resp == NULL) {
+		error_msg = "Error setting audio volume";
+		ret = CCAPI_RECEIVE_ERROR_INVALID_DATA_CB;
+		if (resp != NULL)
+			log_dr_error("%s: %s", error_msg, resp);
+		else
+			log_dr_error("%s", error_msg);
+	}
+
+done:
+	if (ret != CCAPI_RECEIVE_ERROR_NONE) {
+		response_buffer_info->length = sprintf(response_buffer_info->buffer, "ERROR: %s", error_msg);
+		log_dr_error("Cannot process request for target '%s': %s", target, error_msg);
+	} else {
+		response_buffer_info->length = sprintf(response_buffer_info->buffer, "OK");
+	}
+
+exit:
+	free(val);
+	if (cmd != NULL)
+		free(cmd);
+	if (resp != NULL)
+		free(resp);
 
 	return ret;
 }
