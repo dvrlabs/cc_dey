@@ -61,7 +61,7 @@
 
 #define LINE_BUFSIZE				255
 #define CMD_BUFSIZE				255
-#define FW_UPDATE_CMD				"firmware-update-dual.sh"
+#define FW_UPDATE_CMD				"update-firmware"
 #define PRINTENV_ACTIVE_SYSTEM_CMD		"fw_printenv -n active_system"
 
 /*------------------------------------------------------------------------------
