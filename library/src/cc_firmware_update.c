@@ -63,6 +63,7 @@
 #define CMD_BUFSIZE				255
 #define FW_UPDATE_CMD				"update-firmware"
 #define PRINTENV_ACTIVE_SYSTEM_CMD		"fw_printenv -n active_system"
+#define CHECK_IS_NAND_DEVICE_CMD		"grep -qs mtd /proc/mtd"
 
 /*------------------------------------------------------------------------------
                  D A T A    T Y P E S    D E F I N I T I O N S
@@ -371,8 +372,7 @@ static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 	}
 
 	if (cc_cfg->dualboot && cc_cfg->on_the_fly) {
-		char proc_path[256] = {0};
-		struct stat stats;
+		char system_to_update[256] = {0};
 		int active_system_len = 7;
 		char *resp = NULL;
 		char *active_system = NULL;
@@ -394,33 +394,40 @@ static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 				log_error("Error getting active system: %s", resp);
 			else
 				log_error("%s: Error getting active system", __func__);
-			free(resp);
 			retval = -1;
 		} else {
 			/* Read active system */
 			active_system = trim(resp);
 			log_fw_debug("Active system detected: '%s'", active_system);
 
-			/* Detect storage media */
-			sprintf(proc_path, "%s", "/proc/mtd");
-			stat(proc_path, &stats);
-			/* On eMMC devices the size will be zero */
-			if (stats.st_size != 0) {
-				strncpy(req.software_set, "mtd" , sizeof(req.software_set) - 1);
+			/* Detect storage media, on eMMC devices the response will be 1*/
+			if (ldx_process_execute_cmd(CHECK_IS_NAND_DEVICE_CMD, NULL, 2) == 0) {
+				strncpy(req.software_set, "mtd" , sizeof(req.software_set) -1);
 			} else {
 				strncpy(req.software_set, "mmc" , sizeof(req.software_set) - 1);
 			}
+			log_fw_debug("Is a %s device", req.software_set);
 
-			/* Detect active system */
+			/* Detect active system & save the partition to umount */
 			if (!strncmp(active_system, "linux_a", active_system_len)) {
 				strncpy(req.running_mode, "secondary" , sizeof(req.running_mode) -1);
+				sprintf(system_to_update, "%s", "umount /mnt/linux_b > /dev/null");
 			} else {
 				strncpy(req.running_mode, "primary" , sizeof(req.running_mode) - 1);
+				sprintf(system_to_update, "%s", "umount /mnt/linux_a > /dev/null");
 			}
-			retval = swupdate_async_start(read_image, print_status, end_on_the_fly, &req, sizeof(req));
 
-			free(resp);
+			log_fw_debug("Selected %s partition to update", req.running_mode);
+
+			/* We don't care about the result of the command, it will fail
+			if the partition is already umount, for example in the scenario
+			when a first update fails, and we perform a retry */
+			ldx_process_execute_cmd(system_to_update, NULL, 2);
+
+			retval = swupdate_async_start(read_image, print_status, end_on_the_fly, &req, sizeof(req));
 		}
+
+		free(resp);
 
 		/* Return if we've hit an error scenario */
 		if (retval < 0) {
