@@ -64,6 +64,7 @@
 #define FW_UPDATE_CMD				"update-firmware"
 #define PRINTENV_ACTIVE_SYSTEM_CMD		"fw_printenv -n active_system"
 #define CHECK_IS_NAND_DEVICE_CMD		"grep -qs mtd /proc/mtd"
+#define PRINTENV_IS_DUAL_BOOT_CMD		"fw_printenv -n dualboot"
 
 /*------------------------------------------------------------------------------
                  D A T A    T Y P E S    D E F I N I T I O N S
@@ -176,6 +177,7 @@ static int check_manifest_fragments(cfg_t *manifest_cfg, cfg_opt_t *opt);
 static int check_manifest_name(cfg_t *manifest_cfg, cfg_opt_t *opt);
 static int check_manifest_checksum(cfg_t *manifest_cfg, cfg_opt_t *opt);
 static int check_manifest_src_dir(cfg_t *manifest_cfg, cfg_opt_t *opt);
+static int is_dual_boot_system(void);
 
 /*------------------------------------------------------------------------------
                          G L O B A L  V A R I A B L E S
@@ -195,6 +197,7 @@ static bool otf_data_chunk_ready = false;
 static int otf_chunk_size;
 static int otf_last_chunk_size = 0;
 static bool otf_update_successful = false;
+static int is_dual = -1;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
@@ -371,7 +374,7 @@ static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 		return CCAPI_FW_REQUEST_ERROR_ENCOUNTERED_ERROR;
 	}
 
-	if (cc_cfg->dualboot && cc_cfg->on_the_fly) {
+	if (is_dual_boot_system() && cc_cfg->on_the_fly) {
 		char system_to_update[256] = {0};
 		int active_system_len = 7;
 		char *resp = NULL;
@@ -493,7 +496,7 @@ static ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t 
 
 	log_fw_debug("Received chunk: target=%d offset=0x%x length=%zu last_chunk=%d", target, offset, size, last_chunk);
 
-	if (cc_cfg->dualboot && cc_cfg->on_the_fly) {
+	if (is_dual_boot_system() && cc_cfg->on_the_fly) {
 		log_fw_debug("Get data package from Remote Manager %d", target);
 		otf_chunk_size = size;
 		memcpy(otf_buffer, data, otf_chunk_size);
@@ -620,7 +623,7 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 
 	*system_reset = CCAPI_FALSE;
 
-	if (cc_cfg->dualboot) {
+	if (is_dual_boot_system()) {
 		if (cc_cfg->on_the_fly){
 			char *resp = NULL;
 
@@ -649,7 +652,7 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 
 	log_fw_info("Rebooting in %d seconds", reboot_timeout);
 
-	if (cc_cfg->dualboot && cc_cfg->on_the_fly) {
+	if (is_dual_boot_system() && cc_cfg->on_the_fly) {
 		sync();
 		fflush(stdout);
 		sleep(reboot_timeout);
@@ -675,7 +678,7 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 {
 	ccapi_fw_data_error_t error = CCAPI_FW_DATA_ERROR_NONE;
 
-	if (cc_cfg->dualboot) {
+	if (is_dual_boot_system()) {
 		char cmd[CMD_BUFSIZE] = {0};
 		char line[LINE_BUFSIZE] = {0};
 		FILE *fp;
@@ -1405,4 +1408,31 @@ static int check_manifest_src_dir(cfg_t *manifest_cfg, cfg_opt_t *opt)
 	}
 
 	return 0;
+}
+
+/*
+ * is_dual_boot_system() - Check if the system is dual boot
+ *
+ * @return: 1 if dual system capable, 0 if not, and -1 on failure
+ */
+static int is_dual_boot_system(void)
+{
+	char *resp = NULL;
+
+	if (is_dual != -1)
+		return is_dual;
+
+	if (ldx_process_execute_cmd(PRINTENV_IS_DUAL_BOOT_CMD, &resp, 2) != 0 || resp == NULL) {
+		if (resp != NULL)
+			log_error("Error getting dualboot system info: %s", resp);
+		else
+			log_error("%s: Error getting dualboot system info", __func__);
+
+		is_dual = -1;
+	} else {
+		is_dual = !strcmp(trim(resp), "yes");
+	}
+	free(resp);
+
+	return is_dual;
 }
