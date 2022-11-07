@@ -111,7 +111,10 @@ static int add_registered_target(const request_data_t *target)
 		active_requests.max_size = new_max_size;
 	}
 
-	active_requests.array[active_requests.size++] = *target;
+	active_requests.array[active_requests.size].target = strdup(target->target);
+	if (active_requests.array[active_requests.size].target == NULL)
+		return -1;
+	active_requests.array[active_requests.size++].port = target->port;
 
 	return 0;
 }
@@ -314,7 +317,6 @@ static ccapi_receive_error_t unregister_target(const char *target)
 static int register_device_request(int fd, const request_data_t *req_data)
 {
 	int result = 0;
-	bool target_used = false;
 	request_data_t *previously_registered_req = NULL;
 	ccapi_receive_error_t status = ccapi_receive_add_target(req_data->target, device_request, device_request_done, CCAPI_RECEIVE_NO_LIMIT);
 
@@ -343,15 +345,10 @@ static int register_device_request(int fd, const request_data_t *req_data)
 			if (fd >= 0)
 				send_error(fd, "Could not register device request, out of memory");
 			result = -1;
-		} else {
-			target_used = true;
 		}
 	}
 
 exit:
-	if(!target_used)
-		free(req_data->target);
-
 	return result;
 }
 
@@ -452,8 +449,8 @@ int import_devicerequests(const char *file_path)
 		temp_string[string_len] = '\0';
 		temp.target = temp_string;
 
-		if (register_device_request(-1, &temp))
-			free(temp_string);
+		register_device_request(-1, &temp);
+		free(temp_string);
 	}
 
 out:

@@ -253,9 +253,6 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 			free(pfd);
 			goto done;
 		}
-#if (defined APP_SSL)
-		ssl_info->sfd = pfd;
-#endif
 
 		{
 			ccimp_os_system_up_time_t uptime;
@@ -266,6 +263,10 @@ ccimp_status_t ccimp_network_tcp_open(ccimp_network_open_t *const data)
 		if (status != CCIMP_STATUS_OK)
 			goto error;
 	}
+
+#if (defined APP_SSL)
+	ssl_info->sfd = pfd;
+#endif
 
 	/* Get socket info of connected interface */
 	interface_addr_len = sizeof interface_addr;

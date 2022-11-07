@@ -127,7 +127,7 @@ int start_monitoring(void)
 	cb_data.num_samples_upload = 2;
 
 	if (ldx_gpio_start_wait_interrupt(cb_data.button, &button_interrupt_cb, &cb_data) != EXIT_SUCCESS) {
-		log_mon_error("Error initalizing app monitor: Unable to capture %s interrupts", USER_BUTTON_ALIAS);
+		log_mon_error("Error initializing app monitor: Unable to capture %s interrupts", USER_BUTTON_ALIAS);
 		goto error;
 	}
 
@@ -263,12 +263,9 @@ static void add_button_sample(button_cb_data_t *data)
 	ccapi_dp_get_collection_points_count(data->dp_collection, &count);
 	if (count >= data->num_samples_upload) {
 		log_mon_debug("Sending %s samples", USER_BUTTON_ALIAS);
-
 		dp_error = ccapi_dp_send_collection(CCAPI_TRANSPORT_TCP, data->dp_collection);
-		if (dp_error != CCAPI_DP_ERROR_NONE) {
+		if (dp_error != CCAPI_DP_ERROR_NONE)
 			log_mon_error("Error sending monitor samples, %d", dp_error);
-			ccapi_dp_get_collection_points_count(data->dp_collection, &count);
-		}
 	}
 }
 

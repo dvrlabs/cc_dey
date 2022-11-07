@@ -744,6 +744,7 @@ static void add_sys_samples(ccapi_timestamp_t timestamp)
 static void add_net_samples(ccapi_timestamp_t timestamp)
 {
 	net_state_t net_state;
+	net_stats_t stats;
 	char *iface_name = NULL;
 	int i;
 
@@ -751,7 +752,6 @@ static void add_net_samples(ccapi_timestamp_t timestamp)
 		char desc[50] = {0};
 		unsigned long long value = 0;
 		ccapi_dp_error_t dp_error;
-		net_stats_t stats;
 		stream_t stream = net_stream_list.streams[i];
 
 		if (iface_name == NULL || strcmp(iface_name, stream.name) != 0) {
