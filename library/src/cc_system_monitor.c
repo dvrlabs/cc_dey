@@ -39,6 +39,8 @@
 
 #define MAX_LENGTH					256
 
+#define MAX_DP_IN_COLLECTION		250
+
 #define SYSTEM_MONITOR_TAG			"SYSMON:"
 
 #define BLUETOOTH_INTERFACE			"hci0"
@@ -358,6 +360,12 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 		add_samples();
 
 		ccapi_dp_get_collection_points_count(dp_collection, &count);
+		while (count > MAX_DP_IN_COLLECTION) {
+			log_sm_debug("%s", "Removing old data points...");
+			ccapi_dp_remove_older_data_point_from_streams(dp_collection);
+			ccapi_dp_get_collection_points_count(dp_collection, &count);
+		}
+
 		if (count >= n_samples_to_send && !stop_requested) {
 			ccapi_dp_error_t dp_error;
 
