@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022 Digi International Inc.
+ * Copyright (c) 2017-2023 Digi International Inc.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -519,10 +519,10 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
 	SSL_load_error_strings();
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	ssl_ptr->ctx = SSL_CTX_new(TLS_client_method());
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+	ssl_ptr->ctx = SSL_CTX_new(TLSv1_2_client_method());
 #else
-	ssl_ptr->ctx = SSL_CTX_new(TLSv1_client_method());
+	ssl_ptr->ctx = SSL_CTX_new(TLS_client_method());
 #endif
 	if (ssl_ptr->ctx == NULL) {
 		log_error("Error setting up SSL connection: %s", "SSL context is NULL");
@@ -530,13 +530,28 @@ static int app_ssl_connect(app_ssl_t *const ssl_ptr)
 		goto error;
 	}
 
-#if (OPENSSL_VERSION_NUMBER > 0x30000000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
 	/*
-	* We need to relax what ciphers are allowed with openssl-3.0 so
-	* that we do not break RM. In the near future they will support
-	* only modern ciphers and we can remove this.
-	*/
+	 * We need to relax what ciphers are allowed with openssl-3.0 so
+	 * that we do not break RM. In the near future they will support
+	 * only modern ciphers and we can remove this.
+	 */
 	SSL_CTX_set_security_level(ssl_ptr->ctx, 0);
+#endif
+
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+	if (!SSL_CTX_set_min_proto_version(ssl_ptr->ctx, TLS1_2_VERSION)) {
+		log_error("Failed to set the minimum protocol version 0x%X",
+			 TLS1_2_VERSION);
+		goto error; /* FAILED */
+	}
+#if 0 /* do not enforce an upper bound,  left as an example only */
+	if (!SSL_CTX_set_max_proto_version(ssl_ptr->ctx, TLS1_3_VERSION)) {
+		log_error("Failed to set the maximum protocol version 0x%X",
+			 TLS1_3_VERSION);
+		goto error; /* FAILED */
+	}
+#endif
 #endif
 
 #ifdef CCIMP_CLIENT_CERTIFICATE_CAP_ENABLED
