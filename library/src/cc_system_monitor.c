@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022 Digi International Inc.
+ * Copyright (c) 2017-2023 Digi International Inc.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -17,7 +17,9 @@
  * ===========================================================================
  */
 
+#ifdef ENABLE_BT
 #include <libdigiapix/bluetooth.h>
+#endif /* ENABLE_BT */
 #include <libdigiapix/network.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -43,7 +45,9 @@
 
 #define SYSTEM_MONITOR_TAG			"SYSMON:"
 
+#ifdef ENABLE_BT
 #define BLUETOOTH_INTERFACE			"hci0"
+#endif /* ENABLE_BT */
 
 #define METRIC_FREE_MEMORY			"free_memory"
 #define METRIC_USED_MEMORY			"used_memory"
@@ -117,11 +121,13 @@ static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg);
 static ccapi_dp_error_t init_iface_streams(const char *const iface_name, stream_list_t *stream_list, const cc_cfg_t *const cc_cfg);
 static ccapi_dp_error_t init_sys_streams(const cc_cfg_t *const cc_cfg);
 static ccapi_dp_error_t init_net_streams(const cc_cfg_t *const cc_cfg);
-static ccapi_dp_error_t init_bt_streams(const cc_cfg_t *const cc_cfg);
 static void add_samples(void);
 static void add_sys_samples(ccapi_timestamp_t timestamp);
 static void add_net_samples(ccapi_timestamp_t timestamp);
+#ifdef ENABLE_BT
+static ccapi_dp_error_t init_bt_streams(const cc_cfg_t *const cc_cfg);
 static void add_bt_samples(ccapi_timestamp_t timestamp);
+#endif /* ENABLE_BT */
 static ccapi_timestamp_t *get_timestamp(void);
 static double get_free_memory(void);
 static double get_used_memory(void);
@@ -173,7 +179,9 @@ static volatile ccapi_bool_t dp_thread_valid = CCAPI_FALSE;
 static pthread_t dp_thread;
 static ccapi_dp_collection_handle_t dp_collection;
 static unsigned long long last_work = 0, last_total = 0;
+#ifdef ENABLE_BT
 static stream_list_t bt_stream_list;
+#endif /* ENABLE_BT */
 static stream_list_t net_stream_list;
 static stream_list_t sys_stream_list;
 static stream_t net_stream_formats[] = {
@@ -308,7 +316,9 @@ void stop_system_monitor(void)
 
 	free_stream_list(&sys_stream_list);
 	free_stream_list(&net_stream_list);
+#ifdef ENABLE_BT
 	free_stream_list(&bt_stream_list);
+#endif /* ENABLE_BT */
 	ccapi_dp_destroy_collection(dp_collection);
 
 	log_sm_info("%s", "Stop monitoring the system");
@@ -352,7 +362,10 @@ static void system_monitor_loop(const cc_cfg_t *const cc_cfg)
 	log_sm_info("%s", "Start monitoring the system");
 
 	while (!stop_requested) {
-		uint32_t n_samples_to_send = (sys_stream_list.n_streams + net_stream_list.n_streams + bt_stream_list.n_streams) * cc_cfg->sys_mon_num_samples_upload;
+		uint32_t n_samples_to_send = (sys_stream_list.n_streams + net_stream_list.n_streams) * cc_cfg->sys_mon_num_samples_upload;
+#ifdef ENABLE_BT
+		n_samples_to_send += bt_stream_list.n_streams * cc_cfg->sys_mon_num_samples_upload;
+#endif /* ENABLE_BT */
 		long n_loops = cc_cfg->sys_mon_sample_rate * 1000 / LOOP_MS;
 		uint32_t count = 0;
 		long loop;
@@ -435,6 +448,7 @@ static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg)
 		return dp_error;
 	}
 
+#ifdef ENABLE_BT
 	/* Initialize bluetooth interface metrics streams. */
 	dp_error = init_bt_streams(cc_cfg);
 	if (dp_error != CCAPI_DP_ERROR_NONE) {
@@ -442,6 +456,7 @@ static ccapi_dp_error_t init_system_monitor(const cc_cfg_t *const cc_cfg)
 		free_stream_list(&net_stream_list);
 		return dp_error;
 	}
+#endif /* ENABLE_BT */
 
 	return dp_error;
 }
@@ -559,6 +574,7 @@ error:
 	return dp_error;
 }
 
+#ifdef ENABLE_BT
 /*
  * init_bt_streams() - Add the bluetooth interface data point streams to
  *                     collection
@@ -588,6 +604,7 @@ static ccapi_dp_error_t init_bt_streams(const cc_cfg_t *const cc_cfg)
 
 	return dp_error;
 }
+#endif /* ENABLE_BT */
 
 /*
  * init_iface_streams() - Add to collection the given interface data point streams
@@ -681,7 +698,9 @@ static void add_samples(void)
 
 	add_net_samples(*timestamp);
 
+#ifdef ENABLE_BT
 	add_bt_samples(*timestamp);
+#endif /* ENABLE_BT */
 
 	free_timestamp(timestamp);
 }
@@ -796,6 +815,7 @@ static void add_net_samples(ccapi_timestamp_t timestamp)
 	}
 }
 
+#ifdef ENABLE_BT
 /*
  * add_bt_samples() - Add Bluetooth interface RX and TX bytes values to the
  *                    data point collection
@@ -850,6 +870,7 @@ static void add_bt_samples(ccapi_timestamp_t timestamp)
 			log_sm_debug("%s%s = %llu %s", stream.name, desc, value, stream.units);
 	}
 }
+#endif /* ENABLE_BT */
 
 /*
  * get_timestamp() - Get the current timestamp of the system

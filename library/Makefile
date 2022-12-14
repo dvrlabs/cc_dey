@@ -1,5 +1,5 @@
 # ***************************************************************************
-# Copyright (c) 2017-2022 Digi International Inc.
+# Copyright (c) 2017-2023 Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -69,6 +69,10 @@ CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
 # Include Platform Header Files.
 CFLAGS += -I $(MINIUNZ_DIR) -I $(PLATFORM_DIR)
 CFLAGS += $(shell pkg-config --cflags recovery)
+
+ifeq ($(CONFIG_DISABLE_BT),)
+CFLAGS += -DENABLE_BT
+endif
 
 CFLAGS += -g -O
 
