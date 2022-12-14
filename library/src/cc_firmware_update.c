@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022 Digi International Inc.
+ * Copyright (c) 2017-2023 Digi International Inc.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -62,9 +62,6 @@
 #define LINE_BUFSIZE				255
 #define CMD_BUFSIZE				255
 #define FW_UPDATE_CMD				"update-firmware"
-#define PRINTENV_ACTIVE_SYSTEM_CMD		"fw_printenv -n active_system"
-#define CHECK_IS_NAND_DEVICE_CMD		"grep -qs mtd /proc/mtd"
-#define PRINTENV_IS_DUAL_BOOT_CMD		"fw_printenv -n dualboot"
 
 /*------------------------------------------------------------------------------
                  D A T A    T Y P E S    D E F I N I T I O N S
@@ -392,7 +389,7 @@ static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 		/* Prepare request structure */
 		swupdate_prepare_req(&req);
 
-		if (ldx_process_execute_cmd(PRINTENV_ACTIVE_SYSTEM_CMD, &resp, 2) != 0 || resp == NULL) {
+		if (ldx_process_execute_cmd("fw_printenv -n active_system", &resp, 2) != 0 || resp == NULL) {
 			if (resp != NULL)
 				log_error("Error getting active system: %s", resp);
 			else
@@ -404,7 +401,7 @@ static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 			log_fw_debug("Active system detected: '%s'", active_system);
 
 			/* Detect storage media, on eMMC devices the response will be 1*/
-			if (ldx_process_execute_cmd(CHECK_IS_NAND_DEVICE_CMD, NULL, 2) == 0) {
+			if (ldx_process_execute_cmd("grep -qs mtd /proc/mtd", NULL, 2) == 0) {
 				strncpy(req.software_set, "mtd" , sizeof(req.software_set) -1);
 			} else {
 				strncpy(req.software_set, "mmc" , sizeof(req.software_set) - 1);
@@ -1422,7 +1419,7 @@ static int is_dual_boot_system(void)
 	if (is_dual != -1)
 		return is_dual;
 
-	if (ldx_process_execute_cmd(PRINTENV_IS_DUAL_BOOT_CMD, &resp, 2) != 0 || resp == NULL) {
+	if (ldx_process_execute_cmd("fw_printenv -n dualboot", &resp, 2) != 0 || resp == NULL) {
 		if (resp != NULL)
 			log_error("Error getting dualboot system info: %s", resp);
 		else
