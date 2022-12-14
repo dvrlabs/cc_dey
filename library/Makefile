@@ -21,6 +21,8 @@ CC ?= gcc
 
 # Generated Library name.
 NAME := cloudconnector
+MAJOR_VERSION := 1
+MINOR_VERSION := 0
 
 # Location of Source Code.
 SRC = src
@@ -40,7 +42,7 @@ CCFSM_PUBLIC_HEADER_DIR = $(CCFSM_DIR)/public/include
 CCAPI_PUBLIC_HEADER_DIR = $(CCAPI_DIR)/include
 CUSTOM_PUBLIC_HEADER_DIR = $(SRC)/custom
 CUSTOM_CCFSM_PUBLIC_HEADER_DIR = $(CCAPI_DIR)/source/cc_ansic_custom_include
-INSTALL_HEADERS_DIR = /usr/include/cloudconnector
+INSTALL_HEADERS_DIR = /usr/include/$(NAME)
 
 # Location of Platform Source Code.
 PLATFORM_DIR = $(SRC)/ccimp
@@ -70,9 +72,11 @@ CFLAGS += -I $(CCAPI_PUBLIC_HEADER_DIR) -I $(CUSTOM_PUBLIC_HEADER_DIR)
 CFLAGS += -I $(MINIUNZ_DIR) -I $(PLATFORM_DIR)
 ifeq ($(CONFIG_DISABLE_RECOVERY_UPDATE),)
 CFLAGS += -DENABLE_RECOVERY_UPDATE $(shell pkg-config --cflags recovery)
+PC_REQUIRES_PRIVATE += recovery
 endif
 ifeq ($(CONFIG_DISABLE_ONTHEFLY_UPDATE),)
 CFLAGS += -DENABLE_ONTHEFLY_UPDATE
+PC_LIBS_PRIVATE += -lswupdate
 endif
 
 ifeq ($(CONFIG_DISABLE_BT),)
@@ -95,7 +99,26 @@ OBJS = $(SRCS:.c=.o)
 .PHONY: all
 all: lib$(NAME).a
 
+define PC_CONTENTS
+prefix=/usr
+exec_prefix=$${prefix}
+libdir=$${exec_prefix}/lib
+includedir=$${prefix}/include
+
+Name: $(NAME)
+Description: Cloud Connector library
+Version: $(MAJOR_VERSION).$(MINOR_VERSION)
+
+Requires.private: libconfuse openssl zlib $(PC_REQUIRES_PRIVATE)
+Libs: -L$${libdir} -l$(NAME)
+Libs.private: -lpthread -lutil $(PC_LIBS_PRIVATE)
+Cflags: -I$${includedir}/$(NAME) -I$${includedir}
+endef
+
+export PC_CONTENTS
+
 lib$(NAME).a: $(OBJS)
+	echo "$$PC_CONTENTS" >$(NAME).pc
 	$(AR) -rcs $@ $^
 
 .PHONY: install
@@ -103,7 +126,7 @@ install: lib$(NAME).a
 	# Install library and pkg-config file
 	install -d $(DESTDIR)/usr/lib/pkgconfig
 	install -m 0644 lib$(NAME).a $(DESTDIR)/usr/lib/
-	install -m 0644 cloudconnector.pc $(DESTDIR)/usr/lib/pkgconfig/
+	install -m 0644 $(NAME).pc $(DESTDIR)/usr/lib/pkgconfig/
 	# Install header files
 	install -d $(DESTDIR)$(INSTALL_HEADERS_DIR)/ccapi/ \
 		  $(DESTDIR)$(INSTALL_HEADERS_DIR)/custom/ \
@@ -119,4 +142,4 @@ install: lib$(NAME).a
 
 .PHONY: clean
 clean:
-	-rm -f *.so* lib$(NAME).a $(OBJS)
+	-rm -f *.so* lib$(NAME).a $(NAME).pc $(OBJS)
