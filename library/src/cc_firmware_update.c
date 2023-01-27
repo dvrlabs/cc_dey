@@ -22,7 +22,9 @@
 #include <libdigiapix/process.h>
 #include <miniunz/unzip.h>
 #include <pthread.h>
+#ifdef ENABLE_RECOVERY_UPDATE
 #include <recovery.h>
+#endif /* ENABLE_RECOVERY_UPDATE */
 #include <stdio.h>
 #include <sys/reboot.h>
 #include <sys/stat.h>
@@ -36,8 +38,10 @@
 #include "string_utils.h"
 
 /* Swupdate support */
+#ifdef ENABLE_ONTHEFLY_UPDATE
 #include <swupdate_status.h>
 #include <network_ipc.h>
+#endif /* ENABLE_ONTHEFLY_UPDATE */
 
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
@@ -158,7 +162,6 @@ static void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t 
 static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t * system_reset, ccapi_firmware_target_version_t * version);
 static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int target);
 static int generate_manifest_firmware(const char* manifest_path, int target);
-static void *reboot_threaded(void *reboot_timeout);
 static int parse_manifest(const char *const manifest_path, firmware_info_t *fw_info);
 static int get_fw_path(firmware_info_t *fw_info);
 static int get_fragments(firmware_info_t *fw_info);
@@ -183,8 +186,11 @@ static int is_dual_boot_system(void);
 extern cc_cfg_t *cc_cfg;
 static FILE *fw_fp = NULL;
 static char *fw_downloaded_path = NULL;
+#ifdef ENABLE_RECOVERY_UPDATE
 static pthread_t reboot_thread;
+#endif /* ENABLE_RECOVERY_UPDATE */
 
+#ifdef ENABLE_ONTHEFLY_UPDATE
 /* Swupdate on the fly variables */
 static char otf_buffer[WRITE_BUFFER_SIZE];
 static int otf_end_status = EXIT_SUCCESS;
@@ -195,11 +201,32 @@ static bool otf_data_chunk_ready = false;
 static int otf_chunk_size;
 static int otf_last_chunk_size = 0;
 static bool otf_update_successful = false;
+#endif /* ENABLE_ONTHEFLY_UPDATE */
 static int is_dual = -1;
 
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+#ifdef ENABLE_RECOVERY_UPDATE
+/*
+ * reboot_threaded() - Perform the reboot in a new thread
+ *
+ * @reboot_timeout:	Timeout in seconds.
+ */
+static void *reboot_threaded(void *reboot_timeout)
+{
+	unsigned int timeout = *((unsigned int *)reboot_timeout);
+
+	if (reboot_recovery(timeout))
+		log_fw_error("%s", "Error rebooting in recovery mode");
+
+	pthread_exit(NULL);
+
+	return NULL;
+}
+#endif /* ENABLE_RECOVERY_UPDATE */
+
+#ifdef ENABLE_ONTHEFLY_UPDATE
 /*
  * otf_read_image_cb() - Swupdate callback to read a new chunk of the on the fly image
  *
@@ -283,6 +310,7 @@ static int otf_end_cb(RECOVERY_STATUS status)
 
 	return 0;
 }
+#endif /* ENABLE_ONTHEFLY_UPDATE */
 
 /*
  * init_fw_service() - Initialization of firmware service
@@ -294,6 +322,12 @@ static int otf_end_cb(RECOVERY_STATUS status)
  */
 int init_fw_service(const char * const fw_version, ccapi_fw_service_t **fw_service)
 {
+#if !defined(ENABLE_RECOVERY_UPDATE) || !defined(ENABLE_ONTHEFLY_UPDATE)
+	UNUSED_ARGUMENT(fw_version);
+	*fw_service = NULL;
+
+	return 0;
+#else /* !ENABLE_RECOVERY_UPDATE || !ENABLE_ONTHEFLY_UPDATE */
 	uint8_t version[4];
 	ccapi_firmware_target_t *fw_list = NULL;
 
@@ -344,6 +378,7 @@ int init_fw_service(const char * const fw_version, ccapi_fw_service_t **fw_servi
 	(*fw_service)->callback.cancel = app_fw_cancel_cb;
 
 	return 0;
+#endif /* !ENABLE_RECOVERY_UPDATE || !ENABLE_ONTHEFLY_UPDATE */
 }
 
 /*
@@ -371,6 +406,7 @@ static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 		return CCAPI_FW_REQUEST_ERROR_ENCOUNTERED_ERROR;
 	}
 
+#ifdef ENABLE_ONTHEFLY_UPDATE
 	if (is_dual_boot_system() && cc_cfg->on_the_fly) {
 		char system_to_update[256] = {0};
 		int active_system_len = 7;
@@ -435,7 +471,9 @@ static ccapi_fw_request_error_t app_fw_request_cb(unsigned int const target,
 			pthread_mutex_unlock(&otf_mutex);
 			return CCAPI_FW_REQUEST_ERROR_ENCOUNTERED_ERROR;
 		}
-	} else {
+	} else
+#endif /* ENABLE_ONTHEFLY_UPDATE */
+	{
 		fw_downloaded_path = concatenate_path(cc_cfg->fw_download_path, filename);
 		if (fw_downloaded_path == NULL) {
 			log_fw_error(
@@ -489,10 +527,11 @@ done:
 static ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t offset,
 		void const *const data, size_t size, ccapi_bool_t last_chunk) {
 	ccapi_fw_data_error_t error = CCAPI_FW_DATA_ERROR_NONE;
-	int retval, loops = 0;
+	int retval;
 
 	log_fw_debug("Received chunk: target=%d offset=0x%x length=%zu last_chunk=%d", target, offset, size, last_chunk);
 
+#ifdef ENABLE_ONTHEFLY_UPDATE
 	if (is_dual_boot_system() && cc_cfg->on_the_fly) {
 		log_fw_debug("Get data package from Remote Manager %d", target);
 		otf_chunk_size = size;
@@ -500,6 +539,8 @@ static ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t 
 		otf_data_chunk_ready = true;
 
 		if (last_chunk) {
+			int loops = 0;
+
 			log_fw_debug("Firmware download completed for target '%d'", target);
 			/* End called, unlock and exit */
 			pthread_mutex_lock(&otf_mutex);
@@ -525,7 +566,9 @@ static ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t 
 				error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 			}
 		}
-	} else {
+	} else
+#endif /* ENABLE_ONTHEFLY_UPDATE */
+	{
 		retval = fwrite(data, size, 1, fw_fp);
 		if (retval != 1) {
 			log_fw_error("%s", "Error writing to firmware file");
@@ -613,7 +656,6 @@ static void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t 
 static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_reset, ccapi_firmware_target_version_t *version)
 {
 	unsigned int reboot_timeout = REBOOT_TIMEOUT;
-	int error = 0;
 
 	UNUSED_ARGUMENT(target);
 	UNUSED_ARGUMENT(version);
@@ -621,6 +663,7 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 	*system_reset = CCAPI_FALSE;
 
 	if (is_dual_boot_system()) {
+#ifdef ENABLE_ONTHEFLY_UPDATE
 		if (cc_cfg->on_the_fly){
 			char *resp = NULL;
 
@@ -641,7 +684,9 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 			}
 
 			free(resp);
-		} else {
+		} else
+#endif /* ENABLE_ONTHEFLY_UPDATE */
+		{
 			log_fw_debug("%s", "Dualboot mode does not reboot the system");
 			return;
 		}
@@ -649,19 +694,25 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 
 	log_fw_info("Rebooting in %d seconds", reboot_timeout);
 
-	if (is_dual_boot_system() && cc_cfg->on_the_fly) {
-		sync();
-		fflush(stdout);
-		sleep(reboot_timeout);
-		reboot(RB_AUTOBOOT);
+	if (is_dual_boot_system()) {
+#ifdef ENABLE_ONTHEFLY_UPDATE
+		if (cc_cfg->on_the_fly) {
+			sync();
+			fflush(stdout);
+			sleep(reboot_timeout);
+			reboot(RB_AUTOBOOT);
+		}
+#endif /* ENABLE_ONTHEFLY_UPDATE */
+#ifdef ENABLE_RECOVERY_UPDATE
 	} else {
-		error = pthread_create(&reboot_thread, NULL, reboot_threaded,
+		int error = pthread_create(&reboot_thread, NULL, reboot_threaded,
 				&reboot_timeout);
 		if (error) {
 			/* If we cannot create the thread just reboot. */
 			if (reboot_recovery(reboot_timeout))
 				log_fw_error("%s", "Error rebooting in recovery mode");
 		}
+#endif /* ENABLE_RECOVERY_UPDATE */
 	}
 }
 
@@ -700,6 +751,7 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 			/* close the process */
 			pclose(fp);
 		}
+#ifdef ENABLE_RECOVERY_UPDATE
 	} else {
 		if (update_firmware(swu_path)) {
 			log_fw_error(
@@ -707,6 +759,7 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 					swu_path, target);
 			error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 		}
+#endif /* ENABLE_RECOVERY_UPDATE */
 	}
 
 	return error;
@@ -794,23 +847,6 @@ done:
 	free_fw_info(&fw_info);
 
 	return error;
-}
-
-/*
- * reboot_threaded() - Perform the reboot in a new thread
- *
- * @reboot_timeout:	Timeout in seconds.
- */
-static void *reboot_threaded(void *reboot_timeout)
-{
-	unsigned int timeout = *((unsigned int *)reboot_timeout);
-
-	if (reboot_recovery(timeout))
-		log_fw_error("%s", "Error rebooting in recovery mode");
-
-	pthread_exit(NULL);
-
-	return NULL;
 }
 
 /*
