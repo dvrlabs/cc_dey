@@ -68,7 +68,8 @@
 ------------------------------------------------------------------------------*/
 typedef enum {
 	CC_FW_TARGET_SWU,
-	CC_FW_TARGET_MANIFEST
+	CC_FW_TARGET_MANIFEST,
+	__CC_FW_TARGET_LAST,
 } cc_fw_target_t;
 
 /*
@@ -294,7 +295,6 @@ static int end_on_the_fly(RECOVERY_STATUS status)
 int init_fw_service(const char * const fw_version, ccapi_fw_service_t **fw_service)
 {
 	uint8_t version[4];
-	uint8_t n_targets = 2;
 	ccapi_firmware_target_t *fw_list = NULL;
 
 	*fw_service = NULL;
@@ -309,7 +309,7 @@ int init_fw_service(const char * const fw_version, ccapi_fw_service_t **fw_servi
 		return 0;
 	}
 
-	fw_list = calloc(n_targets, sizeof(*fw_list));
+	fw_list = calloc(__CC_FW_TARGET_LAST, sizeof(*fw_list));
 	*fw_service = calloc(1, sizeof(**fw_service));
 	if (fw_list == NULL || *fw_service == NULL) {
 		log_error("Error initilizing Cloud connection: %s", "Out of memory");
@@ -317,25 +317,25 @@ int init_fw_service(const char * const fw_version, ccapi_fw_service_t **fw_servi
 		return 1;
 	}
 
-	fw_list[0].chunk_size = FW_SWU_CHUNK_SIZE;
-	fw_list[0].description = "System";
-	fw_list[0].filespec = ".*\\.[sS][wW][uU]";
-	fw_list[0].maximum_size = 0;
-	fw_list[0].version.major = version[0];
-	fw_list[0].version.minor = version[1];
-	fw_list[0].version.revision = version[2];
-	fw_list[0].version.build = version[3];
+	fw_list[CC_FW_TARGET_SWU].chunk_size = FW_SWU_CHUNK_SIZE;
+	fw_list[CC_FW_TARGET_SWU].description = "System";
+	fw_list[CC_FW_TARGET_SWU].filespec = ".*\\.[sS][wW][uU]";
+	fw_list[CC_FW_TARGET_SWU].maximum_size = 0;
+	fw_list[CC_FW_TARGET_SWU].version.major = version[0];
+	fw_list[CC_FW_TARGET_SWU].version.minor = version[1];
+	fw_list[CC_FW_TARGET_SWU].version.revision = version[2];
+	fw_list[CC_FW_TARGET_SWU].version.build = version[3];
 
-	fw_list[1].chunk_size = 0;
-	fw_list[1].description = "Update manifest";
-	fw_list[1].filespec = "[mM][aA][nN][iI][fF][eE][sS][tT]\\.[tT][xX][tT]";
-	fw_list[1].maximum_size = 0;
-	fw_list[1].version.major = version[0];
-	fw_list[1].version.minor = version[1];
-	fw_list[1].version.revision = version[2];
-	fw_list[1].version.build = version[3];
+	fw_list[CC_FW_TARGET_MANIFEST].chunk_size = 0;
+	fw_list[CC_FW_TARGET_MANIFEST].description = "Update manifest";
+	fw_list[CC_FW_TARGET_MANIFEST].filespec = "[mM][aA][nN][iI][fF][eE][sS][tT]\\.[tT][xX][tT]";
+	fw_list[CC_FW_TARGET_MANIFEST].maximum_size = 0;
+	fw_list[CC_FW_TARGET_MANIFEST].version.major = version[0];
+	fw_list[CC_FW_TARGET_MANIFEST].version.minor = version[1];
+	fw_list[CC_FW_TARGET_MANIFEST].version.revision = version[2];
+	fw_list[CC_FW_TARGET_MANIFEST].version.build = version[3];
 
-	(*fw_service)->target.count = n_targets;
+	(*fw_service)->target.count = __CC_FW_TARGET_LAST;
 	(*fw_service)->target.item = fw_list;
 
 	(*fw_service)->callback.request = app_fw_request_cb;
