@@ -160,7 +160,7 @@ static void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t 
 static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t * system_reset, ccapi_firmware_target_version_t * version);
 static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int target);
 static int generate_manifest_firmware(const char* manifest_path, int target);
-static void *reboot_threaded(void *reboot_timeout);
+static void *reboot_threaded(void *unused);
 static int parse_manifest(const char *const manifest_path, firmware_info_t *fw_info);
 static int get_fw_path(firmware_info_t *fw_info);
 static int get_fragments(firmware_info_t *fw_info);
@@ -615,7 +615,6 @@ static void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t 
  */
 static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_reset, ccapi_firmware_target_version_t *version)
 {
-	unsigned int reboot_timeout = REBOOT_TIMEOUT;
 	int error = 0;
 
 	UNUSED_ARGUMENT(target);
@@ -650,19 +649,18 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 		}
 	}
 
-	log_fw_info("Rebooting in %d seconds", reboot_timeout);
+	log_fw_info("Rebooting in %d seconds", REBOOT_TIMEOUT);
 
 	if (is_dual_boot_system() && cc_cfg->on_the_fly) {
 		sync();
 		fflush(stdout);
-		sleep(reboot_timeout);
+		sleep(REBOOT_TIMEOUT);
 		reboot(RB_AUTOBOOT);
 	} else {
-		error = pthread_create(&reboot_thread, NULL, reboot_threaded,
-				&reboot_timeout);
+		error = pthread_create(&reboot_thread, NULL, reboot_threaded, NULL);
 		if (error) {
 			/* If we cannot create the thread just reboot. */
-			if (reboot_recovery(reboot_timeout))
+			if (reboot_recovery(REBOOT_TIMEOUT))
 				log_fw_error("%s", "Error rebooting in recovery mode");
 		}
 	}
@@ -802,13 +800,13 @@ done:
 /*
  * reboot_threaded() - Perform the reboot in a new thread
  *
- * @reboot_timeout:	Timeout in seconds.
+ * @unused:	Unused parameter.
  */
-static void *reboot_threaded(void *reboot_timeout)
+static void *reboot_threaded(void *unused)
 {
-	unsigned int timeout = *((unsigned int *)reboot_timeout);
+	UNUSED_ARGUMENT(unused);
 
-	if (reboot_recovery(timeout))
+	if (reboot_recovery(REBOOT_TIMEOUT))
 		log_fw_error("%s", "Error rebooting in recovery mode");
 
 	pthread_exit(NULL);
