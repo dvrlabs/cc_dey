@@ -791,8 +791,16 @@ static int generate_manifest_firmware(const char *manifest_path, int target)
 	/* Save firmware package path */
 
 	log_fw_debug("Image was assembly in '%s'", fw_info.file_path);
+	char *tmp = NULL;
+	tmp = calloc(strlen(fw_info.file_path) + 1, sizeof(*tmp));
+	if (tmp == NULL) {
+		log_fw_error("Unable to install software package %s: Out of memory", fw_info.file_path);
+		error = -1;
+		goto done;
+	}
+	free(fw_downloaded_path);
+	fw_downloaded_path = tmp;
 	strcpy(fw_downloaded_path, fw_info.file_path);
-
 done:
 	free_fw_info(&fw_info);
 
