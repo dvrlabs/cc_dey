@@ -1,0 +1,35 @@
+globalerror load_fail "Load fail"
+globalerror save_fail "Save fail"
+globalerror memory_fail "Insufficient memory"
+globalerror reboot_fail "Reboot fail"
+globalerror do_command_fail "Do Command fail"
+globalerror set_factory_default_fail "Set Factory Default fail"
+
+group setting group_1 2 "Group 1"
+    element el_enum "enum element" type enum access read_write
+        value ONE
+        value TWO
+        value THREE
+    element el_uint32 "uint32_t element" type uint32 access read_write  min  5 max  8 
+    element el_on_off "on/off element" type on_off access  read_write 
+    element el_hex "hex32 element" type hex32 access  read_write
+    element el_0xhex "0x_hex32 element" type 0x_hex32 access  read_write 
+    element el_signed "int32 element" type int32 min -100 max 100
+    element el_bool "boolean element" type boolean
+    element el_float "float element" type float    
+    error error_1 "Error 1"
+    error error_2 "Error 2"
+
+group setting group_3 "Group 3"
+    element el_string "string element" type string access  read_write  max 63
+    element el_multiline "multiline element" type multiline_string access  read_write max 127
+    element el_password "password element" type password access write_only max 127
+
+group state group_2 "Group 2"
+    element el_ip "IP element" type ipv4  
+    element el_fqdnv4 "FQDNV4 element" type fqdnv4 max 127
+    element el_fqdnv6 "FQDNV6 element" type fqdnv6
+    element el_mac "mac address" type mac_addr
+    element el_datetime "Current time" type datetime access  read_write
+    error group_2_error_1 "Group 2 Error 1"
+    error group_2_error_2 "Group 2 Error 2"

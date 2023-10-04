@@ -779,7 +779,6 @@ static int generate_manifest_firmware(const char *manifest_path, int target)
 	}
 
 	/* Save firmware package path */
-
 	log_fw_debug("Image was assembly in '%s'", fw_info.file_path);
 	char *tmp = NULL;
 	tmp = calloc(strlen(fw_info.file_path) + 1, sizeof(*tmp));

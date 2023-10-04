@@ -1,0 +1,10 @@
+globalerror load_fail "Load fail"
+globalerror save_fail "Save fail"
+globalerror memory_fail "Insufficient memory"
+
+# TEST CASES for STRING types
+group setting string_types "Test String Types"
+    element test_field_string "Test Field String" type string max 63
+    element test_field_multiline_string "Test Field Multiline String" type multiline_string max 63
+    element test_field_password "Test Field Password" type password max 63
+    error invalid_length "Invalid Length"

@@ -1,0 +1,3 @@
+[submodule "source/cc_ansic"]
+	path = source/cc_ansic
+	url = ../cc_ansic.git
