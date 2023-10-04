@@ -182,7 +182,6 @@ static int check_manifest_src_dir(cfg_t *manifest_cfg, cfg_opt_t *opt);
 extern cc_cfg_t *cc_cfg;
 static FILE *fw_fp = NULL;
 static char *fw_downloaded_path = NULL;
-static pthread_t reboot_thread;
 
 /* Swupdate on the fly variables */
 static char otf_buffer[WRITE_BUFFER_SIZE];
@@ -606,7 +605,6 @@ static void app_fw_cancel_cb(unsigned int const target, ccapi_fw_cancel_error_t 
 static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_reset, ccapi_firmware_target_version_t *version)
 {
 	unsigned int reboot_timeout = REBOOT_TIMEOUT;
-	int error = 0;
 
 	UNUSED_ARGUMENT(target);
 	UNUSED_ARGUMENT(version);
@@ -648,13 +646,9 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 		sleep(reboot_timeout);
 		reboot(RB_AUTOBOOT);
 	} else {
-		error = pthread_create(&reboot_thread, NULL, reboot_threaded,
-				&reboot_timeout);
-		if (error) {
-			/* If we cannot create the thread just reboot. */
-			if (reboot_recovery(reboot_timeout))
-				log_fw_error("%s", "Error rebooting in recovery mode");
-		}
+		log_fw_info("Reached condition for reboot. %d", reboot_timeout);
+		if (reboot_recovery(1)) 
+			log_fw_error("%s", "Error rebooting in recovery mode"); 
 	}
 }
 
