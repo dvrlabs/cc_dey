@@ -23,6 +23,7 @@
 #include <pthread.h>
 #include <recovery.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/reboot.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -197,6 +198,50 @@ static bool otf_update_successful = false;
 /*------------------------------------------------------------------------------
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
+
+/*
+ * readBooleanFromFile() - Reads a boolean value from a text file
+ *
+ * @filename:  Path to the file containing the boolean value.
+ *
+ * This function opens a text file specified by the given filename and reads
+ * the first line, expecting it to be either "true" or "false". It is designed
+ * to read simple configuration files where a boolean value is stored as text.
+ * The function returns TRUE (1) if the file contains "true", FALSE (0) if it
+ * contains "false", and -1 in case of an error or if the file content is
+ * neither "true" nor "false".
+ *
+ * Note: The function will treat any non-empty line that does not exactly match
+ * "true" or "false" (case-sensitive) as an error.
+ */
+int readBooleanFromFile(const char* filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        /* perror("Error opening file"); */
+        return -1; // Indicates an error
+    }
+
+    char buffer[6]; // Enough to store "true" or "false" plus a null terminator
+    if (fgets(buffer, sizeof(buffer), file) == NULL) {
+        /* perror("Error reading file"); */
+        fclose(file);
+        return -1; // Indicates an error
+    }
+    fclose(file);
+
+    // Remove newline character if present
+    buffer[strcspn(buffer, "\n")] = 0;
+
+    if (strcmp(buffer, "true") == 0) {
+        return 1; // True
+    } else if (strcmp(buffer, "false") == 0) {
+        return 0; // False
+    } else {
+        /* fprintf(stderr, "Invalid content in file\n"); */
+        return -1; // Indicates an error or invalid content
+    }
+}
+
 /*
  * read_image() - Swupdate callback to read a new chunk of the on the fly image
  *
@@ -688,11 +733,22 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 			pclose(fp);
 		}
 	} else {
-		if (update_firmware(swu_path)) {
-			log_fw_error(
-					"Error updating firmware using package '%s' for target '%d'",
-					swu_path, target);
+
+	        const char* filename = "/etc/cc_config_download_only.conf";
+	        int result = readBooleanFromFile(filename);
+
+	        if (result == -1) {
+		log_fw_error("Error updating firmware using package '%s'", swu_path);
+		error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+		}
+
+		if (result == 0) {
+		    if (update_firmware(swu_path)) {
+		    	log_fw_error("Error updating firmware using package '%s' for target '%d'", swu_path, target);
 			error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+		    }
+		} else {
+			log_fw_debug("Not updating firmware, cc_config_download_only is set to true.");
 		}
 	}
 
