@@ -748,7 +748,8 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 			error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 		    }
 		} else {
-			log_fw_debug("Not updating firmware, cc_config_download_only is set to true.");
+			log_fw_debug("Not updating firmware, cc_config_download only is set to '%d'",
+					result);
 		}
 	}
 
