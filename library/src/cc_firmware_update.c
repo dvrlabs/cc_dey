@@ -23,6 +23,7 @@
 #include <pthread.h>
 #include <recovery.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/reboot.h>
 #include <sys/stat.h>
@@ -199,6 +200,78 @@ static bool otf_update_successful = false;
                      F U N C T I O N  D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
 
+/**
+ * Copies a file from the source path to the destination path.
+ * @param sourcePath The path of the source file.
+ * @param destPath The path of the destination file.
+ * @return 0 if successful, non-zero otherwise.
+ */
+int copy_file(const char *sourcePath, const char *destPath) {
+    FILE *sourceFile, *destFile;
+    char buffer[1024]; // Buffer to store file content
+    size_t bytesRead;
+
+    // Open the source file
+    sourceFile = fopen(sourcePath, "rb");
+    if (sourceFile == NULL) {
+        perror("Error opening source file");
+        return 1;
+    }
+
+    // Open the destination file
+    destFile = fopen(destPath, "wb");
+    if (destFile == NULL) {
+        perror("Error opening destination file");
+        fclose(sourceFile); // Close source file before exiting
+        return 1;
+    }
+
+    // Copy the file content
+    while ((bytesRead = fread(buffer, 1, sizeof(buffer), sourceFile)) > 0) {
+        fwrite(buffer, 1, bytesRead, destFile);
+    }
+
+    // Close the files
+    fclose(sourceFile);
+    fclose(destFile);
+
+    return 0;
+}
+
+/**
+ * Deletes a file.
+ * @param filePath The path of the file to be deleted.
+ * @return 0 if successful, non-zero otherwise.
+ */
+int delete_file(const char *filePath) {
+    if (remove(filePath) == 0) {
+        return 0; // File successfully deleted
+    } else {
+        perror("Error deleting file");
+        return 1; // Error occurred
+    }
+}
+
+/**
+ * Moves a file from the source path to the destination path.
+ * @param sourcePath The path of the source file.
+ * @param destPath The path of the destination file.
+ * @return 0 if successful, non-zero otherwise.
+ */
+int move_file(const char *sourcePath, const char *destPath) {
+    // First, try to copy the file
+    if (copy_file(sourcePath, destPath) != 0) {
+        return 1; // Copying failed, return error
+    }
+
+    // Copy was successful, now delete the source file
+    if (delete_file(sourcePath) != 0) {
+        return 2; // Deletion failed, return error
+    }
+
+    return 0; // Move was successful
+}
+
 /*
  * readBooleanFromFile() - Reads a boolean value from a text file
  *
@@ -240,6 +313,41 @@ int readBooleanFromFile(const char* filename) {
         /* fprintf(stderr, "Invalid content in file\n"); */
         return -1; // Indicates an error or invalid content
     }
+}
+
+/**
+ * Changes the filename in a given path.
+ * @param buffer The buffer to store the new path.
+ * @param bufferSize The size of the buffer.
+ * @param originalPath The original file path.
+ * @param newFilename The new filename to replace the old one.
+ * @return A pointer to the buffer, or NULL if an error occurs.
+ */
+char* change_filename(char *buffer, size_t bufferSize, const char *originalPath, const char *newFilename) {
+    // Find the last occurrence of '/'
+    const char *lastSlash = strrchr(originalPath, '/');
+    if (lastSlash == NULL) {
+        // The original path does not contain a '/', return NULL
+        return NULL;
+    }
+
+    // Calculate the length of the directory path
+    int dirPathLength = lastSlash - originalPath + 1; // +1 to include the '/'
+
+    // Check if buffer is large enough
+    if (bufferSize < dirPathLength + strlen(newFilename) + 1) {
+        // Buffer is too small, return NULL
+        return NULL;
+    }
+
+    // Copy the directory path
+    strncpy(buffer, originalPath, dirPathLength);
+    buffer[dirPathLength] = '\0'; // Null-terminate the directory path
+
+    // Concatenate the new filename
+    strcat(buffer, newFilename);
+
+    return buffer;
 }
 
 /*
