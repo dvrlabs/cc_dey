@@ -692,8 +692,14 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 		reboot(RB_AUTOBOOT);
 	} else {
 		log_fw_info("Reached condition for reboot. %d", reboot_timeout);
-		if (reboot_recovery(1)) 
-			log_fw_error("%s", "Error rebooting in recovery mode"); 
+
+	        const char* filename = "/etc/cc_config_download_only.conf";
+	        int result = readBooleanFromFile(filename);
+		if (result == 0) {
+		    if (reboot_recovery(1)) log_fw_error("%s", "Error rebooting in recovery mode"); 
+		} else {
+		    log_fw_debug("%s", "Not rebooting, cc_config_download_only is set to true.");
+		}
 	}
 }
 
