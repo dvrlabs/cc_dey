@@ -847,23 +847,42 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 			pclose(fp);
 		}
 	} else {
+		/* 0.  Setup some variables to use. */
 
 	        const char* filename = "/etc/cc_config_download_only.conf";
-	        int result = readBooleanFromFile(filename);
+		const char * new_swu_filename = "UPDATE.swu";
+		char new_swu_path[256];
 
-	        if (result == -1) {
-		log_fw_error("Error updating firmware using package '%s'", swu_path);
-		error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+		/* 1.  Modify the absolute path + file to absolute path + new name */
+
+		if (change_filename(new_swu_path, sizeof(new_swu_path), swu_path, new_swu_filename) != NULL) {
+		    log_fw_debug("New swu path: %s\n", new_swu_path);
+		}
+		else {
+		    log_fw_error("%s", "Error: Could not change the swu filename");
+		    error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 		}
 
-		if (result == 0) {
-		    if (update_firmware(swu_path)) {
-		    	log_fw_error("Error updating firmware using package '%s' for target '%d'", swu_path, target);
+		/* 2. "mv" the file from swu_path to new_swu_path */
+
+		if (move_file(swu_path, new_swu_path) == 0) {
+		    log_fw_debug("Swu file moved successfully to: %s\n", newPath);
+		}
+		else {
+		    log_fw_error("%s", "Failed to move file.\n");
+		    error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
+		}
+
+		/* 3. Inspect the download_only config. If false, update right now. */
+		if (readBooleanFromFile(filename) == 0) {
+
+		    if (update_firmware(new_swu_path)) {
+		    	log_fw_error("Error updating firmware using package '%s' for target '%d'", new_swu_path, target);
 			error = CCAPI_FW_DATA_ERROR_INVALID_DATA;
 		    }
-		} else {
-			log_fw_debug("Not updating firmware, cc_config_download only is set to '%d'",
-					result);
+		} 
+		else {
+		    log_fw_debug("Not updating firmware, cc_config_download only is set to '%d'",result);
 		}
 	}
 
