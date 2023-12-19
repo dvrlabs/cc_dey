@@ -30,7 +30,7 @@
 /*------------------------------------------------------------------------------
                              D E F I N I T I O N S
 ------------------------------------------------------------------------------*/
-#define VERSION		"0.1" GIT_REVISION
+#define VERSION		"0.2" GIT_REVISION
 
 #define USAGE \
 	"Cloud Connector client.\n" \

@@ -866,7 +866,7 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 		/* 2. "mv" the file from swu_path to new_swu_path */
 
 		if (move_file(swu_path, new_swu_path) == 0) {
-		    log_fw_debug("Swu file moved successfully to: %s\n", newPath);
+		    log_fw_debug("Swu file moved successfully to: %s\n", new_swu_path);
 		}
 		else {
 		    log_fw_error("%s", "Failed to move file.\n");
@@ -882,7 +882,7 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 		    }
 		} 
 		else {
-		    log_fw_debug("Not updating firmware, cc_config_download only is set to '%d'",result);
+		    log_fw_debug("%s", "Not updating firmware, cc_config_download only is set to true. Or, error reading config file.");
 		}
 	}
 
