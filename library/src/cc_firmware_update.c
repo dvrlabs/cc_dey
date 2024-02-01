@@ -637,6 +637,7 @@ static ccapi_fw_data_error_t app_fw_data_cb(unsigned int const target, uint32_t 
 	int retval, loops = 0;
 
 	log_fw_debug("Received chunk: target=%d offset=0x%x length=%zu last_chunk=%d", target, offset, size, last_chunk);
+	log_fw_debug("TARGET: %d", target);
 
 	if (cc_cfg->dualboot && cc_cfg->on_the_fly) {
 		log_fw_debug("Get data package from Remote Manager %d", target);
@@ -820,6 +821,8 @@ static void app_fw_reset_cb(unsigned int const target, ccapi_bool_t *system_rese
 static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int target)
 {
 	ccapi_fw_data_error_t error = CCAPI_FW_DATA_ERROR_NONE;
+	
+	log_fw_debug("New update version: %s", cc_cfg->fw_version);
 
 	if (cc_cfg->dualboot) {
 		char cmd[CMD_BUFSIZE] = {0};
@@ -850,7 +853,7 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 		/* 0.  Setup some variables to use. */
 
 	        const char* filename = "/etc/cc_config_download_only.conf";
-		const char * new_swu_filename = "UPDATE.swu";
+		const char* new_swu_filename = "UPDATE.swu";
 		char new_swu_path[256];
 
 		/* 1.  Modify the absolute path + file to absolute path + new name */
@@ -883,6 +886,13 @@ static ccapi_fw_data_error_t process_swu_package(const char *swu_path, int targe
 		} 
 		else {
 		    log_fw_debug("%s", "Not updating firmware, cc_config_download only is set to true. Or, error reading config file.");
+		    log_fw_debug("%s", "Generating update information file.");
+		    int result = system("python3 /etc/create_update_info_file.py");
+		    if (result == -1) {
+			    log_fw_debug("%s", "Error! Update INFO file was not generated!");
+		    }
+			
+
 		}
 	}
 

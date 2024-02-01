@@ -165,7 +165,7 @@ enum fw_info {
     connector_status_t status = connector_idle;
     uint8_t const target = message_load_u8(fw_message, target);
 
-    connector_debug_line("Firmware Facility: process info request");
+    connector_debug_line("RCI FWSTUB.h: Firmware Facility: process info request");
     /* parse firmware info request
      *  -----------------
      * |   0    |    1   |
