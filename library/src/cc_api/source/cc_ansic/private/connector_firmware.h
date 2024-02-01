@@ -295,9 +295,7 @@ enum fw_info {
     connector_status_t result;
     uint8_t const target = message_load_u8(fw_message, target);
 
-    connector_debug_line("connector_firmware.h: Firmware Facility: process info request");
-
-    connector_firmware_info_t * firmware_info = &fw_ptr->target_info;
+    connector_debug_line("Firmware Facility: process info request");
 
     /* parse firmware info request
      *  -----------------
