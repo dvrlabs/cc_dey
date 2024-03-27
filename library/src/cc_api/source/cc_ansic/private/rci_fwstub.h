@@ -296,6 +296,9 @@ enum fw_download_response {
         message_store_u8(fw_download_response, target, target_number);
         message_store_u8(fw_download_response, response_type, connector_firmware_status_download_configured_to_reject);
 
+        uint32_t const version = message_load_be32(fw_download_request, version);
+        connector_debug_line("Incoming firmware version: %u", version);
+
         fw_ptr->response_size = record_bytes(fw_download_response);
 
         status = send_fw_message(fw_ptr);

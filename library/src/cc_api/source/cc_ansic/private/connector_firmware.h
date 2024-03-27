@@ -17,6 +17,8 @@
  * =======================================================================
  */
 
+#include <stdio.h>
+
 #define FW_ID_STRING_LENGTH     128  /* bytes */
 
 /* time to send target list to keep download alive */
@@ -377,6 +379,8 @@ enum fw_info {
         fw_info += record_bytes(fw_info);
 
         connector_debug_line("firmware description = %d %s %s", fw_ptr->desc_length, firmware_info->description, firmware_info->filespec);
+
+
         if (firmware_info->description != NULL)
         {
             memcpy(fw_info, firmware_info->description, fw_ptr->desc_length);
@@ -413,6 +417,18 @@ enum fw_info {
 done:
     return result;
 }
+
+connector_firmware_version_t decode_version(uint32_t encoded_version) {
+    connector_firmware_version_t version;
+
+    version.major = (encoded_version >> 24) & 0xFF;
+    version.minor = (encoded_version >> 16) & 0xFF;
+    version.revision = (encoded_version >> 8) & 0xFF;
+    version.build = encoded_version & 0xFF;
+
+    return version;
+}
+
 
 STATIC connector_status_t process_fw_download_request(connector_firmware_data_t * const fw_ptr, uint8_t * fw_download_request, uint16_t const length)
 {
@@ -463,6 +479,31 @@ enum fw_download_response {
     download_request.target_number = message_load_u8(fw_download_request, target);
 
     response_status.user_status = connector_firmware_status_device_error;
+
+    uint32_t const version = message_load_be32(fw_download_request, version);
+    connector_debug_line("Incoming firmware version (encoded): %u", version);
+    connector_firmware_version_t decoded_version = decode_version(version);
+
+    uint8_t majr = decoded_version.major;
+    uint8_t minr = decoded_version.minor;
+    uint8_t rvsn = decoded_version.revision;
+    uint8_t buld = decoded_version.build;
+
+    connector_debug_line("Incoming firmware version (actual) : %u.%u.%u.%u\n", majr, minr, rvsn, buld);
+
+
+    const char *filepath = "/mnt/update/UPDATE.info";
+
+    FILE *file = fopen(filepath, "w");
+    if (file == NULL) {
+        perror("Failed to open file");
+        return 1; 
+    }
+
+    fprintf(file, "%u.%u.%u.%u", majr, minr, rvsn, buld);
+    fclose(file);
+
+
     if (length < record_bytes(fw_download_request))
     {
         connector_debug_line("process_fw_download_request: invalid message length");
